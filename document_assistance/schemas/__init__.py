@@ -1,0 +1,1 @@
+"""Document assistant data schemas."""
