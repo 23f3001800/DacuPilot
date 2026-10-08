@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800" role="img" aria-labelledby="title desc">
+  <title id="title">DocuPilot application architecture</title>
+  <desc id="desc">The browser talks to FastAPI feature routes for spreadsheet analysis, document support, and document extraction. The features use shared language models, Google Document AI, Tavily, and local in-memory or file storage.</desc>
+  <defs>
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#302b20" flood-opacity=".16"/></filter>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#292929"/></marker>
+    <marker id="arrow-dash" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#414141"/></marker>
+    <style>
+      text{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;fill:#202124}
+      .title{font-size:27px;font-weight:750}.group{font-size:17px;font-weight:750}.head{font-size:14px;font-weight:700}.body{font-size:13px}.sub{font-size:11px;fill:#4b4b4b}
+      .zone{stroke:#555;stroke-width:1.4;stroke-dasharray:3 4}.card{stroke:#292929;stroke-width:1.2;filter:url(#shadow)}.arrow{fill:none;stroke:#292929;stroke-width:1.7;marker-end:url(#arrow)}.dash{fill:none;stroke:#414141;stroke-width:1.6;stroke-dasharray:7 6;marker-end:url(#arrow-dash)}
+    </style>
+  </defs>
+  <rect width="1280" height="800" fill="#fffefa"/>
+  <text class="title" x="640" y="43" text-anchor="middle">DocuPilot — Application Architecture</text>
+  <text class="sub" x="640" y="66" text-anchor="middle">Three workflows · shared provider configuration · consent-aware document processing</text>
+
+  <rect class="zone" x="35" y="112" width="195" height="510" rx="24" fill="#eef4e5"/>
+  <text class="group" x="132" y="143" text-anchor="middle">Client Interface</text>
+  <rect class="card" x="60" y="177" width="145" height="94" rx="12" fill="#d8e8c7"/>
+  <text class="head" x="132" y="207" text-anchor="middle">Browser UI</text><text class="body" x="132" y="229" text-anchor="middle">Single-page app</text><text class="sub" x="132" y="249" text-anchor="middle">Chat · uploads · results</text>
+  <rect class="card" x="60" y="318" width="145" height="94" rx="12" fill="#d8e8c7"/>
+  <text class="head" x="132" y="348" text-anchor="middle">User input</text><text class="body" x="132" y="370" text-anchor="middle">Question · conversation ID</text><text class="sub" x="132" y="390" text-anchor="middle">Workbook · document files</text>
+  <rect class="card" x="60" y="459" width="145" height="94" rx="12" fill="#d8e8c7"/>
+  <text class="head" x="132" y="489" text-anchor="middle">Response</text><text class="body" x="132" y="511" text-anchor="middle">SSE · cited answer</text><text class="sub" x="132" y="531" text-anchor="middle">Review · downloads</text>
+  <path class="arrow" d="M132 271V311"/><path class="dash" d="M132 459V418"/>
+
+  <rect class="zone" x="258" y="112" width="216" height="510" rx="24" fill="#eef4e5"/>
+  <text class="group" x="366" y="143" text-anchor="middle">FastAPI Layer</text>
+  <rect class="card" x="284" y="178" width="164" height="84" rx="12" fill="#d8e8c7"/>
+  <text class="head" x="366" y="210" text-anchor="middle">Root application</text><text class="body" x="366" y="234" text-anchor="middle">Router mounting · health</text>
+  <rect class="card" x="284" y="301" width="164" height="76" rx="12" fill="#d8e8c7"/>
+  <text class="head" x="366" y="330" text-anchor="middle">Feature routes</text><text class="body" x="366" y="352" text-anchor="middle">Chat · upload · process</text>
+  <rect class="card" x="284" y="416" width="164" height="76" rx="12" fill="#d8e8c7"/>
+  <text class="head" x="366" y="445" text-anchor="middle">Validation</text><text class="body" x="366" y="467" text-anchor="middle">Sessions · file constraints</text>
+  <path class="arrow" d="M366 262V294"/><path class="arrow" d="M366 377V409"/>
+  <path class="arrow" d="M230 340H276"/><path class="dash" d="M284 454H238V506H212"/>
+
+  <rect class="zone" x="503" y="112" width="420" height="510" rx="24" fill="#fff2c9"/>
+  <text class="group" x="713" y="143" text-anchor="middle">Application Workflows</text>
+  <rect class="card" x="530" y="178" width="366" height="110" rx="13" fill="#ffc13d"/>
+  <text class="head" x="713" y="207" text-anchor="middle">Spreadsheet Data Agent</text><text class="body" x="713" y="231" text-anchor="middle">LangGraph · workbook schema · Pandas tools</text><text class="sub" x="713" y="255" text-anchor="middle">Optional Tavily search · live chat events</text>
+  <rect class="card" x="530" y="320" width="366" height="110" rx="13" fill="#ffc13d"/>
+  <text class="head" x="713" y="349" text-anchor="middle">Document Assistant</text><text class="body" x="713" y="373" text-anchor="middle">BM25-style retrieval · conversation state</text><text class="sub" x="713" y="397" text-anchor="middle">Knowledge base · session-scoped uploads · citations</text>
+  <rect class="card" x="530" y="462" width="366" height="110" rx="13" fill="#ffc13d"/>
+  <text class="head" x="713" y="491" text-anchor="middle">Document Intelligence</text><text class="body" x="713" y="515" text-anchor="middle">Page segmentation · OCR · typed extraction</text><text class="sub" x="713" y="539" text-anchor="middle">Confidence scoring · review report · exports</text>
+  <path class="arrow" d="M448 337H485V233H522"/><path class="arrow" d="M485 375H522"/><path class="arrow" d="M485 375V517H522"/>
+
+  <rect class="zone" x="951" y="112" width="294" height="510" rx="24" fill="#e2efff"/>
+  <text class="group" x="1098" y="143" text-anchor="middle">Shared Services</text>
+  <rect class="card" x="978" y="178" width="240" height="93" rx="12" fill="#91bee9"/>
+  <text class="head" x="1098" y="207" text-anchor="middle">LLM provider factory</text><text class="body" x="1098" y="231" text-anchor="middle">Gemini · Azure OpenAI-compatible</text><text class="sub" x="1098" y="251" text-anchor="middle">Shared selection and fallback</text>
+  <rect class="card" x="978" y="308" width="240" height="83" rx="12" fill="#91bee9"/>
+  <text class="head" x="1098" y="340" text-anchor="middle">Google Document AI</text><text class="body" x="1098" y="364" text-anchor="middle">OCR for Document Intelligence</text>
+  <rect class="card" x="978" y="428" width="240" height="83" rx="12" fill="#91bee9"/>
+  <text class="head" x="1098" y="460" text-anchor="middle">Tavily search</text><text class="body" x="1098" y="484" text-anchor="middle">Optional Data Agent tool</text>
+  <path class="dash" d="M896 233H968"/><path class="dash" d="M896 375H936V224H968"/><path class="dash" d="M896 517H938V349H968"/><path class="dash" d="M896 255H923V470H968"/>
+
+  <rect class="zone" x="258" y="651" width="987" height="105" rx="22" fill="#f9e1dc"/>
+  <text class="group" x="752" y="680" text-anchor="middle">Session State &amp; Artifacts</text>
+  <rect class="card" x="291" y="698" width="246" height="40" rx="10" fill="#ead8f4"/>
+  <text class="body" x="414" y="723" text-anchor="middle">LangGraph conversation checkpoints</text>
+  <rect class="card" x="628" y="698" width="246" height="40" rx="10" fill="#ead8f4"/>
+  <text class="body" x="751" y="723" text-anchor="middle">In-memory session documents</text>
+  <rect class="card" x="965" y="698" width="246" height="40" rx="10" fill="#ead8f4"/>
+  <text class="body" x="1088" y="723" text-anchor="middle">Local JSON · review · Excel outputs</text>
+  <path class="dash" d="M713 572V642"/><path class="dash" d="M713 430V642"/>
+  <text class="sub" x="42" y="685">Dashed connectors indicate shared/external dependencies</text>
+</svg>

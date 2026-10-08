@@ -6,7 +6,7 @@ Gemini/Azure OpenAI-compatible model configuration, and a single browser UI.
 
 ## Architecture
 
-![DocuPilot platform architecture](docs/images/datapilot-architecture.svg)
+![DocuPilot platform architecture](docs/images/platform-architecture.svg)
 
 ## Features
 
@@ -18,7 +18,7 @@ Pandas-backed analysis, and optionally search the web with Tavily. Replies are
 streamed to the browser using server-sent events. Uploading another workbook
 replaces the active dataset for the application.
 
-![Spreadsheet Data Agent request and streaming flow](docs/images/data-agent-flow.svg)
+![Spreadsheet Data Agent request and streaming flow](docs/images/spreadsheet-agent.svg)
 
 ### Document Assistant
 
@@ -43,7 +43,7 @@ Processing requires explicit consent before pages are sent to configured
 external OCR and AI providers. Extracted information is not independently
 verified and must be reviewed before use.
 
-![Document Intelligence processing flow](docs/images/document-intelligence-flow.svg)
+![Document Intelligence processing flow](docs/images/document-processing.svg)
 
 ## Quick start
 
