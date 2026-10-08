@@ -70,7 +70,6 @@ class DocumentAssistantApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("Nimbus Orchard Technologies Company Handbook", response.text)
-        self.assertIn("What is the annual leave entitlement?", response.text)
         self.assertNotIn('id="document-assistant-files"', response.text)
         self.assertNotIn('id="document-assistant-consent"', response.text)
         self.assertNotIn('id="document-assistant-attach"', response.text)
@@ -165,6 +164,33 @@ class DocumentAssistantApiTests(unittest.TestCase):
         self.assertEqual(response.json()["removed_chunks"], 1)
         self.assertEqual(store.get_session_evidence(self.session_id), [])
         self.assertTrue(response.json()["conversation_cleared"])
+
+    def test_greeting_sync_endpoint_returns_suggestions(self):
+        response = self.client.post(
+            "/api/document-assistant/chat",
+            json={
+                "message": "hello",
+                "thread_id": self.session_id,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("Hello! I am DocuPilot's Document Assistant", data["answer"])
+        self.assertIn("What happens when confidence is low?", data["answer"])
+        self.assertEqual(data["topic"], "Greeting")
+        self.assertLess(data["latency_ms"], 50)
+
+    def test_greeting_stream_endpoint_returns_suggestions(self):
+        response = self.client.post(
+            "/api/document-assistant/chat/stream",
+            json={
+                "message": "hi there",
+                "thread_id": self.session_id,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("What happens when confidence is low?", response.text)
+        self.assertIn("What is the privacy policy regarding user data and retention?", response.text)
 
 
 if __name__ == "__main__":

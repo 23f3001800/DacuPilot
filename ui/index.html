@@ -97,7 +97,7 @@
     .panel { padding: 20px; border: 1px solid var(--line); border-radius: 14px; background: #fff; box-shadow: 0 5px 20px #101d4708; }
     .panel h2 { margin: 0 0 6px; color: #182b58; font-size: 16px; }
     .panel p { color: #667085; font-size: 12px; line-height: 1.5; }
-    .chat-layout { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 16px; }
+    .chat-layout { display: grid; grid-template-columns: 1fr; gap: 16px; }
     .chat-panel { min-height: 470px; display: flex; flex-direction: column; padding: 0; overflow: hidden; }
     .chat-top { padding: 15px 18px; border-bottom: 1px solid var(--line); }
     .chat-top strong { color: #25345a; font-size: 13px; }
@@ -275,7 +275,7 @@
       <h2 class="section-heading">Explore Our Capabilities</h2><p class="section-sub">Choose a module to get started. Each module supports a different part of your document and data journey.</p>
       <section class="cards">
         <article class="capability blue"><div class="cap-head"><div class="cap-icon">▦</div><h3>Data Agent</h3></div><p class="cap-copy">Ask questions about Excel files in natural language. Get insights, summaries, and answers.</p><ul class="checks"><li>Ask questions about your data</li><li>Get summaries and insights</li><li>Explore trends and patterns</li></ul><button class="cta" data-go="data-agent">Go to Data Agent &nbsp; →</button></article>
-        <article class="capability purple"><div class="cap-head"><div class="cap-icon">▣</div><h3>Document Assistant</h3></div><p class="cap-copy">Ask cited questions about the company handbook.</p><ul class="checks"><li>Explore handbook policies and company information</li><li>Answers cite source pages and sections</li><li>Pre-loaded knowledge base, no uploads needed</li></ul><button class="cta" data-go="document-assistant">Go to Document Assistant &nbsp; →</button></article>
+        <article class="capability purple"><div class="cap-head"><div class="cap-icon">▣</div><h3>Document Assistant</h3></div><p class="cap-copy">Ask cited questions about the Nimbus Orchard Technologies Company Handbook.</p><ul class="checks"><li>Explore handbook policies and company information</li><li>Answers cite source pages and sections</li><li>Pre-loaded knowledge base, no uploads needed</li></ul><button class="cta" data-go="document-assistant">Go to Document Assistant &nbsp; →</button></article>
         <article class="capability green"><div class="cap-head"><div class="cap-icon">▤</div><h3>Document Intelligence</h3></div><p class="cap-copy">Classify documents and extract structured data with field-level confidence and review flags.</p><ul class="checks"><li>Document classification</li><li>Extract key fields</li><li>Review uncertain handwriting</li></ul><button class="cta" data-go="document-intelligence">Go to Document Intelligence &nbsp; →</button></article>
       </section>
       <div class="assurance">Built for real-world document challenges</div><div class="badges"><span class="badge">♧ &nbsp;Review aware</span><span class="badge">ϟ &nbsp;Fast</span><span class="badge">▱ &nbsp;Traceable</span><span class="badge">✦ &nbsp;AI-Powered</span></div>`;
@@ -286,14 +286,10 @@
       const title = isData ? "Data Agent" : "Document Assistant";
       const description = isData
         ? "Ask questions about the active workbook. The agent can calculate from the data and look up external context."
-        : "Ask about the Nimbus Orchard Technologies company handbook. Answers cite the source page or section.";
-      const hints = isData
-        ? ["Which product has the most stock?", "Which product has the highest inventory value?", "How many products are listed?"]
-        : ["What is the annual leave entitlement?", "Which days are core collaboration days?", "What is the price of the Sprout plan?"];
+        : "Ask about company documentation and policies. Answers cite the source page or section.";
       return `<h1 class="page-title">${title}</h1><p class="page-description">${description}</p>
         ${isData ? `<form id="excel-upload-form" class="panel workbook-upload-panel"><div class="workbook-upload-controls"><label for="excel-file"><strong>Use your own workbook</strong></label><input class="file-input" id="excel-file" name="file" type="file" accept=".xlsx,.xlsm"><button class="primary-button" id="excel-upload-button" type="submit">Upload Excel</button></div><p id="excel-upload-status" class="hint" role="status">Using the default inventory workbook. Choose a file to upload it automatically.</p></form>` : ""}
-        <div class="chat-layout"><section class="panel chat-panel"><div class="chat-top"><strong>${title} chat</strong><span>● Ready</span></div><div class="chat-messages" id="chat-messages" role="log" aria-live="polite"></div><form class="chat-form" id="chat-form"><textarea id="chat-input" rows="1" placeholder="Type your question…" aria-label="Your question" required></textarea><button class="primary-button" id="chat-send" type="submit">Send</button></form></section>
-        <aside class="panel prompt-panel"><h2>Try asking</h2><p>Choose a suggestion or write your own question.</p><div class="prompt-list">${hints.map(hint => `<button class="prompt-button" type="button">${escapeHtml(hint)}</button>`).join("")}</div><div ${isData ? 'id="excel-data-source"' : ""} style="margin-top:18px;padding-top:13px;border-top:1px solid #edf0f5;color:#667085;font-size:10px;line-height:1.5">${isData ? "Data source: Inventory Records Sample Data" : "Application knowledge: Nimbus Orchard Technologies Company Handbook"}</div></aside></div>`;
+        <div class="chat-layout"><section class="panel chat-panel"><div class="chat-top"><strong>${title} chat</strong><span>● Ready</span></div><div class="chat-messages" id="chat-messages" role="log" aria-live="polite"></div><form class="chat-form" id="chat-form"><textarea id="chat-input" rows="1" placeholder="Type your question…" aria-label="Your question" required></textarea><button class="primary-button" id="chat-send" type="submit">Send</button></form></section></div>`;
     }
 
     function intelligencePage() {
@@ -436,7 +432,14 @@
       controls.button.disabled = true;
       controls.button.textContent = "…";
       const answer = addChatMessage(controls.messages, "", "assistant");
-      answer.innerHTML = `<span class="chat-step"><span class="chat-spinner"></span>Thinking…</span>`;
+      const textContainer = document.createElement("div");
+      textContainer.className = "bubble-text";
+      textContainer.innerHTML = `<span class="chat-step"><span class="chat-spinner"></span>Thinking…</span>`;
+      const metaContainer = document.createElement("div");
+      metaContainer.className = "bubble-meta";
+      metaContainer.style.cssText = "margin-top:8px;";
+      answer.replaceChildren(textContainer, metaContainer);
+
       try {
         const streamUrl = mode === "document-assistant"
           ? "/api/document-assistant/chat/stream"
@@ -452,6 +455,16 @@
         let buffer = "";
         let receivedToken = false;
         let lastLatencyMs = null;
+        let lastEvaluation = null;
+        const reqStartTime = performance.now();
+        let liveTimer = null;
+
+        function updateLiveLatency() {
+          const elapsed = Math.round(performance.now() - reqStartTime);
+          metaContainer.innerHTML = `<div style="font-size:11px;color:#dc2626;font-weight:700;display:inline-flex;align-items:center;gap:4px;"><span>⚡</span> Latency: <strong>${elapsed} ms</strong></div>`;
+        }
+        liveTimer = setInterval(updateLiveLatency, 80);
+
         while (true) {
           const { value, done } = await reader.read();
           buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
@@ -465,21 +478,25 @@
             try { payload = JSON.parse(line.slice(6)); } catch (_) { continue; }
             if (payload.event === "status") {
               if (!receivedToken) {
-                answer.innerHTML = `<span class="chat-step"><span class="chat-spinner"></span>${escapeHtml(payload.text)}</span>`;
+                textContainer.innerHTML = `<span class="chat-step"><span class="chat-spinner"></span>${escapeHtml(payload.text)}</span>`;
               }
             }
             if (payload.event === "tool_start") {
               if (!receivedToken) {
-                answer.innerHTML = `<span class="chat-step"><span class="chat-spinner"></span>Running ${escapeHtml(payload.tool || "tool")}…</span>`;
+                textContainer.innerHTML = `<span class="chat-step"><span class="chat-spinner"></span>Running ${escapeHtml(payload.tool || "tool")}…</span>`;
               }
             }
             if (payload.event === "token") {
-              if (!receivedToken) answer.textContent = "";
+              if (!receivedToken) textContainer.textContent = "";
               receivedToken = true;
-              answer.textContent += payload.text;
+              textContainer.textContent += payload.text;
             }
             if (payload.event === "final_answer") {
-              answer.textContent = payload.text;
+              textContainer.textContent = payload.text;
+            }
+            if (payload.event === "evaluation" || payload.event === "metrics_evaluation") {
+              lastEvaluation = payload;
+              console.log("[DocuPilot Evaluation Matrix]", mode, payload);
             }
             if (payload.event === "latency" && payload.total_ms) {
               lastLatencyMs = payload.total_ms;
@@ -490,13 +507,27 @@
           }
           if (done) break;
         }
-        if (lastLatencyMs) {
-          const latBadge = document.createElement("div");
-          latBadge.className = "chat-latency";
-          latBadge.style.cssText = "font-size:11px;color:#94a3b8;margin-top:6px;display:flex;align-items:center;gap:4px;";
-          latBadge.innerHTML = `<span style="color:#10b981;">⚡</span> Response generated in ${lastLatencyMs} ms`;
-          answer.appendChild(latBadge);
+        clearInterval(liveTimer);
+        const finalLatency = lastLatencyMs || Math.round(performance.now() - reqStartTime);
+        let badgeHtml = `<div class="chat-evaluation-badge" style="font-size:12px;padding:6px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;display:inline-flex;flex-wrap:wrap;align-items:center;gap:10px;"><span style="display:inline-flex;align-items:center;gap:4px;color:#dc2626;font-weight:700;"><span style="color:#dc2626;">⚡</span> Latency: <strong style="color:#dc2626;">${finalLatency} ms</strong></span>`;
+
+        if (lastEvaluation) {
+          const p = lastEvaluation.payload || lastEvaluation;
+          const conf = lastEvaluation.confidence_score !== undefined
+            ? lastEvaluation.confidence_score
+            : (p.confidence_score !== undefined ? p.confidence_score : (p.evaluation_metrics && p.evaluation_metrics.confidence_score));
+          if (conf !== undefined && conf !== null) {
+            const confPct = Math.round(conf * 100);
+            const confColor = confPct >= 85 ? "#027a48" : (confPct >= 60 ? "#b54708" : "#dc2626");
+            badgeHtml += `<span style="color:#94a3b8;">|</span><span style="display:inline-flex;align-items:center;gap:4px;color:${confColor};font-weight:700;"><span>🎯</span> Confidence: <strong>${confPct}%</strong></span>`;
+          }
+          const rat = p.evaluation_rationale || (p.evaluation_metrics && p.evaluation_metrics.evaluation_rationale);
+          if (rat) {
+            badgeHtml += `<span style="color:#94a3b8;">|</span><details style="display:inline;cursor:pointer;"><summary style="font-size:11px;color:#475467;outline:none;display:inline;font-weight:600;">rationale</summary><div style="font-size:11px;color:#344054;margin-top:6px;line-height:1.4;background:#fff;padding:8px 10px;border-radius:6px;border:1px solid #e4e9f2;max-width:550px;white-space:normal;">${escapeHtml(rat)}</div></details>`;
+          }
         }
+        badgeHtml += `</div>`;
+        metaContainer.innerHTML = badgeHtml;
       } catch (error) {
         answer.classList.add("error");
         answer.textContent = error.message || "Could not reach the assistant.";
@@ -625,7 +656,7 @@
       const review = result.review_report || {};
       const evalMatrices = result.evaluation_matrices || {};
       const latencyVal = result.total_latency_ms || result.latency_ms;
-      const latencyBadge = latencyVal ? `<span style="display:inline-block;padding:2px 8px;background:#ecfdf5;color:#059669;border-radius:9999px;font-size:12px;font-weight:600;margin-left:8px;">⚡ ${latencyVal} ms</span>` : "";
+      const latencyBadge = latencyVal ? `<span style="display:inline-block;padding:2px 8px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:9999px;font-size:12px;font-weight:600;margin-left:8px;">⚡ ${latencyVal} ms</span>` : "";
 
       let evalSection = "";
       if (evalMatrices.quality || evalMatrices.throughput || evalMatrices.routing) {
@@ -645,8 +676,8 @@
             <div style="background:#f8fafc;padding:12px;border-radius:8px;border:1px solid #e2e8f0;">
               <strong style="color:#1e293b;font-size:13px;display:block;margin-bottom:6px;">⚡ Throughput Matrix</strong>
               <div style="font-size:12px;color:#475569;line-height:1.6;">
-                <div>Total Pipeline Time: <b>${t.total_ms || latencyVal || 0} ms</b></div>
-                <div>Avg Per Page: <b>${t.avg_ms_per_page || 0} ms</b></div>
+                <div>Total Pipeline Time: <b style="color:#dc2626;">${t.total_ms || latencyVal || 0} ms</b></div>
+                <div>Avg Per Page: <b style="color:#dc2626;">${t.avg_ms_per_page || 0} ms</b></div>
                 <div>Pages / Sec: <b>${t.pages_per_second || 0}</b></div>
               </div>
             </div>
@@ -697,7 +728,7 @@
         const time = new Date().toLocaleTimeString([], { hour12: false, minute: "2-digit", second: "2-digit" });
         const item = document.createElement("div");
         item.className = "progress-log-item";
-        const latBadge = latencyMs ? `<span style="margin-left:auto;color:#10b981;font-size:11px;font-family:monospace;">+${latencyMs}ms</span>` : "";
+        const latBadge = latencyMs ? `<span style="margin-left:auto;color:#ef4444;font-size:11px;font-family:monospace;">+${latencyMs}ms</span>` : "";
         item.innerHTML = `<span class="progress-log-time">${time}</span><span style="flex:1;">${escapeHtml(msg)}</span>${latBadge}`;
         progressLog.appendChild(item);
         progressLog.scrollTop = progressLog.scrollHeight;

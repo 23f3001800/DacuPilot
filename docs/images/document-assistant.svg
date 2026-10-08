@@ -1,0 +1,169 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800" role="img" aria-labelledby="title desc">
+  <title id="title">Document Assistant — Conversational Retrieval &amp; Grounding Pipeline</title>
+  <desc id="desc">Multi-turn conversational retrieval pipeline showing dynamic query optimization, coreference resolution, adaptive scope routing, Okapi BM25 engine with section boosting, citation validation, evaluation metrics, and real-time SSE streaming.</desc>
+  <defs>
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#302b20" flood-opacity=".16"/></filter>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#292929"/></marker>
+    <marker id="arrow-dash" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#414141"/></marker>
+    <style>
+      text{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;fill:#202124}
+      .title{font-size:25px;font-weight:750}.group{font-size:15px;font-weight:750}.head{font-size:13.5px;font-weight:700}.body{font-size:11.5px}.sub{font-size:10.5px;fill:#4b4b4b}
+      .zone{stroke:#555;stroke-width:1.4;stroke-dasharray:3 4}.card{stroke:#292929;stroke-width:1.2;filter:url(#shadow)}.arrow{fill:none;stroke:#292929;stroke-width:1.7;marker-end:url(#arrow)}.dash{fill:none;stroke:#414141;stroke-width:1.6;stroke-dasharray:7 6;marker-end:url(#arrow-dash)}
+    </style>
+  </defs>
+  <rect width="1280" height="800" fill="#fffefa"/>
+  <text class="title" x="640" y="38" text-anchor="middle">Document Assistant — Grounded Conversational Retrieval Pipeline</text>
+  <text class="sub" x="640" y="60" text-anchor="middle">Dynamic Query Optimizer · Coreference Resolution · Adaptive Scope Router · Okapi BM25 · Citation Validator · Evaluation &amp; Telemetry</text>
+
+  <!-- 1. Knowledge Base & Session Upload Sources (Top Zone) -->
+  <rect class="zone" x="40" y="86" width="1200" height="150" rx="20" fill="#f5f0fa"/>
+  <text class="group" x="640" y="112" text-anchor="middle">Domain-Agnostic Knowledge Sources &amp; In-Memory Evidence</text>
+  
+  <rect class="card" x="70" y="130" width="260" height="86" rx="12" fill="#e3d2f5"/>
+  <text class="head" x="200" y="155" text-anchor="middle">Application Knowledge Base</text>
+  <text class="body" x="200" y="174" text-anchor="middle">`knowledge_base/*.pdf|docx|txt`</text>
+  <text class="sub" x="200" y="192" text-anchor="middle">Authoritative policy &amp; handbook source</text>
+  <text class="sub" x="200" y="206" text-anchor="middle">Dynamic topic &amp; section extraction</text>
+
+  <rect class="card" x="380" y="130" width="260" height="86" rx="12" fill="#e3d2f5"/>
+  <text class="head" x="510" y="155" text-anchor="middle">Session User Uploads</text>
+  <text class="body" x="510" y="174" text-anchor="middle">Isolated in-memory document store</text>
+  <text class="sub" x="510" y="192" text-anchor="middle">UUID thread-scoped · Max 20 MB / 10 files</text>
+  <text class="sub" x="510" y="206" text-anchor="middle">Untrusted evidence · Never executes</text>
+
+  <rect class="card" x="690" y="130" width="260" height="86" rx="12" fill="#e3d2f5"/>
+  <text class="head" x="820" y="155" text-anchor="middle">Dynamic Topic Registry</text>
+  <text class="body" x="820" y="174" text-anchor="middle">Self-adapting vocabulary index</text>
+  <text class="sub" x="820" y="192" text-anchor="middle">Zero hardcoding · Works with ANY docs</text>
+  <text class="sub" x="820" y="206" text-anchor="middle">Learns headings at runtime on ingestion</text>
+
+  <rect class="card" x="990" y="130" width="220" height="86" rx="12" fill="#e3d2f5"/>
+  <text class="head" x="1100" y="155" text-anchor="middle">In-Session Query Cache</text>
+  <text class="body" x="1100" y="174" text-anchor="middle">Thread-safe LRU cache</text>
+  <text class="sub" x="1100" y="192" text-anchor="middle">Sub-millisecond instant hit (≤0.5 ms)</text>
+  <text class="sub" x="1100" y="206" text-anchor="middle">Auto-evicted on session reset/upload</text>
+
+  <!-- 2. Client & Conversational Session (Left Column) -->
+  <rect class="zone" x="40" y="256" width="250" height="495" rx="20" fill="#eef4e5"/>
+  <text class="group" x="165" y="284" text-anchor="middle">Client &amp; Dialogue State</text>
+
+  <rect class="card" x="65" y="306" width="200" height="96" rx="12" fill="#d8e8c7"/>
+  <text class="head" x="165" y="332" text-anchor="middle">User Message</text>
+  <text class="body" x="165" y="352" text-anchor="middle">Multi-turn conversational input</text>
+  <text class="sub" x="165" y="370" text-anchor="middle">Follow-ups ("it", "that document")</text>
+  <text class="sub" x="165" y="386" text-anchor="middle">Topic switches &amp; policy queries</text>
+
+  <rect class="card" x="65" y="422" width="200" height="110" rx="12" fill="#d8e8c7"/>
+  <text class="head" x="165" y="446" text-anchor="middle">LangGraph Memory Saver</text>
+  <text class="body" x="165" y="466" text-anchor="middle">State: `messages`, `topic`</text>
+  <text class="sub" x="165" y="484" text-anchor="middle">`session_summary`, `last_scope`</text>
+  <text class="sub" x="165" y="500" text-anchor="middle">Preserves multi-turn state</text>
+  <text class="sub" x="165" y="516" text-anchor="middle">Checkpointed by thread_id</text>
+
+  <rect class="card" x="65" y="552" width="200" height="180" rx="12" fill="#d8e8c7"/>
+  <text class="head" x="165" y="576" text-anchor="middle">UI Chat Streaming</text>
+  <text class="body" x="165" y="596" text-anchor="middle">Server-Sent Events (SSE)</text>
+  <text class="sub" x="165" y="616" text-anchor="middle">● Step indicator ("Searching...")</text>
+  <text class="sub" x="165" y="634" text-anchor="middle">● Markdown token streaming</text>
+  <text class="sub" x="165" y="652" text-anchor="middle">● Verified source citations</text>
+  <text class="sub" x="165" y="670" text-anchor="middle">● ⚡ Latency badge (ms)</text>
+  <text class="sub" x="165" y="688" text-anchor="middle">● 🎯 Confidence score badge (%)</text>
+  <text class="sub" x="165" y="706" text-anchor="middle">● Console evaluation telemetry</text>
+
+  <!-- 3. Query Optimization & Security Guardrail (Center-Left Column) -->
+  <rect class="zone" x="310" y="256" width="310" height="495" rx="20" fill="#fff4e0"/>
+  <text class="group" x="465" y="284" text-anchor="middle">Guardrails &amp; Query Optimizer</text>
+
+  <rect class="card" x="330" y="306" width="270" height="106" rx="12" fill="#ffe2b3"/>
+  <text class="head" x="465" y="330" text-anchor="middle">Security Guardrail Inspection</text>
+  <text class="body" x="465" y="350" text-anchor="middle">Jailbreak &amp; Override Detection</text>
+  <text class="sub" x="465" y="368" text-anchor="middle">Blocks DAN / developer mode / system leaks</text>
+  <text class="sub" x="465" y="384" text-anchor="middle">Strips &lt;system&gt; &amp; &lt;/retrieved_evidence&gt;</text>
+  <text class="sub" x="465" y="400" text-anchor="middle">OWASP LLM01 prompt injection shield</text>
+
+  <rect class="card" x="330" y="432" width="270" height="154" rx="12" fill="#ffe2b3"/>
+  <text class="head" x="465" y="456" text-anchor="middle">Dynamic Query Optimizer</text>
+  <text class="body" x="465" y="476" text-anchor="middle">1. Conversational noise stripping</text>
+  <text class="sub" x="465" y="494" text-anchor="middle">Removes filler preambles ("Can you tell me")</text>
+  <text class="body" x="465" y="512" text-anchor="middle">2. Coreference resolution</text>
+  <text class="sub" x="465" y="530" text-anchor="middle">Resolves "it", "that document", "his age"</text>
+  <text class="sub" x="465" y="546" text-anchor="middle">Carries forward salient entities from history</text>
+  <text class="body" x="465" y="564" text-anchor="middle">3. Topic-switching protection</text>
+  <text class="sub" x="465" y="578" text-anchor="middle">Zero contamination on new topic shifts</text>
+
+  <rect class="card" x="330" y="606" width="270" height="126" rx="12" fill="#ffe2b3"/>
+  <text class="head" x="465" y="630" text-anchor="middle">Adaptive Scope Router</text>
+  <text class="body" x="465" y="650" text-anchor="middle">Knowledge Route Determination</text>
+  <text class="sub" x="465" y="668" text-anchor="middle">→ `application`: Handbook &amp; company policy</text>
+  <text class="sub" x="465" y="684" text-anchor="middle">→ `user`: Uploaded files in session</text>
+  <text class="sub" x="465" y="700" text-anchor="middle">→ `mixed`: Policy compliance comparison</text>
+  <text class="sub" x="465" y="716" text-anchor="middle">Tracks `last_scope` across dialogue turns</text>
+
+  <!-- 4. Okapi BM25 Retrieval Engine (Center-Right Column) -->
+  <rect class="zone" x="640" y="256" width="310" height="495" rx="20" fill="#e8f4fc"/>
+  <text class="group" x="795" y="284" text-anchor="middle">Search &amp; Okapi BM25 Engine</text>
+
+  <rect class="card" x="660" y="306" width="270" height="136" rx="12" fill="#cde7fa"/>
+  <text class="head" x="795" y="330" text-anchor="middle">Okapi BM25 Ranking Engine</text>
+  <text class="body" x="795" y="350" text-anchor="middle">Robertson-Spärck Jones IDF Formula</text>
+  <text class="sub" x="795" y="370" text-anchor="middle">Term saturation: k1 = 1.5</text>
+  <text class="sub" x="795" y="388" text-anchor="middle">Length normalization: b = 0.75 (avgdl)</text>
+  <text class="sub" x="795" y="406" text-anchor="middle">Candidate document frequency indexing</text>
+  <text class="sub" x="795" y="424" text-anchor="middle">Stemming &amp; suffix normalization</text>
+
+  <rect class="card" x="660" y="462" width="270" height="120" rx="12" fill="#cde7fa"/>
+  <text class="head" x="795" y="486" text-anchor="middle">Relevance &amp; Header Boosts</text>
+  <text class="body" x="795" y="506" text-anchor="middle">2.5× Section &amp; Title Weighting</text>
+  <text class="sub" x="795" y="524" text-anchor="middle">Matches against section headers/filenames</text>
+  <text class="body" x="795" y="542" text-anchor="middle">+1.5 Bigram &amp; Phrase Match Bonus</text>
+  <text class="sub" x="795" y="560" text-anchor="middle">Consecutive query token alignment</text>
+  <text class="sub" x="795" y="574" text-anchor="middle">+2.0 Query Coverage Ratio Bonus</text>
+
+  <rect class="card" x="660" y="602" width="270" height="130" rx="12" fill="#cde7fa"/>
+  <text class="head" x="795" y="626" text-anchor="middle">Relevance Filter &amp; Dual Authority</text>
+  <text class="body" x="795" y="646" text-anchor="middle">Relative Score Threshold</text>
+  <text class="sub" x="795" y="664" text-anchor="middle">Filters chunks &lt; 30% of top BM25 score</text>
+  <text class="sub" x="795" y="680" text-anchor="middle">Mixed Scope Guarantee: Retains top</text>
+  <text class="sub" x="795" y="696" text-anchor="middle">policy AND user evidence for comparison</text>
+  <text class="sub" x="795" y="712" text-anchor="middle">Outputs top-5 ranked evidence chunks</text>
+
+  <!-- 5. Grounded Generation, Citations & Evaluation (Right Column) -->
+  <rect class="zone" x="970" y="256" width="270" height="495" rx="20" fill="#fae8e8"/>
+  <text class="group" x="1105" y="284" text-anchor="middle">Grounding, LLM &amp; Evals</text>
+
+  <rect class="card" x="990" y="306" width="230" height="126" rx="12" fill="#f8cfcf"/>
+  <text class="head" x="1105" y="330" text-anchor="middle">Multi-Provider LLM</text>
+  <text class="body" x="1105" y="350" text-anchor="middle">OpenAI / Gemini / Azure</text>
+  <text class="sub" x="1105" y="368" text-anchor="middle">Strict evidence constraint: answer only</text>
+  <text class="sub" x="1105" y="384" text-anchor="middle">from retrieved blocks [E1], [E2]</text>
+  <text class="sub" x="1105" y="400" text-anchor="middle">Untrusted source text boundary</text>
+  <text class="sub" x="1105" y="416" text-anchor="middle">Hardened anti-override directives</text>
+
+  <rect class="card" x="990" y="452" width="230" height="130" rx="12" fill="#f8cfcf"/>
+  <text class="head" x="1105" y="476" text-anchor="middle">Citation &amp; Grounding Validator</text>
+  <text class="body" x="1105" y="496" text-anchor="middle">Evidence Integrity Enforcement</text>
+  <text class="sub" x="1105" y="514" text-anchor="middle">Converts [E1] → `Source: [file — section]`</text>
+  <text class="sub" x="1105" y="530" text-anchor="middle">Strips hallucinated/unverified citation tags</text>
+  <text class="body" x="1105" y="548" text-anchor="middle">Insufficient Evidence Detection</text>
+  <text class="sub" x="1105" y="564" text-anchor="middle">Explicit refusal if evidence is missing</text>
+
+  <rect class="card" x="990" y="602" width="230" height="130" rx="12" fill="#f8cfcf"/>
+  <text class="head" x="1105" y="626" text-anchor="middle">Evaluation &amp; Telemetry</text>
+  <text class="body" x="1105" y="646" text-anchor="middle">Real-time Quality Telemetry</text>
+  <text class="sub" x="1105" y="664" text-anchor="middle">🎯 Confidence Score (0.0 to 1.0)</text>
+  <text class="sub" x="1105" y="680" text-anchor="middle">⚡ Multi-stage latency tracking (ms)</text>
+  <text class="sub" x="1105" y="696" text-anchor="middle">Retrieved chunk count &amp; source scope</text>
+  <text class="sub" x="1105" y="712" text-anchor="middle">Logged to console &amp; UI chat badge</text>
+
+  <!-- Connective Arrows -->
+  <path class="arrow" d="M265 354H330"/>
+  <path class="arrow" d="M600 354H660"/>
+  <path class="arrow" d="M930 354H990"/>
+  <path class="arrow" d="M600 500H660"/>
+  <path class="arrow" d="M930 500H990"/>
+  <path class="arrow" d="M990 660H930"/>
+  <path class="arrow" d="M660 660H600"/>
+  <path class="arrow" d="M330 660H265"/>
+  <path class="dash" d="M200 216V256"/>
+  <path class="dash" d="M510 216V256"/>
+</svg>

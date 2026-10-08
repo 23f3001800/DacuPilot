@@ -12,10 +12,23 @@ class KnowledgeSection:
     source: str
     section: str
     text: str
+    page: str = ""
 
     @property
     def citation(self) -> str:
         return f"{self.source} — {self.section}"
+
+
+def detect_section_heading(text: str) -> str | None:
+    """Detect structured section headers from page text."""
+    for line in text.splitlines():
+        line = line.strip()
+        m = re.match(r"^(?:[0-9]+[\.\)]\s+)?([A-Za-z][A-Za-z0-9\s&/,-]{3,50})$", line)
+        if m:
+            heading = m.group(1).strip()
+            if not heading.startswith(("Page ", "Effective", "DocuPilot Application", "Nimbus Orchard")):
+                return heading
+    return None
 
 
 WORD_NS = {
@@ -204,11 +217,19 @@ def load_knowledge_base(directory: str | Path) -> list[KnowledgeSection]:
             raise ValueError(
                 f"No extractable text found in application knowledge source {source}."
             )
-        sections.extend(
-            KnowledgeSection(source=source, section=label, text=text)
-            for label, text in extracted
-            if text.strip()
-        )
+        for label, text in extracted:
+            if not text.strip():
+                continue
+            detected = detect_section_heading(text) if source.lower().endswith(".pdf") else None
+            section_title = f"{detected}, {label}" if detected else label
+            sections.append(
+                KnowledgeSection(
+                    source=source,
+                    section=section_title,
+                    text=text,
+                    page=label,
+                )
+            )
 
     if not sections:
         raise ValueError(

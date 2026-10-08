@@ -177,6 +177,13 @@ async def sse_event_generator(user_message: str, thread_id: str):
                     if result is not None:
                         if hasattr(result, "model_dump"):
                             result = result.model_dump()
+                        metrics = result.get("evaluation_metrics", {}) if isinstance(result, dict) else {}
+                        conf = metrics.get("confidence_score", 0.95) if isinstance(metrics, dict) else 0.95
+                        yield _sse({
+                            "event": "evaluation",
+                            "confidence_score": conf,
+                            "payload": result,
+                        })
                         yield _sse({"event": "metrics_evaluation", "payload": result})
     except Exception:
         logger.exception("Data-agent stream failed for thread %s", thread_id)
