@@ -23,6 +23,17 @@ class SandboxTests(unittest.TestCase):
 
         self.assertIn("NameError", output)
 
+    def test_blocks_dangerous_system_operations(self):
+        dangerous_snippets = [
+            "import os; os.system('whoami')",
+            "import subprocess; subprocess.run(['ls'])",
+            "open('/etc/passwd', 'r')",
+            "import sys; sys.exit(1)",
+        ]
+        for snippet in dangerous_snippets:
+            output = self.repl.execute_code(snippet)
+            self.assertIn("blocked by sandbox safety policies", output)
+
 
 if __name__ == "__main__":
     unittest.main()

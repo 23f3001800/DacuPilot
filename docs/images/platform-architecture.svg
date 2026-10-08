@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800" role="img" aria-labelledby="title desc">
-  <title id="title">DocuPilot application architecture</title>
-  <desc id="desc">The browser talks to FastAPI feature routes for spreadsheet analysis, document support, and document extraction. All three use the shared language-model provider. Only the Spreadsheet Data Agent uses Tavily search. Document Intelligence uses Google Document AI for OCR.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 820" role="img" aria-labelledby="title desc">
+  <title id="title">DocuPilot enterprise platform architecture</title>
+  <desc id="desc">Browser UI talks to FastAPI for spreadsheet analysis, cited document assistance, and document intelligence. Uses shared multi-provider LLM (Pure OpenAI, Azure, Gemini), dual OCR (Azure DI primary, Google DocAI secondary, Vision LLM fallback), prompt guardrails, and evaluation matrices.</desc>
   <defs>
     <filter id="shadow" x="-15%" y="-15%" width="130%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#302b20" flood-opacity=".16"/></filter>
     <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#292929"/></marker>
@@ -9,66 +9,73 @@
     <marker id="arrow-search" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#d78a13"/></marker>
     <style>
       text{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;fill:#202124}
-      .title{font-size:27px;font-weight:750}.group{font-size:17px;font-weight:750}.head{font-size:14px;font-weight:700}.body{font-size:13px}.sub{font-size:11px;fill:#4b4b4b}
+      .title{font-size:26px;font-weight:750}.group{font-size:16px;font-weight:750}.head{font-size:14px;font-weight:700}.body{font-size:12px}.sub{font-size:11px;fill:#4b4b4b}
       .zone{stroke:#555;stroke-width:1.4;stroke-dasharray:3 4}.card{stroke:#292929;stroke-width:1.2;filter:url(#shadow)}.arrow{fill:none;stroke:#292929;stroke-width:1.7;marker-end:url(#arrow)}.dash{fill:none;stroke:#414141;stroke-width:1.6;stroke-dasharray:7 6;marker-end:url(#arrow-dash)}.ocr{fill:none;stroke:#159477;stroke-width:2.4;marker-end:url(#arrow-ocr)}.search{fill:none;stroke:#d78a13;stroke-width:2.4;marker-end:url(#arrow-search)}
     </style>
   </defs>
-  <rect width="1280" height="800" fill="#fffefa"/>
-  <text class="title" x="640" y="43" text-anchor="middle">DocuPilot — Application Architecture</text>
-  <text class="sub" x="640" y="66" text-anchor="middle">Three workflows · one shared LLM · feature-specific search and OCR integrations</text>
+  <rect width="1280" height="820" fill="#fffefa"/>
+  <text class="title" x="640" y="40" text-anchor="middle">DocuPilot — Multi-Modal Enterprise Platform Architecture</text>
+  <text class="sub" x="640" y="63" text-anchor="middle">Three AI Workflows · Pure OpenAI / Azure / Gemini Multi-Provider · Dual OCR Hierarchy · Prompt Guardrails</text>
 
-  <rect class="zone" x="35" y="112" width="195" height="510" rx="24" fill="#eef4e5"/>
-  <text class="group" x="132" y="143" text-anchor="middle">Client Interface</text>
-  <rect class="card" x="60" y="177" width="145" height="94" rx="12" fill="#d8e8c7"/>
-  <text class="head" x="132" y="207" text-anchor="middle">Browser UI</text><text class="body" x="132" y="229" text-anchor="middle">Single-page app</text><text class="sub" x="132" y="249" text-anchor="middle">Chat · uploads · results</text>
-  <rect class="card" x="60" y="318" width="145" height="94" rx="12" fill="#d8e8c7"/>
-  <text class="head" x="132" y="348" text-anchor="middle">User input</text><text class="body" x="132" y="370" text-anchor="middle">Question · conversation ID</text><text class="sub" x="132" y="390" text-anchor="middle">Workbook · document files</text>
-  <rect class="card" x="60" y="459" width="145" height="94" rx="12" fill="#d8e8c7"/>
-  <text class="head" x="132" y="489" text-anchor="middle">Response</text><text class="body" x="132" y="511" text-anchor="middle">SSE · cited answer</text><text class="sub" x="132" y="531" text-anchor="middle">Review · downloads</text>
-  <path class="arrow" d="M132 271V311"/><path class="dash" d="M132 459V418"/>
+  <!-- Client Interface -->
+  <rect class="zone" x="35" y="98" width="195" height="540" rx="24" fill="#eef4e5"/>
+  <text class="group" x="132" y="128" text-anchor="middle">Client Interface</text>
+  <rect class="card" x="60" y="158" width="145" height="98" rx="12" fill="#d8e8c7"/>
+  <text class="head" x="132" y="186" text-anchor="middle">Web Workspace</text><text class="body" x="132" y="208" text-anchor="middle">Single-page UI</text><text class="sub" x="132" y="228" text-anchor="middle">Real-time chat &amp; OCR</text><text class="sub" x="132" y="244" text-anchor="middle">Live step progress</text>
+  <rect class="card" x="60" y="302" width="145" height="98" rx="12" fill="#d8e8c7"/>
+  <text class="head" x="132" y="330" text-anchor="middle">User Inputs</text><text class="body" x="132" y="352" text-anchor="middle">Conversational query</text><text class="sub" x="132" y="372" text-anchor="middle">Excel workbooks (.xlsx)</text><text class="sub" x="132" y="388" text-anchor="middle">PDF &amp; image scans</text>
+  <rect class="card" x="60" y="446" width="145" height="98" rx="12" fill="#d8e8c7"/>
+  <text class="head" x="132" y="474" text-anchor="middle">Streaming Response</text><text class="body" x="132" y="496" text-anchor="middle">SSE token streaming</text><text class="sub" x="132" y="516" text-anchor="middle">Latency badges (⚡ ms)</text><text class="sub" x="132" y="532" text-anchor="middle">Review flags &amp; downloads</text>
+  <path class="arrow" d="M132 256V295"/><path class="dash" d="M132 446V407"/>
 
-  <rect class="zone" x="258" y="112" width="216" height="510" rx="24" fill="#eef4e5"/>
-  <text class="group" x="366" y="143" text-anchor="middle">FastAPI Layer</text>
-  <rect class="card" x="284" y="178" width="164" height="84" rx="12" fill="#d8e8c7"/>
-  <text class="head" x="366" y="210" text-anchor="middle">Root application</text><text class="body" x="366" y="234" text-anchor="middle">Router mounting · health</text>
-  <rect class="card" x="284" y="301" width="164" height="76" rx="12" fill="#d8e8c7"/>
-  <text class="head" x="366" y="330" text-anchor="middle">Feature routes</text><text class="body" x="366" y="352" text-anchor="middle">Chat · upload · process</text>
-  <rect class="card" x="284" y="416" width="164" height="76" rx="12" fill="#d8e8c7"/>
-  <text class="head" x="366" y="445" text-anchor="middle">Validation</text><text class="body" x="366" y="467" text-anchor="middle">Sessions · file constraints</text>
-  <path class="arrow" d="M366 262V294"/><path class="arrow" d="M366 377V409"/>
-  <path class="arrow" d="M230 340H276"/><path class="dash" d="M284 454H238V506H212"/>
+  <!-- FastAPI Layer -->
+  <rect class="zone" x="258" y="98" width="220" height="540" rx="24" fill="#eef4e5"/>
+  <text class="group" x="368" y="128" text-anchor="middle">FastAPI Engine</text>
+  <rect class="card" x="284" y="158" width="168" height="98" rx="12" fill="#d8e8c7"/>
+  <text class="head" x="368" y="186" text-anchor="middle">Core Application</text><text class="body" x="368" y="208" text-anchor="middle">Route lifecycle &amp; health</text><text class="sub" x="368" y="228" text-anchor="middle">LatencyMiddleware</text><text class="sub" x="368" y="244" text-anchor="middle">X-Process-Time-Ms</text>
+  <rect class="card" x="284" y="296" width="168" height="110" rx="12" fill="#d8e8c7"/>
+  <text class="head" x="368" y="324" text-anchor="middle">Streaming Endpoints</text><text class="body" x="368" y="346" text-anchor="middle">POST /api/chat/stream</text><text class="body" x="368" y="364" text-anchor="middle">/document-assistant/stream</text><text class="sub" x="368" y="384" text-anchor="middle">/documents/process/stream</text>
+  <rect class="card" x="284" y="446" width="168" height="98" rx="12" fill="#d8e8c7"/>
+  <text class="head" x="368" y="474" text-anchor="middle">Security Guardrails</text><text class="body" x="368" y="496" text-anchor="middle">Prompt injection filter</text><text class="sub" x="368" y="516" text-anchor="middle">Tag delimiter sanitization</text><text class="sub" x="368" y="532" text-anchor="middle">External OCR consent gate</text>
+  <path class="arrow" d="M368 256V288"/><path class="arrow" d="M368 406V438"/>
+  <path class="arrow" d="M230 351H276"/><path class="dash" d="M284 495H238V506H212"/>
 
-  <rect class="zone" x="503" y="112" width="420" height="510" rx="24" fill="#fff2c9"/>
-  <text class="group" x="713" y="143" text-anchor="middle">Application Workflows</text>
-  <rect class="card" x="530" y="178" width="366" height="110" rx="13" fill="#ffc13d"/>
-  <text class="head" x="713" y="207" text-anchor="middle">Spreadsheet Data Agent</text><text class="body" x="713" y="231" text-anchor="middle">LangGraph · workbook schema · Pandas tools</text><text class="sub" x="713" y="255" text-anchor="middle">Optional Tavily search · live chat events</text>
-  <rect class="card" x="530" y="320" width="366" height="110" rx="13" fill="#ffc13d"/>
-  <text class="head" x="713" y="349" text-anchor="middle">Document Assistant</text><text class="body" x="713" y="373" text-anchor="middle">BM25-style retrieval · conversation state</text><text class="sub" x="713" y="397" text-anchor="middle">Knowledge base · session-scoped uploads · citations</text>
-  <rect class="card" x="530" y="462" width="366" height="110" rx="13" fill="#ffc13d"/>
-  <text class="head" x="713" y="491" text-anchor="middle">Document Intelligence</text><text class="body" x="713" y="515" text-anchor="middle">Page segmentation · OCR · typed extraction</text><text class="sub" x="713" y="539" text-anchor="middle">Confidence scoring · review report · exports</text>
-  <path class="arrow" d="M448 337H485V233H522"/><path class="arrow" d="M485 375H522"/><path class="arrow" d="M485 375V517H522"/>
+  <!-- Application Workflows -->
+  <rect class="zone" x="506" y="98" width="418" height="540" rx="24" fill="#fff2c9"/>
+  <text class="group" x="715" y="128" text-anchor="middle">Application Workflows</text>
+  <rect class="card" x="532" y="158" width="366" height="116" rx="13" fill="#ffc13d"/>
+  <text class="head" x="715" y="186" text-anchor="middle">Spreadsheet Data Agent</text><text class="body" x="715" y="208" text-anchor="middle">LangGraph reasoning loop · dynamic Pandas analysis</text><text class="sub" x="715" y="228" text-anchor="middle">Python sandbox security · tool execution events</text><text class="sub" x="715" y="246" text-anchor="middle">Real-time SSE token stream &amp; automated evaluation</text>
+  <rect class="card" x="532" y="306" width="366" height="116" rx="13" fill="#ffc13d"/>
+  <text class="head" x="715" y="334" text-anchor="middle">Document Assistant</text><text class="body" x="715" y="356" text-anchor="middle">Session query optimizer · Coreference resolution</text><text class="sub" x="715" y="376" text-anchor="middle">In-session LRU cache · BM25 evidence retrieval</text><text class="sub" x="715" y="394" text-anchor="middle">Hardened prompt · strict source citation verification</text>
+  <rect class="card" x="532" y="454" width="366" height="124" rx="13" fill="#ffc13d"/>
+  <text class="head" x="715" y="482" text-anchor="middle">Document Intelligence Pipeline</text><text class="body" x="715" y="504" text-anchor="middle">Segmentation · Multi-tier OCR · Classification router</text><text class="sub" x="715" y="524" text-anchor="middle">Continuation stitching · Confidence shield gate (0.85)</text><text class="sub" x="715" y="542" text-anchor="middle">Quality · Throughput · Routing Evaluation Matrices</text>
+  <path class="arrow" d="M452 351H492V216H524"/><path class="arrow" d="M492 364H524"/><path class="arrow" d="M492 364V516H524"/>
 
-  <rect class="zone" x="951" y="112" width="294" height="510" rx="24" fill="#e2efff"/>
-  <text class="group" x="1098" y="143" text-anchor="middle">External Integrations</text>
-  <text class="sub" x="1098" y="162" text-anchor="middle">Only the LLM is shared across features</text>
-  <rect class="card" x="978" y="178" width="240" height="93" rx="12" fill="#91bee9"/>
-  <text class="head" x="1098" y="205" text-anchor="middle">Shared LLM provider</text><text class="body" x="1098" y="228" text-anchor="middle">Gemini · Azure OpenAI-compatible</text><text class="sub" x="1098" y="250" text-anchor="middle">Used by all three workflows</text>
-  <rect class="card" x="978" y="308" width="240" height="83" rx="12" fill="#91bee9"/>
-  <text class="head" x="1098" y="340" text-anchor="middle">Google Document AI</text><text class="body" x="1098" y="364" text-anchor="middle">OCR · Document Intelligence only</text>
-  <rect class="card" x="978" y="428" width="240" height="83" rx="12" fill="#91bee9"/>
-  <text class="head" x="1098" y="460" text-anchor="middle">Tavily web search</text><text class="body" x="1098" y="484" text-anchor="middle">Optional · Data Agent only</text>
-  <path class="ocr" d="M896 539H940V349H968"/>
-  <path class="search" d="M896 255H918V470H968"/>
-  <text x="944" y="440" text-anchor="middle" font-size="10" font-weight="700" fill="#087c62" style="paint-order:stroke;stroke:#fffefa;stroke-width:4px">OCR</text>
-  <text x="918" y="394" text-anchor="middle" font-size="10" font-weight="700" fill="#a56500" style="paint-order:stroke;stroke:#fffefa;stroke-width:4px">SEARCH</text>
+  <!-- External Integrations -->
+  <rect class="zone" x="951" y="98" width="294" height="540" rx="24" fill="#e2efff"/>
+  <text class="group" x="1098" y="128" text-anchor="middle">External Services</text>
+  <text class="sub" x="1098" y="148" text-anchor="middle">Multi-Provider AI &amp; Dual OCR</text>
+  <rect class="card" x="978" y="162" width="240" height="106" rx="12" fill="#91bee9"/>
+  <text class="head" x="1098" y="190" text-anchor="middle">Multi-Provider LLM</text><text class="body" x="1098" y="212" text-anchor="middle">Pure OpenAI (Custom Base URL)</text><text class="body" x="1098" y="230" text-anchor="middle">Azure OpenAI / Azure Foundry</text><text class="body" x="1098" y="248" text-anchor="middle">Google Gemini · Auto-failover</text>
+  <rect class="card" x="978" y="300" width="240" height="128" rx="12" fill="#91bee9"/>
+  <text class="head" x="1098" y="326" text-anchor="middle">Dual OCR Hierarchy</text><text class="body" x="1098" y="348" text-anchor="middle">1. Azure Document Intelligence</text><text class="sub" x="1098" y="366" text-anchor="middle">Primary OCR engine</text><text class="body" x="1098" y="386" text-anchor="middle">2. Google Document AI</text><text class="sub" x="1098" y="404" text-anchor="middle">Secondary OCR · 3. Vision LLM</text>
+  <rect class="card" x="978" y="460" width="240" height="88" rx="12" fill="#91bee9"/>
+  <text class="head" x="1098" y="488" text-anchor="middle">Tavily Web Search</text><text class="body" x="1098" y="510" text-anchor="middle">Real-time external grounding</text><text class="sub" x="1098" y="528" text-anchor="middle">Optional · Data Agent only</text>
+  <path class="ocr" d="M898 516H938V364H968"/>
+  <path class="search" d="M898 216H930V504H968"/>
+  <text x="946" y="445" text-anchor="middle" font-size="10" font-weight="700" fill="#087c62" style="paint-order:stroke;stroke:#fffefa;stroke-width:4px">OCR</text>
+  <text x="930" y="316" text-anchor="middle" font-size="10" font-weight="700" fill="#a56500" style="paint-order:stroke;stroke:#fffefa;stroke-width:4px">SEARCH</text>
 
-  <rect class="zone" x="258" y="651" width="987" height="105" rx="22" fill="#f9e1dc"/>
-  <text class="group" x="752" y="680" text-anchor="middle">Session State &amp; Artifacts</text>
-  <rect class="card" x="291" y="698" width="246" height="40" rx="10" fill="#ead8f4"/>
-  <text class="body" x="414" y="723" text-anchor="middle">LangGraph conversation checkpoints</text>
-  <rect class="card" x="628" y="698" width="246" height="40" rx="10" fill="#ead8f4"/>
-  <text class="body" x="751" y="723" text-anchor="middle">In-memory session documents</text>
-  <rect class="card" x="965" y="698" width="246" height="40" rx="10" fill="#ead8f4"/>
-  <text class="body" x="1088" y="723" text-anchor="middle">Local JSON · review · Excel outputs</text>
-  <path class="dash" d="M713 572V642"/><path class="dash" d="M713 430V642"/>
+  <!-- Session State & Evaluation Artifacts -->
+  <rect class="zone" x="258" y="660" width="987" height="114" rx="22" fill="#f9e1dc"/>
+  <text class="group" x="752" y="688" text-anchor="middle">State Management, Caching &amp; Evaluation Artifacts</text>
+  <rect class="card" x="284" y="706" width="220" height="48" rx="10" fill="#ead8f4"/>
+  <text class="body" x="394" y="728" text-anchor="middle">LangGraph Checkpoints</text><text class="sub" x="394" y="744" text-anchor="middle">Thread-level state persistence</text>
+  <rect class="card" x="524" y="706" width="220" height="48" rx="10" fill="#ead8f4"/>
+  <text class="body" x="634" y="728" text-anchor="middle">Session Query Cache</text><text class="sub" x="634" y="744" text-anchor="middle">Sub-millisecond repeat hits</text>
+  <rect class="card" x="764" y="706" width="220" height="48" rx="10" fill="#ead8f4"/>
+  <text class="body" x="874" y="728" text-anchor="middle">Evaluation Matrices</text><text class="sub" x="874" y="744" text-anchor="middle">Quality · Throughput · Routing</text>
+  <rect class="card" x="1004" y="706" width="220" height="48" rx="10" fill="#ead8f4"/>
+  <text class="body" x="1114" y="728" text-anchor="middle">Export Artifacts</text><text class="sub" x="1114" y="744" text-anchor="middle">documents.json · Excel · review</text>
+  <path class="dash" d="M715 578V650"/><path class="dash" d="M715 422V650"/>
 </svg>

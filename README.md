@@ -28,16 +28,22 @@ and cites its sources. Uploaded documents are isolated by conversation ID,
 held in process memory, and removed when the session is deleted or the app
 restarts.
 
+- **Session Query Optimization & Caching**: Multi-turn dialogue queries are automatically normalized via conversational coreference resolution, noisy prefix stripping, and active topic grounding. An in-memory, thread-safe LRU cache delivers sub-millisecond responses for repeated questions within the same document session.
+- **Prompt Injection Defense**: Every query is evaluated by security guardrails that detect instruction overrides, persona jailbreaks, and delimiter breakout attempts before model submission.
+
 Supported user uploads are PDF, DOCX, and UTF-8 TXT. PDFs must contain a text
 layer; this feature does not perform OCR.
 
 ### Document Intelligence
 
 Upload PDFs or images to extract structured fields from identity, insurance,
-and related documents. The pipeline segments documents into pages, uses Google
-Cloud Document AI for OCR, then uses the configured LLM for classification and
+and related documents. The pipeline segments documents into pages, runs an
+enterprise OCR hierarchy, and leverages the configured LLM for classification and
 field extraction. Confidence scoring and validation flag results for human
 review. JSON, review-report, and Excel files are available for download.
+
+- **Dual OCR Hierarchy**: Uses **Azure Document Intelligence as Primary OCR** for table and key-value extraction, with automatic failover to **Google Cloud Document AI as Secondary OCR**, and Vision LLM as tertiary fallback.
+- **Confidence Shield**: Fields scoring below the 85% threshold or containing handwritten entries receive confidence penalties and are routed for human review.
 
 Processing requires explicit consent before pages are sent to configured
 external OCR and AI providers. Extracted information is not independently
@@ -81,15 +87,16 @@ On Windows PowerShell, activate the environment with:
 
 ### Language model provider
 
-Choose Gemini or Azure OpenAI-compatible service with
-`AI_PRIMARY_PROVIDER=gemini` or `AI_PRIMARY_PROVIDER=azure`. The legacy
+Choose OpenAI, Gemini, or Azure OpenAI-compatible service with
+`AI_PRIMARY_PROVIDER=openai`, `AI_PRIMARY_PROVIDER=gemini`, or `AI_PRIMARY_PROVIDER=azure`. The legacy
 `TRACEROOT_PROVIDER` setting is accepted if `AI_PRIMARY_PROVIDER` is unset.
 
-| Provider | Environment variables |
-| --- | --- |
-| Gemini | `GEMINI_API_KEY`, optional `GEMINI_MODEL` |
-| Azure | `AZURE_OPENAI_BASE_URL`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_MODEL` |
-| Azure AI Foundry aliases | `AZURE_FOUNDRY_ENDPOINT`, `AZURE_FOUNDRY_API_KEY`, `AZURE_FOUNDRY_MODEL` |
+| Provider | Environment variables | Description |
+| --- | --- | --- |
+| OpenAI / Custom Endpoint | `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL` | Official OpenAI or any OpenAI-compatible API (Ollama, vLLM, Groq, DeepSeek). Default base URL is `https://api.openai.com/v1`. |
+| Gemini | `GEMINI_API_KEY`, optional `GEMINI_MODEL` | Google Gemini 3.6 Flash / Pro via OpenAI-compatible endpoint. |
+| Azure OpenAI | `AZURE_OPENAI_BASE_URL`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_MODEL` | Azure OpenAI resource endpoint or custom deployment. |
+| Azure AI Foundry aliases | `AZURE_FOUNDRY_ENDPOINT`, `AZURE_FOUNDRY_API_KEY`, `AZURE_FOUNDRY_MODEL` | Foundry hub and project endpoints. |
 
 Azure CLI authentication is also supported. Set
 `AZURE_OPENAI_AUTH_MODE=azure-cli`, configure the Azure endpoint and model, and
@@ -97,21 +104,35 @@ sign in with `az login` in the environment running the application. The signed
 in identity must have permission to invoke the Azure OpenAI resource. API-key
 authentication is the default.
 
-Gemini uses its Google OpenAI-compatible API endpoint. Azure endpoints can be
-configured as a resource root or an OpenAI-compatible base URL.
+### Enterprise OCR Services
 
-### Other services
+DocuPilot implements a resilient dual-OCR hierarchy with automatic cascading failover:
 
-| Feature | Environment variables |
-| --- | --- |
-| Web search | `TAVILY_API_KEY` |
-| Google Cloud Document AI | `GCP_PROJECT_ID`, `GCP_LOCATION`, `DOCAI_PROCESSOR_ID`, `GOOGLE_APPLICATION_CREDENTIALS` |
-| Workbook override | `EXCEL_FILE_PATH` |
-| Field confidence | `FIELD_CONFIDENCE_THRESHOLD` (default `0.85`) |
-| Handwriting penalty | `HANDWRITTEN_CONFIDENCE_PENALTY` (default `0.20`) |
+| OCR Role | Provider | Environment variables | Purpose |
+| --- | --- | --- | --- |
+| **Primary OCR** | Azure Document Intelligence | `AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT`, `AZURE_DOCUMENT_INTELLIGENCE_KEY` | High-fidelity table and layout extraction with word-level bounding boxes. |
+| **Secondary OCR** | Google Cloud Document AI | `GCP_PROJECT_ID`, `GCP_LOCATION`, `DOCAI_PROCESSOR_ID`, `GOOGLE_APPLICATION_CREDENTIALS` | Automatic failover for enterprise document parsing and OCR. |
+| **Fallback OCR** | Multimodal Vision LLM | Shared AI Provider (`OPENAI_API_KEY`, `GEMINI_API_KEY`, or Azure) | Zero-dependency direct image classification and field extraction. |
+
+### Other services & thresholds
+
+| Feature | Environment variables | Default |
+| --- | --- | --- |
+| Web search | `TAVILY_API_KEY` | None |
+| Workbook override | `EXCEL_FILE_PATH` | None |
+| Field confidence shield | `FIELD_CONFIDENCE_THRESHOLD` | `0.85` |
+| Handwriting penalty | `HANDWRITTEN_CONFIDENCE_PENALTY` | `0.20` |
 
 Keep API keys and service-account files private. Do not commit `.env` or
 credential files.
+
+## Security & Prompt Injection Guardrails
+
+DocuPilot includes defense-in-depth security guardrails (`datapilot/guardrails.py`):
+- **Input Sanitization & Injection Detection**: Scans user queries and retrieved evidence for instruction override attacks (e.g., `ignore previous instructions`), developer mode jailbreaks (DAN), and prompt extraction attempts.
+- **Delimiter Breakout Protection**: Strips structural delimiters (`</retrieved_evidence>`, `<system>`) from untrusted documents and user queries to prevent context escapes.
+- **Hardened Agent Prompts**: Both Document Assistant and Spreadsheet Data Agent are injected with strict non-overridable boundary constraints.
+- **Execution Sandbox Safeguards**: The Spreadsheet Data Agent engine restricts dynamic Python code execution, explicitly forbidding dangerous operating system calls (`os`, `sys`, `subprocess`, `open`, `eval`).
 
 ## API routes
 

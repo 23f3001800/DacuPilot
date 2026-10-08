@@ -66,25 +66,27 @@ class MultimodalOCRProcessor:
         self.form_processor = GoogleFormProcessor(self.clients)
 
     def _ocr_with_fallback(self, image_bytes: bytes, mime_type: str):
-        """Try Azure DI → Google DI → Vision LLM fallback."""
+        """Try Azure Document Intelligence (Primary) → Google Cloud Document AI (Secondary) → Vision LLM (Tertiary Fallback)."""
         from .google_document_ai import OCRResult
 
-        # 1. Azure Document Intelligence
+        # 1. Azure Document Intelligence (Primary OCR)
         if self._azure_ocr is not None:
             try:
+                logger.info("Executing Primary OCR: Azure Document Intelligence")
                 return self._azure_ocr.process(image_bytes, mime_type)
             except Exception:
-                logger.warning("Azure Document Intelligence failed; trying next OCR provider")
+                logger.warning("Primary Azure Document Intelligence failed; falling back to Secondary Google Document AI")
 
-        # 2. Google Document AI
+        # 2. Google Cloud Document AI (Secondary OCR)
         if self._google_ocr is not None:
             try:
+                logger.info("Executing Secondary OCR: Google Cloud Document AI")
                 return self._google_ocr.process(image_bytes, mime_type)
             except Exception:
-                logger.warning("Google Document AI failed; trying vision LLM fallback")
+                logger.warning("Secondary Google Document AI failed; falling back to Tertiary Vision LLM")
 
-        # 3. Lightweight vision LLM fallback
-        logger.info("Using vision LLM fallback for OCR")
+        # 3. Lightweight vision LLM fallback (Tertiary OCR)
+        logger.info("Executing Tertiary OCR: Vision LLM fallback")
         encoded = base64.b64encode(image_bytes).decode("ascii")
         response = create_completion_with_fallback(
             self.clients,

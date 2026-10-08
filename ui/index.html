@@ -381,8 +381,9 @@
           <h2>Document Pipeline & OCR Engines</h2>
           <div class="setting-row"><span>Field Confidence Threshold</span><span>${escapeHtml(String(window.DOCUPILOT_SETTINGS?.confidence_threshold ?? "0.85"))}</span></div>
           <div class="setting-row"><span>Handwriting Confidence Penalty</span><span>${escapeHtml(String(window.DOCUPILOT_SETTINGS?.handwriting_penalty ?? "0.20"))}</span></div>
-          <div class="setting-row"><span>Google Cloud Document AI OCR</span><span style="color:${window.DOCUPILOT_SETTINGS?.google_ocr_configured ? '#059669' : '#d97706'};font-weight:600;">${window.DOCUPILOT_SETTINGS?.google_ocr_configured ? '✓ Configured & Active' : '○ Standby / Fallback to Vision LLM'}</span></div>
-          <div class="setting-row"><span>Azure Document Intelligence OCR</span><span style="color:${window.DOCUPILOT_SETTINGS?.azure_ocr_configured ? '#059669' : '#64748b'};font-weight:600;">${window.DOCUPILOT_SETTINGS?.azure_ocr_configured ? '✓ Configured' : '○ Not configured'}</span></div>
+          <div class="setting-row"><span>OCR Pipeline Priority</span><strong style="color:#059669;font-size:11px;">Azure DI (Primary) → Google DocAI (Secondary) → Vision LLM (Fallback)</strong></div>
+          <div class="setting-row"><span>Primary OCR (Azure Document Intelligence)</span><span style="color:${window.DOCUPILOT_SETTINGS?.azure_ocr_configured ? '#059669' : '#64748b'};font-weight:600;">${window.DOCUPILOT_SETTINGS?.azure_ocr_configured ? '✓ Configured & Primary' : '○ Standby / Unconfigured'}</span></div>
+          <div class="setting-row"><span>Secondary OCR (Google Document AI)</span><span style="color:${window.DOCUPILOT_SETTINGS?.google_ocr_configured ? '#059669' : '#d97706'};font-weight:600;">${window.DOCUPILOT_SETTINGS?.google_ocr_configured ? '✓ Configured & Active' : '○ Standby / Fallback'}</span></div>
           <div class="setting-row"><span>Document Retention</span><span>Local output folder; excluded from Git</span></div>
           <div class="setting-row"><span>External OCR</span><span>Requires per-upload consent</span></div>
         </section>

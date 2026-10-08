@@ -119,9 +119,29 @@ async def stream_chat_endpoint(payload: ChatRequest):
     )
 
 
+from datapilot.guardrails import detect_prompt_injection
+
+
 async def sse_event_generator(user_message: str, thread_id: str):
     """Stream data-agent tokens, tool starts, metrics, errors, and a final sentinel."""
     stream_start = time.perf_counter()
+
+    is_injected, reason = detect_prompt_injection(user_message)
+    if is_injected:
+        logger.warning("Prompt injection blocked in data-agent: %s", reason)
+        yield _sse({"event": "status", "text": "Safety guardrail active"})
+        yield _sse({
+            "event": "token",
+            "text": (
+                "I cannot process this request because it contains instructions "
+                "attempting to override system safety policies. Please ask a "
+                "question about the workbook dataset."
+            ),
+        })
+        yield _sse({"event": "latency", "total_ms": 1.0})
+        yield _sse("[DONE]")
+        return
+
     config = {"configurable": {"thread_id": thread_id}}
     initial_input = {"messages": [HumanMessage(content=user_message)]}
 

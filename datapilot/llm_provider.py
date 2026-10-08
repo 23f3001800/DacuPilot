@@ -267,4 +267,5 @@ def public_settings() -> dict[str, object]:
         "handwriting_penalty": Config.HANDWRITTEN_PENALTY,
         "google_ocr_configured": google_ocr_active,
         "azure_ocr_configured": azure_ocr_active,
+        "ocr_priority": "Azure Document Intelligence (Primary) → Google Cloud Document AI (Secondary) → Vision LLM (Fallback)",
     }

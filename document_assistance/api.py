@@ -38,6 +38,10 @@ def _sse(payload: dict[str, Any] | str) -> str:
     return f"data: {json.dumps(payload)}\n\n"
 
 
+from datapilot.guardrails import detect_prompt_injection
+from datapilot.query_optimizer import GLOBAL_QUERY_CACHE, optimize_session_query
+
+
 class DocumentChatRequest(BaseModel):
     message: str = Field(min_length=1)
     thread_id: str = Field(min_length=1)
@@ -49,6 +53,33 @@ async def document_chat(payload: DocumentChatRequest):
         thread_id = str(UUID(payload.thread_id))
     except ValueError:
         thread_id = payload.thread_id
+
+    # 1. Prompt injection guardrail
+    is_injected, reason = detect_prompt_injection(payload.message)
+    if is_injected:
+        logger.warning("Prompt injection blocked in document-chat: %s", reason)
+        return {
+            "thread_id": thread_id,
+            "answer": (
+                "I cannot process this request because it contains instructions "
+                "attempting to override system safety policies. Please ask a "
+                "question about company documentation or uploaded policies."
+            ),
+            "topic": "Safety Guardrail",
+            "latency_ms": 0.5,
+        }
+
+    # 2. In-session query cache for repeated queries
+    cached = GLOBAL_QUERY_CACHE.get(thread_id, payload.message)
+    if cached is not None:
+        return {
+            "thread_id": thread_id,
+            "answer": cached["answer"],
+            "topic": cached.get("topic", ""),
+            "latency_ms": 0.5,
+            "cached": True,
+        }
+
     config = {"configurable": {"thread_id": thread_id}}
     start = time.perf_counter()
     try:
@@ -67,6 +98,11 @@ async def document_chat(payload: DocumentChatRequest):
             thread_id,
         )
         response = result["messages"][-1]
+        GLOBAL_QUERY_CACHE.put(
+            thread_id,
+            payload.message,
+            {"answer": response.content, "topic": result.get("current_topic", "")},
+        )
         return {
             "thread_id": thread_id,
             "answer": response.content,
@@ -104,6 +140,33 @@ async def stream_document_chat(payload: DocumentChatRequest):
 async def sse_document_chat_generator(user_message: str, thread_id: str):
     """Stream Document Assistant response tokens, step status, and latency."""
     stream_start = time.perf_counter()
+
+    # 1. Prompt injection guardrail
+    is_injected, reason = detect_prompt_injection(user_message)
+    if is_injected:
+        logger.warning("Prompt injection blocked in document-chat stream: %s", reason)
+        yield _sse({"event": "status", "text": "Safety guardrail active"})
+        yield _sse({
+            "event": "token",
+            "text": (
+                "I cannot process this request because it contains instructions "
+                "attempting to override system safety policies. Please ask a "
+                "question about company documentation or uploaded policies."
+            ),
+        })
+        yield _sse({"event": "latency", "total_ms": 0.5})
+        yield _sse("[DONE]")
+        return
+
+    # 2. In-session query cache
+    cached = GLOBAL_QUERY_CACHE.get(thread_id, user_message)
+    if cached is not None:
+        yield _sse({"event": "status", "text": "Retrieved from session cache"})
+        yield _sse({"event": "token", "text": cached["answer"]})
+        yield _sse({"event": "latency", "total_ms": 0.5})
+        yield _sse("[DONE]")
+        return
+
     config = {"configurable": {"thread_id": thread_id}}
 
     try:
@@ -122,8 +185,10 @@ async def sse_document_chat_generator(user_message: str, thread_id: str):
             else "Continue the current topic."
         )
 
-        retrieval_query = _contextual_query(
-            user_message, history + [HumanMessage(content=user_message)]
+        retrieval_query = optimize_session_query(
+            user_message,
+            history + [HumanMessage(content=user_message)],
+            active_topic=current_topic,
         )
         scope, retrieved = retrieve_evidence(
             retrieval_query,
@@ -340,6 +405,7 @@ async def upload_session_documents(
         session_id,
         latency_ms,
     )
+    GLOBAL_QUERY_CACHE.clear_session(session_id)
     return {
         "thread_id": session_id,
         "latency_ms": latency_ms,
@@ -362,6 +428,7 @@ async def clear_session(thread_id: str):
             status_code=400,
             detail="Use a valid session UUID to clear private documents.",
         ) from error
+    GLOBAL_QUERY_CACHE.clear_session(session_id)
     removed_chunks = USER_DOCUMENTS.clear_session(session_id)
     checkpointer = compiled_agent.checkpointer
     delete_thread = getattr(checkpointer, "delete_thread", None)

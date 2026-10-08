@@ -12,6 +12,15 @@ class PythonSandboxREPL:
         """Executes Python code and captures text printed to stdout."""
         # Clean markdown formatting wraps if the LLM adds them
         clean_code = code_string.replace("```python", "").replace("```", "").strip()
+
+        # Security guardrail: disallow dangerous imports or OS/eval operations
+        dangerous_tokens = (
+            "import os", "import sys", "import subprocess", "import shutil",
+            "import socket", "__import__", "subprocess.", "open(", "eval(",
+            "globals()", "__builtins__", "os.system", "pty.", "shutil.",
+        )
+        if any(tok in clean_code for tok in dangerous_tokens):
+            return "ERROR: Execution of restricted system modules or file operations is blocked by sandbox safety policies."
         
         stdout_buffer = io.StringIO()
         
