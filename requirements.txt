@@ -6,3 +6,5 @@ tavily-python
 fastapi
 langgraph
 langchain-core
+langchain-openai
+uvicorn

@@ -8,14 +8,14 @@ def load_real_world_excel(file_path):
     # 1. Read a small sample chunk to locate the header row
     sample = pd.read_excel(file_path, header=None, nrows=20, engine='openpyxl')
     
-    # 2. Find rows that are NOT completely empty (NaN)
-    valid_rows = sample.dropna(how='all').index
-    
-    if len(valid_rows) == 0:
+    populated_counts = sample.notna().sum(axis=1)
+    populated_rows = populated_counts[populated_counts > 0].index
+    if len(populated_rows) == 0:
         raise ValueError("The provided Excel sheet appears to be empty.")
-    
-    # The actual data table starts at the first non-empty layout row index
-    start_row_idx = valid_rows[0]
+
+    # Skip title rows by preferring the first row with multiple populated cells.
+    header_rows = populated_counts[populated_counts > 1].index
+    start_row_idx = header_rows[0] if len(header_rows) else populated_rows[0]
     
     # 3. Reload the spreadsheet properly skipping the dead space
     df = pd.read_excel(file_path, skiprows=start_row_idx, engine='openpyxl')

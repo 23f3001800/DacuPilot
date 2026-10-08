@@ -1,24 +1,20 @@
 import os
 import json
 import logging
-import asyncio
+from pathlib import Path
 from typing import TypedDict, Annotated, Sequence, Literal
 from pydantic import BaseModel, Field
 from logging.handlers import RotatingFileHandler
 from dotenv import load_dotenv
 
-from fastapi import FastAPI, Request
-from fastapi.responses import StreamingResponse
-from fastapi.middleware.cors import CORSMiddleware
-
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import BaseMessage, SystemMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
 
-from loader import load_real_world_excel
-from engine import PythonSandboxREPL
+from .loader import load_real_world_excel
+from .engine import PythonSandboxREPL
 from tavily import TavilyClient
 
 load_dotenv()
@@ -46,13 +42,32 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 # ==========================================
 # 2. CORE AGENT & DATA CONFIGURATION
 # ==========================================
-EXCEL_FILE_PATH = "your_complex_file.xlsx"
+EXCEL_FILE_PATH = os.getenv(
+    "EXCEL_FILE_PATH",
+    str(Path(__file__).resolve().parent / "Inventory-Records-Sample-Data.xlsx"),
+)
 df, schema_context = load_real_world_excel(EXCEL_FILE_PATH)
 sandbox_repl = PythonSandboxREPL(df)
-tavily_client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 
-# Use an async variant of the LLM for streaming capabilities
-llm = ChatOpenAI(model="gpt-4o", temperature=0.1, streaming=True)
+
+def get_llm() -> ChatOpenAI:
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY is required to run the Excel agent.")
+    return ChatOpenAI(
+        model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+        api_key=api_key,
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+        temperature=0.1,
+        streaming=True,
+    )
+
+
+def get_tavily_client() -> TavilyClient:
+    api_key = os.getenv("TAVILY_API_KEY")
+    if not api_key:
+        raise RuntimeError("TAVILY_API_KEY is required to use web search.")
+    return TavilyClient(api_key=api_key)
 
 # Pydantic Schemas
 class CodeExecutionInput(BaseModel):
@@ -78,6 +93,7 @@ class AgentGraphState(TypedDict):
 # 3. NODE DEFINITIONS
 # ==========================================
 async def analyst_reasoning_node(state: AgentGraphState):
+    llm = get_llm()
     system_prompt = SystemMessage(content=f"""
 You are an enterprise data analyst agent. You manipulate a preloaded Pandas DataFrame named `df`.
 Columns: {schema_context['columns']}
@@ -104,7 +120,10 @@ async def tool_execution_node(state: AgentGraphState):
             if tool_name == "execute_pandas_code":
                 output = sandbox_repl.execute_code(CodeExecutionInput(**raw_args).code)
             elif tool_name == "web_search_lookup":
-                search_res = tavily_client.search(query=WebSearchInput(**raw_args).query, max_results=2).get("results", [])
+                search_res = get_tavily_client().search(
+                    query=WebSearchInput(**raw_args).query,
+                    max_results=2,
+                ).get("results", [])
                 output = "\n".join([r['content'] for r in search_res]) or "No data."
             else:
                 output = "Invalid tool."
@@ -117,6 +136,7 @@ async def tool_execution_node(state: AgentGraphState):
     return {"messages": tool_responses}
 
 async def data_evaluation_node(state: AgentGraphState):
+    llm = get_llm()
     evaluator = llm.with_structured_output(FinalStructuredPayload)
     eval_prompt = "Review the context history and return the conversational summary alongside explicit confidence metrics."
     result = await evaluator.ainvoke([SystemMessage(content=eval_prompt)] + list(state["messages"]))
@@ -139,78 +159,3 @@ workflow.add_edge("run_evaluation", END)
 
 memory_layer = MemorySaver()
 compiled_graph = workflow.compile(checkpointer=memory_layer)
-
-# ==========================================
-# 4. FASTAPI WEB SERVER & SSE ROUTING
-# ==========================================
-app = FastAPI(title="Enterprise Data Agent SSE API")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"], 
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-async def sse_event_generator(user_message: str, thread_id: str):
-    """Asynchronously iterates through LangGraph event streams to yield SSE formatting chunks."""
-    config = {"configurable": {"thread_id": thread_id}}
-    initial_input = {"messages": [HumanMessage(content=user_message)]}
-    
-    logger.info(f"Initiating stream request for thread session: {thread_id}")
-
-    try:
-        # Use v3 event streaming protocol to listen to internal updates and token chunks
-        async for event in compiled_graph.astream_events(initial_input, config, version="v2"):
-            kind = event.get("event")
-            name = event.get("name")
-            
-            # Scenario A: The main router begins a Tool Call operation
-            if kind == "on_chat_model_stream" and "tool_calls" in event["data"]["chunk"].additional_kwargs:
-                tool_chunk = event["data"]["chunk"].additional_kwargs["tool_calls"]
-                for tool in tool_chunk:
-                    if "name" in tool and tool["name"]:
-                        payload = {"event": "tool_start", "tool": tool["name"]}
-                        yield f"data: {json.dumps(payload)}\n\n"
-            
-            # Scenario B: Raw token stream chunks arriving from the final text generations
-            elif kind == "on_chat_model_stream" and name == "ChatOpenAI":
-                content = event["data"]["chunk"].content
-                if content:
-                    payload = {"event": "token", "text": content}
-                    yield f"data: {json.dumps(payload)}\n\n"
-                    
-            # Scenario C: Evaluation Node completes, yielding final structured validation dictionaries
-            elif kind == "on_chain_end" and name == "run_evaluation":
-                output_data = event["data"].get("output", {})
-                if "structured_response" in output_data:
-                    payload = {
-                        "event": "metrics_evaluation",
-                        "payload": output_data["structured_response"]
-                    }
-                    yield f"data: {json.dumps(payload)}\n\n"
-                    
-    except Exception as stream_err:
-        logger.error(f"Streaming anomaly detected: {str(stream_err)}")
-        yield f"data: {json.dumps({'event': 'error', 'details': str(stream_err)})}\n\n"
-    finally:
-        logger.info(f"Stream generation closed for session thread: {thread_id}")
-        yield "data: [DONE]\n\n"
-
-class ChatRequest(BaseModel):
-    message: str
-    thread_id: str = "default_enterprise_thread"
-
-@app.post("/api/chat/stream")
-async def stream_chat_endpoint(payload: ChatRequest):
-    """HTTP Post routing exposing the underlying async text/event-stream connection."""
-    return StreamingResponse(
-        sse_event_generator(payload.message, payload.thread_id),
-        media_type="text/event-stream"
-    )
-
-if __name__ == "__main__":
-    import uvicorn
-    # Boot server locally on port 8000
-    uvicorn.run(app, host="0.0.0.0", port=8000)

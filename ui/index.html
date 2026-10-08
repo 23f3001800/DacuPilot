@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f7fb">
+  <title>DataPilot | Inventory assistant</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #182230;
+      background: #f5f7fb;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; }
+    .shell { width: min(900px, 100%); min-height: 100vh; margin: 0 auto; padding: 28px 20px; display: flex; flex-direction: column; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 4px 0 22px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .logo { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: white; background: #4258d0; font-weight: 750; }
+    h1 { margin: 0; font-size: 18px; letter-spacing: -.02em; }
+    .subtitle { margin: 3px 0 0; color: #667085; font-size: 13px; }
+    button, textarea { font: inherit; }
+    .reset { border: 1px solid #d0d5dd; border-radius: 9px; color: #344054; background: white; padding: 8px 12px; cursor: pointer; }
+    .reset:hover { background: #f9fafb; }
+    .card { display: flex; flex: 1; flex-direction: column; min-height: 520px; overflow: hidden; border: 1px solid #e4e7ec; border-radius: 16px; background: white; box-shadow: 0 8px 28px #1822300a; }
+    .dataset { padding: 12px 18px; border-bottom: 1px solid #eaecf0; color: #475467; font-size: 13px; }
+    .dataset strong { color: #344054; font-weight: 600; }
+    #messages { flex: 1; overflow-y: auto; padding: 22px; }
+    .message { display: flex; gap: 10px; margin: 0 0 20px; align-items: flex-start; }
+    .message.user { flex-direction: row-reverse; }
+    .avatar { display: grid; flex: 0 0 30px; place-items: center; width: 30px; height: 30px; border-radius: 10px; color: #344054; background: #eef1ff; font-size: 12px; font-weight: 700; }
+    .user .avatar { color: white; background: #6675d8; }
+    .bubble { max-width: min(680px, calc(100% - 40px)); padding: 11px 14px; border-radius: 4px 14px 14px 14px; background: #f2f4f7; color: #344054; font-size: 14px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .user .bubble { border-radius: 14px 4px 14px 14px; color: #182230; background: #eef1ff; }
+    .bubble.error { color: #b42318; background: #fef3f2; }
+    .suggestions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 22px 16px; }
+    .suggestion { border: 1px solid #d9defa; border-radius: 999px; padding: 7px 11px; background: white; color: #4258a8; font-size: 12px; cursor: pointer; }
+    .suggestion:hover { background: #f7f8ff; }
+    form { display: flex; align-items: flex-end; gap: 10px; margin: 0 16px 12px; padding: 10px; border: 1px solid #d0d5dd; border-radius: 13px; background: white; }
+    textarea { flex: 1; min-height: 42px; max-height: 150px; resize: vertical; padding: 10px 8px; border: 0; outline: 0; color: #182230; font-size: 14px; }
+    textarea::placeholder { color: #98a2b3; }
+    #send { min-width: 72px; border: 0; border-radius: 9px; padding: 10px 15px; color: white; background: #4258d0; font-weight: 600; cursor: pointer; }
+    #send:disabled { opacity: .55; cursor: wait; }
+    .note { margin: 0 16px 14px; color: #98a2b3; text-align: center; font-size: 11px; }
+    @media (max-width: 560px) {
+      .shell { padding: 14px 10px; }
+      header { padding-bottom: 14px; }
+      .card { min-height: calc(100vh - 90px); }
+      #messages { padding: 16px 12px; }
+      .suggestions { padding: 0 12px 12px; }
+      .bubble { font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="brand">
+        <div class="logo" aria-hidden="true">D</div>
+        <div>
+          <h1>DataPilot</h1>
+          <p class="subtitle">Ask questions about your inventory</p>
+        </div>
+      </div>
+      <button class="reset" id="reset" type="button">New chat</button>
+    </header>
+
+    <section class="card" aria-label="Inventory chat">
+      <div class="dataset"><strong>Dataset</strong> · Inventory Records Sample Data</div>
+      <div id="messages" role="log" aria-live="polite" aria-relevant="additions"></div>
+      <div class="suggestions" id="suggestions">
+        <button class="suggestion" type="button">Which product has the most stock?</button>
+        <button class="suggestion" type="button">Which item has the highest inventory value?</button>
+        <button class="suggestion" type="button">How many products are listed?</button>
+      </div>
+      <form id="chat-form">
+        <textarea id="message" rows="1" aria-label="Your question" placeholder="Ask a question about the spreadsheet…" required></textarea>
+        <button id="send" type="submit">Send</button>
+      </form>
+      <p class="note">Answers are generated from your spreadsheet and may need verification.</p>
+    </section>
+  </main>
+  <script>
+    const messages = document.querySelector("#messages");
+    const form = document.querySelector("#chat-form");
+    const input = document.querySelector("#message");
+    const send = document.querySelector("#send");
+    const suggestions = document.querySelector("#suggestions");
+    let threadId = sessionStorage.getItem("datapilot-thread-id") || crypto.randomUUID();
+    sessionStorage.setItem("datapilot-thread-id", threadId);
+
+    function addMessage(text, role, extraClass = "") {
+      const row = document.createElement("div");
+      row.className = `message ${role}`;
+      const avatar = document.createElement("div");
+      avatar.className = "avatar";
+      avatar.textContent = role === "user" ? "You" : "D";
+      const bubble = document.createElement("div");
+      bubble.className = `bubble ${extraClass}`.trim();
+      bubble.textContent = text;
+      row.append(avatar, bubble);
+      messages.append(row);
+      messages.scrollTop = messages.scrollHeight;
+      return bubble;
+    }
+
+    addMessage("Hi! Ask me about products, stock levels, or calculations in the inventory sheet.", "assistant");
+
+    async function submitQuestion(question) {
+      const text = question.trim();
+      if (!text || send.disabled) return;
+      suggestions.hidden = true;
+      addMessage(text, "user");
+      input.value = "";
+      send.disabled = true;
+      send.textContent = "…";
+      const answer = addMessage("", "assistant");
+      let buffer = "";
+
+      try {
+        const response = await fetch("/api/chat/stream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text, thread_id: threadId })
+        });
+        if (!response.ok || !response.body) {
+          throw new Error(`Chat request failed (${response.status}).`);
+        }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        while (true) {
+          const { value, done } = await reader.read();
+          buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+          const events = buffer.split("\n\n");
+          buffer = events.pop() || "";
+          for (const event of events) {
+            const line = event.split("\n").find(part => part.startsWith("data: "));
+            if (!line || line === "data: [DONE]") continue;
+            const payload = JSON.parse(line.slice(6));
+            if (payload.event === "token") answer.textContent += payload.text;
+            if (payload.event === "error") throw new Error(payload.details || "The assistant failed.");
+          }
+          if (done) break;
+        }
+        if (!answer.textContent.trim()) answer.textContent = "I couldn't generate a response. Please try again.";
+      } catch (error) {
+        answer.classList.add("error");
+        answer.textContent = error.message || "Unable to reach the assistant.";
+      } finally {
+        send.disabled = false;
+        send.textContent = "Send";
+        input.focus();
+        messages.scrollTop = messages.scrollHeight;
+      }
+    }
+
+    form.addEventListener("submit", event => {
+      event.preventDefault();
+      submitQuestion(input.value);
+    });
+    input.addEventListener("keydown", event => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        form.requestSubmit();
+      }
+    });
+    suggestions.addEventListener("click", event => {
+      if (event.target.matches("button")) submitQuestion(event.target.textContent);
+    });
+    document.querySelector("#reset").addEventListener("click", () => {
+      threadId = crypto.randomUUID();
+      sessionStorage.setItem("datapilot-thread-id", threadId);
+      messages.replaceChildren();
+      suggestions.hidden = false;
+      addMessage("New chat started. What would you like to know about the inventory?", "assistant");
+      input.focus();
+    });
+  </script>
+</body>
+</html>
