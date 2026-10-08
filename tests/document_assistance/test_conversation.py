@@ -29,16 +29,16 @@ class ConversationTests(unittest.TestCase):
     def test_ten_turns_retain_context_and_cite_retrieved_sections(self):
         fake_llm = FakeLLM()
         questions = [
-            "What should the Excel agent do?",
-            "What should the support assistant remember?",
-            "Which document fields need confidence scores?",
-            "How are handwritten fields treated?",
-            "What needs a human review flag?",
-            "Which documents does the pipeline classify?",
-            "What should the final JSON contain?",
-            "How should the assistant cite sources?",
-            "Can I ask another question about inventory?",
-            "What is the OCR evaluation focus?",
+            "What is the company leave and holiday policy?",
+            "What products and pricing does Nimbus Orchard offer?",
+            "How are travel expenses submitted through Petal?",
+            "What information security certifications does the company hold?",
+            "Where are the regional customer support hubs located?",
+            "Who are the founders of Nimbus Orchard Technologies?",
+            "When does the executive leadership team meet?",
+            "What is the remote work and equipment policy?",
+            "Which company offices and locations are available?",
+            "What is the sick leave policy for employees?",
         ]
         config = {"configurable": {"thread_id": "ten-turn-test"}}
 
@@ -52,7 +52,7 @@ class ConversationTests(unittest.TestCase):
                     config=config,
                 )
                 self.assertIn(
-                    "Source: [Questions.docx — ",
+                    "Source: [nimbus_orchard_handbook.pdf — ",
                     result["messages"][-1].content,
                     msg=f"No relevant knowledge retrieved for: {question}",
                 )

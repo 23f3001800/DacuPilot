@@ -48,7 +48,7 @@ class StageGateEvaluator:
         """STAGE 1: Validates if the document classifier accurately matched target classes."""
         is_correct = (predicted_type == ground_truth_type) and (predicted_type != "UNKNOWN")
         passed = is_correct and (ai_confidence >= 0.80)
-        
+
         return StepMetrics(
             passed_gate=passed,
             confidence_score=ai_confidence,
@@ -60,12 +60,12 @@ class StageGateEvaluator:
         """STAGE 2: Evaluates raw OCR/VLM text recovery before structured mapping."""
         if not raw_ocr_text or not ground_truth_text:
             return StepMetrics(passed_gate=False, confidence_score=0.0, error_message="Empty textual content fields encountered.")
-        
+
         # Determine global structural text mismatch via CER
         layout_cer = self.calculate_cer(ground_truth_text, raw_ocr_text)
         text_accuracy = 1.0 - layout_cer
         passed = text_accuracy >= 0.75  # OCR layout quality gate threshold
-        
+
         return StepMetrics(
             passed_gate=passed,
             confidence_score=round(text_accuracy, 4),
@@ -84,10 +84,10 @@ class StageGateEvaluator:
             pred_obj = pred_fields.get(field_name, {})
             # Handle both raw strings and structured dict field types
             pred_val = str(pred_obj.get("value", "") if isinstance(pred_obj, dict) else pred_obj).strip()
-            
+
             cer = self.calculate_cer(gt_val, pred_val)
             cer_accumulator += cer
-            
+
             if cer < 0.15:  # Exact field matching logic
                 true_positives += 1
             else:

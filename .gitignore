@@ -12,3 +12,10 @@ __pycache__/
 .pytest_cache/
 .coverage
 *.log
+/document_intelligence/output/*
+!/document_intelligence/output/.gitkeep
+/data/uploads/
+*service-account*.json
+*service_account*.json
+*google-credentials*.json
+gen-lang-client-0380050852-428bf93e6b37.json

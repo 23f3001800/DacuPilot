@@ -1,0 +1,32 @@
+.workbook-upload-panel {
+  margin-bottom: 14px;
+  padding: 16px;
+}
+
+.workbook-upload-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.workbook-upload-controls label {
+  color: #344054;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.workbook-upload-controls .file-input {
+  min-width: 0;
+  flex: 1;
+}
+
+.workbook-upload-panel .hint {
+  margin: 10px 0 0;
+}
+
+@media (max-width: 640px) {
+  .workbook-upload-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

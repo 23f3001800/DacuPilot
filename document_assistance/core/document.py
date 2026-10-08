@@ -31,6 +31,14 @@ def get_llm() -> ChatOpenAI:
 
 def _detect_topic(question: str) -> str:
     normalized = question.casefold()
+    if any(term in normalized for term in ("leave", "holiday", "vacation", "sick leave")):
+        return "Leave and holidays"
+    if any(term in normalized for term in ("product", "pricing", "harvestlink", "canopy", "grove")):
+        return "Products and pricing"
+    if any(term in normalized for term in ("expense", "travel", "reimbursement", "petal")):
+        return "Expenses and travel"
+    if any(term in normalized for term in ("security", "iso", "soc", "password", "mfa")):
+        return "Information security"
     if any(term in normalized for term in ("excel", "spreadsheet", "inventory", "dataframe")):
         return "Excel data analysis"
     if any(

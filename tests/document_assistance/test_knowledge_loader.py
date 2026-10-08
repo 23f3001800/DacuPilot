@@ -15,40 +15,36 @@ from document_assistance.core.loader import (
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-QUESTIONS_DOCUMENT = (
+KNOWLEDGE_BASE_DIR = (
     REPOSITORY_ROOT
     / "document_assistance"
     / "knowledge_base"
-    / "Questions.docx"
 )
 
 
 class KnowledgeLoaderTests(unittest.TestCase):
-    def test_questions_document_is_loaded_with_citable_sections(self):
-        sections = load_docx_sections(QUESTIONS_DOCUMENT)
-
-        citations = {section.section for section in sections}
-        content = "\n".join(section.text for section in sections)
-
-        self.assertIn("Excel data agent requirements", citations)
-        self.assertIn("Document support assistant requirements", citations)
-        self.assertIn("Document intelligence requirements", citations)
-        self.assertIn("Required extraction targets", citations)
-        self.assertIn("Deliverables", citations)
-        self.assertIn("Evaluation criteria", citations)
-        self.assertIn("IFSC", content)
-
-    def test_sections_reference_the_source_document(self):
-        sections = load_docx_sections(QUESTIONS_DOCUMENT)
+    def test_handbook_document_is_loaded_with_citable_sections(self):
+        sections = load_knowledge_base(KNOWLEDGE_BASE_DIR)
 
         self.assertTrue(sections)
         self.assertTrue(
-            all(section.citation.startswith("Questions.docx — ") for section in sections)
+            any("nimbus_orchard_handbook.pdf" in section.source for section in sections)
+        )
+
+    def test_sections_reference_the_source_document(self):
+        sections = load_knowledge_base(KNOWLEDGE_BASE_DIR)
+
+        self.assertTrue(sections)
+        self.assertTrue(
+            any(
+                section.citation.startswith("nimbus_orchard_handbook.pdf — ")
+                for section in sections
+            )
         )
 
     def test_missing_document_raises_file_not_found(self):
         with self.assertRaises(FileNotFoundError):
-            load_docx_sections(QUESTIONS_DOCUMENT.with_name("missing.docx"))
+            load_docx_sections(KNOWLEDGE_BASE_DIR / "missing.docx")
 
     def test_uploaded_text_is_extracted_and_empty_text_is_rejected(self):
         sections = extract_uploaded_document("evidence.txt", b"Policy number PL-123")

@@ -2,7 +2,7 @@ import unittest
 
 from pydantic import ValidationError
 
-from document_intelligence.config import Config
+from datapilot.config import Config
 from document_intelligence.core.processor import GatedDocumentProcessor
 from document_intelligence.schemas.documents import (
     MasterDocumentIntelligencePayload,

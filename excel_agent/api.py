@@ -1,15 +1,21 @@
 import json
+import logging
 from pathlib import Path
+from typing import Any
+from uuid import uuid4
 
-from fastapi import FastAPI
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
-from .agent import compiled_graph, logger
+from . import agent
 
-app = FastAPI(title="Enterprise Data Agent SSE API")
-UI_FILE = Path(__file__).resolve().parent.parent / "ui" / "index.html"
+logger = logging.getLogger("datapilot.api")
+router = APIRouter(tags=["data agent"])
+MAX_EXCEL_BYTES = 20 * 1024 * 1024
+UPLOAD_DIRECTORY = Path(__file__).resolve().parents[1] / "data" / "uploads"
 
 
 class ChatRequest(BaseModel):
@@ -17,60 +23,143 @@ class ChatRequest(BaseModel):
     thread_id: str = Field(min_length=1)
 
 
-@app.get("/", include_in_schema=False)
-async def chat_ui():
-    return FileResponse(UI_FILE)
+def _sse(payload: dict[str, Any] | str) -> str:
+    if isinstance(payload, str):
+        return f"data: {payload}\n\n"
+    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 
-async def sse_event_generator(user_message: str, thread_id: str):
-    """Stream agent events as server-sent events."""
-    config = {"configurable": {"thread_id": thread_id}}
-    initial_input = {"messages": [HumanMessage(content=user_message)]}
+def _chunk_text(chunk: Any) -> str:
+    content = getattr(chunk, "content", "")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(
+            part.get("text", "")
+            for part in content
+            if isinstance(part, dict) and isinstance(part.get("text"), str)
+        )
+    return ""
 
-    logger.info("Initiating stream request for thread session: %s", thread_id)
 
+def _tool_calls(chunk: Any) -> list[dict[str, Any]]:
+    calls = getattr(chunk, "tool_calls", None)
+    if calls:
+        return calls
+    additional = getattr(chunk, "additional_kwargs", {})
+    raw_calls = additional.get("tool_calls", []) if isinstance(additional, dict) else []
+    return [
+        call
+        for call in raw_calls
+        if isinstance(call, dict)
+    ]
+
+
+@router.get("/api/data/schema")
+async def data_schema():
+    return agent.schema_context
+
+
+@router.post("/api/data/upload")
+async def upload_excel(file: UploadFile = File(...)):
+    if not file.filename or Path(file.filename).suffix.lower() not in {".xlsx", ".xlsm"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Upload an Excel workbook with an .xlsx or .xlsm extension.",
+        )
+
+    content = await file.read(MAX_EXCEL_BYTES + 1)
+    if not content:
+        raise HTTPException(status_code=400, detail="The workbook is empty.")
+    if len(content) > MAX_EXCEL_BYTES:
+        raise HTTPException(status_code=413, detail="Workbook exceeds the 20 MB limit.")
+
+    UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    stored_path = UPLOAD_DIRECTORY / f"{uuid4().hex}{Path(file.filename).suffix.lower()}"
     try:
-        async for event in compiled_graph.astream_events(
-            initial_input, config, version="v2"
-        ):
-            kind = event.get("event")
-            name = event.get("name")
+        stored_path.write_bytes(content)
+        schema = await run_in_threadpool(agent.set_dataset, str(stored_path))
+    except Exception as error:
+        stored_path.unlink(missing_ok=True)
+        logger.exception("Excel workbook upload failed (%s)", type(error).__name__)
+        raise HTTPException(
+            status_code=400,
+            detail="Could not read the uploaded workbook. Check the file and try again.",
+        ) from error
 
-            if (
-                kind == "on_chat_model_stream"
-                and "tool_calls" in event["data"]["chunk"].additional_kwargs
-            ):
-                tool_chunk = event["data"]["chunk"].additional_kwargs["tool_calls"]
-                for tool in tool_chunk:
-                    if tool.get("name"):
-                        payload = {"event": "tool_start", "tool": tool["name"]}
-                        yield f"data: {json.dumps(payload)}\n\n"
-            elif kind == "on_chat_model_stream" and name == "ChatOpenAI":
-                content = event["data"]["chunk"].content
-                if content:
-                    payload = {"event": "token", "text": content}
-                    yield f"data: {json.dumps(payload)}\n\n"
-            elif kind == "on_chain_end" and name == "run_evaluation":
-                output_data = event["data"].get("output", {})
-                if "structured_response" in output_data:
-                    payload = {
-                        "event": "metrics_evaluation",
-                        "payload": output_data["structured_response"],
-                    }
-                    yield f"data: {json.dumps(payload)}\n\n"
-    except Exception as stream_err:
-        logger.exception("Streaming anomaly detected")
-        payload = {"event": "error", "details": str(stream_err)}
-        yield f"data: {json.dumps(payload)}\n\n"
-    finally:
-        logger.info("Stream generation closed for session thread: %s", thread_id)
-        yield "data: [DONE]\n\n"
+    logger.info(
+        "Data Agent workbook uploaded (%s rows, %s columns)",
+        schema["total_rows"],
+        len(schema["columns"]),
+    )
+    return {
+        "filename": Path(file.filename).name,
+        "total_rows": schema["total_rows"],
+        "columns": schema["columns"],
+        "data_types": schema["data_types"],
+    }
 
 
-@app.post("/api/chat/stream")
+@router.post("/api/chat/stream")
 async def stream_chat_endpoint(payload: ChatRequest):
-    """Expose the agent's event stream over HTTP."""
+    logger.info("Starting data-agent stream for thread %s", payload.thread_id)
     return StreamingResponse(
         sse_event_generator(payload.message, payload.thread_id),
         media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
+
+
+async def sse_event_generator(user_message: str, thread_id: str):
+    """Stream data-agent tokens, tool starts, metrics, errors, and a final sentinel."""
+    config = {"configurable": {"thread_id": thread_id}}
+    initial_input = {"messages": [HumanMessage(content=user_message)]}
+
+    try:
+        yield _sse({"event": "status", "text": "Thinking..."})
+        async for event in agent.compiled_graph.astream_events(
+            initial_input, config, version="v2"
+        ):
+            kind = event.get("event")
+            data = event.get("data", {})
+            chunk = data.get("chunk")
+            metadata = event.get("metadata", {})
+            graph_node = metadata.get("langgraph_node")
+
+            if kind == "on_chat_model_stream" and chunk is not None:
+                if graph_node and graph_node != "analyst_reasoner":
+                    continue
+                for tool in _tool_calls(chunk):
+                    function = tool.get("function", {})
+                    tool_name = tool.get("name") or (
+                        function.get("name") if isinstance(function, dict) else None
+                    )
+                    if tool_name:
+                        logger.info("Data-agent tool started: %s", tool_name)
+                        yield _sse({"event": "tool_start", "tool": tool_name})
+                token = _chunk_text(chunk)
+                if token:
+                    yield _sse({"event": "token", "text": token})
+            elif kind == "on_chain_end" and event.get("name") == "run_evaluation":
+                output_data = data.get("output", {})
+                if isinstance(output_data, dict):
+                    result = output_data.get("structured_response")
+                    if result is not None:
+                        if hasattr(result, "model_dump"):
+                            result = result.model_dump()
+                        yield _sse({"event": "metrics_evaluation", "payload": result})
+    except Exception:
+        logger.exception("Data-agent stream failed for thread %s", thread_id)
+        yield _sse(
+            {
+                "event": "error",
+                "details": "The data assistant failed. Check the server log for details.",
+            }
+        )
+    finally:
+        logger.info("Data-agent stream closed for thread %s", thread_id)
+        yield _sse("[DONE]")

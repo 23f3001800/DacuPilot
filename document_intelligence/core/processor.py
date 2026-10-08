@@ -14,21 +14,21 @@ class GatedDocumentProcessor:
             ground_truth_type=ground_truth.get("document_type", ""),
             ai_confidence=live_extraction.get("classification_confidence", 0.0)
         )
-        
+
         # Step 2: Evaluate OCR Layout Gate
         ocr_metrics = self.evaluator.evaluate_ocr_layout_step(
             raw_ocr_text=live_extraction.get("raw_ocr_dump", ""),
             ground_truth_text=ground_truth.get("raw_text_ground_truth", "")
         )
-        
+
         # Step 3: Evaluate Target Field Extraction Gate
         document_type = live_extraction.get("document_type", "").upper()
         pred_data_key = DOCUMENT_DATA_FIELDS.get(document_type, "")
         pred_fields = live_extraction.get(pred_data_key, {})
         gt_fields = ground_truth.get("extracted_fields", {})
-        
+
         field_metrics = self.evaluator.evaluate_field_validation_step(gt_fields, pred_fields)
-        
+
         # Global Route Gate Resolution Logic
         if class_metrics.passed_gate and ocr_metrics.passed_gate and field_metrics.passed_gate:
             final_route = "AUTOMATED_STRAIGHT_THROUGH_PROCESSING"

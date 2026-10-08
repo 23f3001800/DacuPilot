@@ -1,13 +1,15 @@
-import os
 import json
 import logging
-from pathlib import Path
+import threading
 from typing import TypedDict, Annotated, Sequence, Literal
 from pydantic import BaseModel, Field
-from logging.handlers import RotatingFileHandler
-from dotenv import load_dotenv
 
-from langchain_core.messages import BaseMessage, SystemMessage, ToolMessage
+from langchain_core.messages import (
+    BaseMessage,
+    SystemMessage,
+    ToolMessage,
+    message_chunk_to_message,
+)
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
@@ -15,59 +17,48 @@ from langgraph.checkpoint.memory import MemorySaver
 
 from .loader import load_real_world_excel
 from .engine import PythonSandboxREPL
+from datapilot.config import get_config
+from datapilot.llm_provider import create_chat_model
 from tavily import TavilyClient
 
-load_dotenv()
-
-# ==========================================
-# 1. PRODUCTION ROTATING LOGGING SETUP
-# ==========================================
-logger = logging.getLogger("DataAgentAPI")
-logger.setLevel(logging.INFO)
-
-if not logger.handlers:
-    console_formatter = logging.Formatter('⏳ [%(asctime)s] %(levelname)s - %(message)s', '%Y-%m-%d %H:%M:%S')
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(console_formatter)
-    logger.addHandler(console_handler)
-
-    file_formatter = logging.Formatter('[%(asctime)s] %(levelname)s [%(name)s:%(lineno)d] - %(message)s')
-    file_handler = RotatingFileHandler("agent_server.log", maxBytes=5*1024*1024, backupCount=3)
-    file_handler.setFormatter(file_formatter)
-    logger.addHandler(file_handler)
+logger = logging.getLogger("datapilot.data_agent")
 
 logging.getLogger("openai").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
-# ==========================================
-# 2. CORE AGENT & DATA CONFIGURATION
-# ==========================================
-EXCEL_FILE_PATH = os.getenv(
-    "EXCEL_FILE_PATH",
-    str(Path(__file__).resolve().parent / "Inventory-Records-Sample-Data.xlsx"),
-)
-df, schema_context = load_real_world_excel(EXCEL_FILE_PATH)
+_settings = get_config()
+df, schema_context = load_real_world_excel(_settings.excel_file_path)
 sandbox_repl = PythonSandboxREPL(df)
+_dataset_lock = threading.RLock()
+
+
+def set_dataset(file_path: str) -> dict:
+    """Load a workbook and atomically replace the Data Agent's shared dataset."""
+    global df, schema_context, sandbox_repl
+    new_df, new_schema = load_real_world_excel(file_path)
+    with _dataset_lock:
+        df = new_df
+        schema_context = new_schema
+        sandbox_repl = PythonSandboxREPL(new_df)
+    logger.info(
+        "Data Agent workbook loaded: %s rows, %s columns",
+        new_schema["total_rows"],
+        len(new_schema["columns"]),
+    )
+    return new_schema
 
 
 def get_llm() -> ChatOpenAI:
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise RuntimeError("GEMINI_API_KEY is required to run the Excel agent.")
-    return ChatOpenAI(
-        model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
-        api_key=api_key,
-        base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+    return create_chat_model(
         temperature=0.1,
         streaming=True,
     )
 
 
 def get_tavily_client() -> TavilyClient:
-    api_key = os.getenv("TAVILY_API_KEY")
-    if not api_key:
+    if not _settings.tavily_api_key:
         raise RuntimeError("TAVILY_API_KEY is required to use web search.")
-    return TavilyClient(api_key=api_key)
+    return TavilyClient(api_key=_settings.tavily_api_key)
 
 # Pydantic Schemas
 class CodeExecutionInput(BaseModel):
@@ -104,7 +95,14 @@ Metrics Count: {schema_context['total_rows']}
         {"name": "execute_pandas_code", "description": "Run Python code against df REPL.", "parameters": CodeExecutionInput.model_json_schema()},
         {"name": "web_search_lookup", "description": "Search Tavily for definitions.", "parameters": WebSearchInput.model_json_schema()}
     ])
-    response = await llm_with_tools.ainvoke([system_prompt] + list(state["messages"]))
+    response = None
+    async for chunk in llm_with_tools.astream(
+        [system_prompt] + list(state["messages"])
+    ):
+        response = chunk if response is None else response + chunk
+    if response is None:
+        raise RuntimeError("The model returned no response chunks.")
+    response = message_chunk_to_message(response)
     return {"messages": [response]}
 
 async def tool_execution_node(state: AgentGraphState):
@@ -114,11 +112,14 @@ async def tool_execution_node(state: AgentGraphState):
     for tool_call in last_msg.tool_calls:
         tool_name = tool_call["name"]
         raw_args = tool_call["args"]
-        logger.info(f"Executing tool: '{tool_name}' with arguments: {json.dumps(raw_args)}")
+        logger.info("Executing tool %s", tool_name)
         
         try:
             if tool_name == "execute_pandas_code":
-                output = sandbox_repl.execute_code(CodeExecutionInput(**raw_args).code)
+                with _dataset_lock:
+                    output = sandbox_repl.execute_code(
+                        CodeExecutionInput(**raw_args).code
+                    )
             elif tool_name == "web_search_lookup":
                 search_res = get_tavily_client().search(
                     query=WebSearchInput(**raw_args).query,
@@ -127,10 +128,10 @@ async def tool_execution_node(state: AgentGraphState):
                 output = "\n".join([r['content'] for r in search_res]) or "No data."
             else:
                 output = "Invalid tool."
-            logger.info(f"Tool '{tool_name}' executed successfully.")
+            logger.info("Tool %s executed successfully", tool_name)
         except Exception as e:
             output = f"Error: {str(e)}"
-            logger.error(f"Tool validation failed: {str(e)}")
+            logger.exception("Tool %s failed", tool_name)
             
         tool_responses.append(ToolMessage(content=output, tool_call_id=tool_call["id"]))
     return {"messages": tool_responses}

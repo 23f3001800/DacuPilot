@@ -3,181 +3,542 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f5f7fb">
-  <title>DataPilot | Inventory assistant</title>
+  <meta name="theme-color" content="#f6f8fc">
+  <title>DocuPilot | Intelligent Document &amp; Data Processing</title>
+  <link rel="stylesheet" href="/ui/data-upload.css">
   <style>
     :root {
       color-scheme: light;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: #182230;
-      background: #f5f7fb;
+      color: #15244a;
+      background: #f6f8fc;
       font-synthesis: none;
       text-rendering: optimizeLegibility;
+      --blue: #155eef;
+      --purple: #6938ef;
+      --green: #039855;
+      --muted: #667085;
+      --line: #e4e9f2;
     }
     * { box-sizing: border-box; }
     body { margin: 0; min-height: 100vh; }
-    .shell { width: min(900px, 100%); min-height: 100vh; margin: 0 auto; padding: 28px 20px; display: flex; flex-direction: column; }
-    header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 4px 0 22px; }
-    .brand { display: flex; align-items: center; gap: 12px; }
-    .logo { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: white; background: #4258d0; font-weight: 750; }
-    h1 { margin: 0; font-size: 18px; letter-spacing: -.02em; }
-    .subtitle { margin: 3px 0 0; color: #667085; font-size: 13px; }
-    button, textarea { font: inherit; }
-    .reset { border: 1px solid #d0d5dd; border-radius: 9px; color: #344054; background: white; padding: 8px 12px; cursor: pointer; }
-    .reset:hover { background: #f9fafb; }
-    .card { display: flex; flex: 1; flex-direction: column; min-height: 520px; overflow: hidden; border: 1px solid #e4e7ec; border-radius: 16px; background: white; box-shadow: 0 8px 28px #1822300a; }
-    .dataset { padding: 12px 18px; border-bottom: 1px solid #eaecf0; color: #475467; font-size: 13px; }
-    .dataset strong { color: #344054; font-weight: 600; }
-    #messages { flex: 1; overflow-y: auto; padding: 22px; }
-    .message { display: flex; gap: 10px; margin: 0 0 20px; align-items: flex-start; }
-    .message.user { flex-direction: row-reverse; }
-    .avatar { display: grid; flex: 0 0 30px; place-items: center; width: 30px; height: 30px; border-radius: 10px; color: #344054; background: #eef1ff; font-size: 12px; font-weight: 700; }
-    .user .avatar { color: white; background: #6675d8; }
-    .bubble { max-width: min(680px, calc(100% - 40px)); padding: 11px 14px; border-radius: 4px 14px 14px 14px; background: #f2f4f7; color: #344054; font-size: 14px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
-    .user .bubble { border-radius: 14px 4px 14px 14px; color: #182230; background: #eef1ff; }
-    .bubble.error { color: #b42318; background: #fef3f2; }
-    .suggestions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 22px 16px; }
-    .suggestion { border: 1px solid #d9defa; border-radius: 999px; padding: 7px 11px; background: white; color: #4258a8; font-size: 12px; cursor: pointer; }
-    .suggestion:hover { background: #f7f8ff; }
-    form { display: flex; align-items: flex-end; gap: 10px; margin: 0 16px 12px; padding: 10px; border: 1px solid #d0d5dd; border-radius: 13px; background: white; }
-    textarea { flex: 1; min-height: 42px; max-height: 150px; resize: vertical; padding: 10px 8px; border: 0; outline: 0; color: #182230; font-size: 14px; }
-    textarea::placeholder { color: #98a2b3; }
-    #send { min-width: 72px; border: 0; border-radius: 9px; padding: 10px 15px; color: white; background: #4258d0; font-weight: 600; cursor: pointer; }
-    #send:disabled { opacity: .55; cursor: wait; }
-    .note { margin: 0 16px 14px; color: #98a2b3; text-align: center; font-size: 11px; }
-    @media (max-width: 560px) {
-      .shell { padding: 14px 10px; }
-      header { padding-bottom: 14px; }
-      .card { min-height: calc(100vh - 90px); }
-      #messages { padding: 16px 12px; }
-      .suggestions { padding: 0 12px 12px; }
-      .bubble { font-size: 13px; }
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .app { min-height: 100vh; }
+    .topbar { height: 62px; position: fixed; inset: 0 0 auto; z-index: 5; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; background: #fff; border-bottom: 1px solid var(--line); }
+    .brand { display: flex; align-items: center; gap: 10px; color: #101d47; font-size: 21px; font-weight: 800; letter-spacing: -.7px; }
+    .brand-mark { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; color: white; background: linear-gradient(145deg, #176bff, #532bde); font-size: 17px; }
+    .brand-caption { margin-left: 8px; padding-left: 16px; border-left: 1px solid #d7ddec; color: #66718e; font-size: 12px; font-weight: 500; letter-spacing: 0; }
+    .top-actions { display: flex; align-items: center; gap: 22px; color: #344054; }
+    .status { display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 999px; background: #e7f9f0; color: #027a48; font-size: 11px; font-weight: 650; }
+    .status.offline { background: #fff1f0; color: #b42318; }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+    .profile { display: flex; align-items: center; gap: 10px; border-left: 1px solid #d7ddec; padding-left: 20px; font-size: 12px; }
+    .profile-avatar { display: grid; place-items: center; width: 33px; height: 33px; border-radius: 50%; background: #155eef; color: white; font-weight: 700; }
+    .profile small { display: block; color: var(--muted); margin-top: 2px; }
+    .layout { display: flex; padding-top: 62px; min-height: 100vh; }
+    .sidebar { width: 176px; position: fixed; inset: 62px auto 0 0; display: flex; flex-direction: column; padding: 14px 10px; border-right: 1px solid var(--line); background: white; }
+    .nav { display: grid; gap: 5px; }
+    .nav-item { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 42px; padding: 8px 11px; border: 0; border-radius: 9px; background: transparent; color: #34405e; text-align: left; font-size: 12px; font-weight: 650; }
+    .nav-item:hover { background: #f4f6fb; }
+    .nav-item.active { background: #eaf1ff; color: #155eef; }
+    .nav-icon { width: 20px; text-align: center; font-size: 17px; }
+    .nav-copy small { display: block; margin-top: 2px; color: #77819a; font-size: 10px; font-weight: 450; }
+    .nav-divider { height: 1px; margin: 14px 5px; background: var(--line); }
+    .sidebar-foot { margin-top: auto; padding: 14px 10px; border-radius: 13px; background: linear-gradient(135deg, #eef2ff, #f6f8ff); color: #536283; font-size: 10px; line-height: 1.5; }
+    .sidebar-foot strong { display: block; color: #2f4382; font-size: 11px; }
+    main { width: calc(100% - 176px); margin-left: 176px; padding: 28px clamp(22px, 4vw, 55px) 50px; }
+    .page { width: min(1180px, 100%); margin: 0 auto; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 13px; padding: 7px 12px; border-radius: 999px; background: #f0edff; color: #5925dc; font-size: 11px; font-weight: 700; }
+    .home-hero { display: grid; grid-template-columns: 1.05fr .95fr; align-items: center; gap: 24px; min-height: 248px; }
+    h1 { margin: 0; color: #101d47; font-size: clamp(33px, 4vw, 47px); line-height: 1.08; letter-spacing: -1.8px; }
+    .gradient { background: linear-gradient(90deg, #155eef, #6938ef); background-clip: text; color: transparent; font-size: 1.14em; }
+    .hero-copy { max-width: 560px; margin: 12px 0 0; color: #42506e; font-size: 14px; line-height: 1.65; }
+    .hero-art { min-height: 200px; position: relative; display: grid; place-items: center; }
+    .paper-stack { position: relative; width: 205px; height: 150px; transform: rotate(-6deg); }
+    .paper { position: absolute; width: 130px; height: 155px; border: 1px solid #bfceff; border-radius: 15px; background: linear-gradient(145deg, #fff, #e9f1ff); box-shadow: 0 18px 38px #4975de2b; }
+    .paper:before, .paper:after { content: ""; position: absolute; left: 23px; width: 75px; height: 7px; border-radius: 9px; background: #a7bfff; }
+    .paper:before { top: 45px; box-shadow: 0 21px #c4d2ff, 0 42px #c4d2ff, 0 63px #d8e1ff; }
+    .paper:after { top: 24px; width: 39px; height: 9px; background: #6d8fff; }
+    .paper.p1 { left: 12px; top: 9px; opacity: .55; transform: rotate(-13deg); }
+    .paper.p2 { left: 58px; top: 0; opacity: .75; transform: rotate(9deg); }
+    .paper.p3 { left: 41px; top: 7px; transform: rotate(-1deg); }
+    .float-label { position: absolute; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid #c7d7fe; border-radius: 14px; background: #fff; color: #344b95; box-shadow: 0 8px 24px #34405412; font-size: 10px; font-weight: 700; }
+    .float-label.left { left: 2%; top: 20px; }
+    .float-label.right { right: 0; top: 38px; color: #5925dc; border-color: #ddd6fe; }
+    .float-label.bottom { right: 0; bottom: 8px; color: #027a48; border-color: #abefc6; }
+    .section-heading { margin: 12px 0 4px; color: #101d47; font-size: 21px; letter-spacing: -.5px; }
+    .section-sub { margin: 0 0 18px; color: #667085; font-size: 12px; }
+    .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .capability { min-height: 230px; display: flex; flex-direction: column; padding: 19px; border: 1px solid; border-radius: 13px; }
+    .capability.blue { border-color: #b2ddff; background: linear-gradient(135deg, #eff8ff, #f2f7ff); }
+    .capability.purple { border-color: #d9d6fe; background: linear-gradient(135deg, #f4f3ff, #faf8ff); }
+    .capability.green { border-color: #a6f4c5; background: linear-gradient(135deg, #ecfdf3, #f1fff7); }
+    .cap-head { display: flex; align-items: center; gap: 13px; }
+    .cap-icon { flex: 0 0 52px; height: 52px; display: grid; place-items: center; border-radius: 50%; font-size: 24px; }
+    .blue .cap-icon { color: #067647; background: #c8f5dd; }
+    .purple .cap-icon { color: #5925dc; background: #e4dcff; }
+    .green .cap-icon { color: #027a48; background: #c8f5dd; }
+    .cap-head h3 { margin: 0; color: #101d47; font-size: 17px; letter-spacing: -.4px; }
+    .cap-copy { margin: 13px 0 12px; color: #475467; font-size: 12px; line-height: 1.5; }
+    .checks { display: grid; gap: 6px; margin: 0 0 16px; padding: 0; list-style: none; color: #344054; font-size: 11px; }
+    .checks li:before { content: "✓"; margin-right: 8px; color: var(--blue); font-weight: 800; }
+    .green .checks li:before { color: var(--green); }
+    .cta { display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 39px; margin-top: auto; border: 0; border-radius: 9px; color: white; font-size: 12px; font-weight: 700; }
+    .blue .cta { background: linear-gradient(90deg, #155eef, #176bff); }
+    .purple .cta { background: linear-gradient(90deg, #6938ef, #7a5af8); }
+    .green .cta { background: linear-gradient(90deg, #039855, #12b76a); }
+    .assurance { display: flex; align-items: center; justify-content: center; gap: 13px; margin: 23px auto 0; color: #74809b; font-size: 10px; }
+    .assurance:before, .assurance:after { content: ""; width: min(13vw, 120px); height: 1px; background: #dce3f1; }
+    .badges { display: flex; justify-content: center; flex-wrap: wrap; gap: 9px; margin-top: 12px; }
+    .badge { padding: 7px 11px; border: 1px solid #edf0f6; border-radius: 999px; background: #fff; color: #42506e; font-size: 10px; }
+    .page-title { margin: 2px 0 6px; color: #101d47; font-size: 29px; letter-spacing: -.9px; }
+    .page-description { margin: 0 0 22px; color: #667085; font-size: 13px; line-height: 1.5; }
+    .panel { padding: 20px; border: 1px solid var(--line); border-radius: 14px; background: #fff; box-shadow: 0 5px 20px #101d4708; }
+    .panel h2 { margin: 0 0 6px; color: #182b58; font-size: 16px; }
+    .panel p { color: #667085; font-size: 12px; line-height: 1.5; }
+    .chat-layout { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 16px; }
+    .chat-panel { min-height: 470px; display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+    .chat-top { padding: 15px 18px; border-bottom: 1px solid var(--line); }
+    .chat-top strong { color: #25345a; font-size: 13px; }
+    .chat-top span { float: right; color: #039855; font-size: 11px; }
+    .chat-messages { flex: 1; min-height: 300px; max-height: 55vh; overflow-y: auto; padding: 18px; }
+    .chat-message { display: flex; gap: 9px; margin-bottom: 15px; align-items: flex-start; }
+    .chat-message.user { flex-direction: row-reverse; }
+    .chat-avatar { display: grid; flex: 0 0 28px; height: 28px; place-items: center; border-radius: 9px; color: #155eef; background: #eaf1ff; font-size: 11px; font-weight: 750; }
+    .chat-message.user .chat-avatar { color: #fff; background: #6675d8; }
+    .chat-bubble { max-width: calc(100% - 40px); padding: 10px 12px; border-radius: 4px 12px 12px; background: #f2f4f7; color: #344054; font-size: 12px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .chat-message.user .chat-bubble { border-radius: 12px 4px 12px 12px; background: #eef1ff; }
+    .chat-bubble.error { color: #b42318; background: #fef3f2; }
+    .chat-form { display: flex; gap: 9px; margin: 0 14px 13px; padding: 8px; border: 1px solid #d0d5dd; border-radius: 11px; }
+    .chat-form textarea { flex: 1; min-height: 38px; max-height: 110px; resize: vertical; padding: 8px; border: 0; outline: 0; color: #182230; font-size: 12px; }
+    .primary-button { border: 0; border-radius: 8px; padding: 9px 14px; background: var(--blue); color: #fff; font-size: 12px; font-weight: 700; }
+    .primary-button:disabled { opacity: .55; cursor: wait; }
+    .prompt-list { display: grid; gap: 8px; margin-top: 14px; }
+    .prompt-button { padding: 10px; border: 1px solid #e5e9f1; border-radius: 9px; background: white; color: #344054; text-align: left; font-size: 11px; }
+    .prompt-button:hover { border-color: #b2c7ff; background: #f8faff; }
+    .pipeline { display: grid; grid-template-columns: repeat(6, minmax(130px, 1fr)); gap: 10px; overflow-x: auto; padding: 4px 0 16px; }
+    .pipeline-step { min-height: 127px; position: relative; padding: 13px; border: 1px solid #d6e4ff; border-radius: 12px; background: linear-gradient(145deg, #fff, #f5f8ff); }
+    .pipeline-step:not(:last-child):after { content: "›"; position: absolute; z-index: 1; top: 43%; right: -11px; color: #6e91e8; font-size: 23px; font-weight: 800; }
+    .step-number { display: grid; place-items: center; width: 25px; height: 25px; margin-bottom: 9px; border-radius: 8px; background: #eaf1ff; color: #155eef; font-size: 11px; font-weight: 800; }
+    .pipeline-step strong { display: block; color: #23345f; font-size: 11px; }
+    .pipeline-step small { display: block; margin-top: 5px; color: #667085; font-size: 10px; line-height: 1.4; }
+    .drop-zone { display: grid; place-items: center; min-height: 147px; padding: 22px; border: 1px dashed #98aef1; border-radius: 13px; background: #f9faff; text-align: center; }
+    .drop-zone strong { display: block; margin-bottom: 5px; color: #25345a; font-size: 13px; }
+    .drop-zone span { color: #667085; font-size: 11px; }
+    .file-input { max-width: 100%; margin-top: 14px; color: #475467; font-size: 11px; }
+    .consent { display: flex; gap: 10px; align-items: flex-start; margin: 16px 0; padding: 13px; border: 1px solid #fedf89; border-radius: 10px; background: #fffaeb; color: #7a2e0e; font-size: 11px; line-height: 1.5; }
+    .consent input { margin-top: 2px; accent-color: #155eef; }
+    .process-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .hint { color: #667085; font-size: 11px; }
+    .error-box { margin-top: 13px; padding: 11px 13px; border: 1px solid #fecdca; border-radius: 9px; background: #fef3f2; color: #b42318; font-size: 12px; }
+    .results { display: grid; gap: 14px; margin-top: 18px; }
+    .result-summary { display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; align-items: center; }
+    .download-links { display: flex; gap: 8px; flex-wrap: wrap; }
+    .download-links a { padding: 8px 10px; border: 1px solid #d0d5dd; border-radius: 8px; color: #344054; text-decoration: none; font-size: 11px; }
+    .document-result { padding: 15px; border: 1px solid var(--line); border-radius: 11px; background: #fff; }
+    .document-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 11px; }
+    .document-head strong { color: #25345a; font-size: 13px; }
+    .document-head small { display: block; margin-top: 4px; color: #667085; font-size: 10px; }
+    .pill { padding: 5px 9px; border-radius: 999px; background: #ecfdf3; color: #027a48; font-size: 10px; font-weight: 700; }
+    .pill.review { background: #fff4e5; color: #b54708; }
+    .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .field { padding: 9px 10px; border: 1px solid #edf0f5; border-radius: 8px; background: #fcfcfd; }
+    .field-top { display: flex; justify-content: space-between; gap: 8px; color: #667085; font-size: 10px; }
+    .field-value { margin-top: 5px; color: #25345a; font-size: 11px; font-weight: 650; overflow-wrap: anywhere; }
+    .field-review { margin-top: 4px; color: #b54708; font-size: 9px; }
+    .empty-value { color: #98a2b3; font-style: italic; font-weight: 450; }
+    .stage-list { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 10px; }
+    .stage-chip { padding: 5px 7px; border-radius: 6px; background: #f2f4f7; color: #475467; font-size: 9px; }
+    .stage-chip.fail { color: #b42318; background: #fef3f2; }
+    .about-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .metric { padding: 17px; border: 1px solid var(--line); border-radius: 12px; background: white; }
+    .metric strong { display: block; color: #155eef; font-size: 22px; }
+    .metric span { display: block; margin-top: 5px; color: #667085; font-size: 11px; }
+    .setting-row { display: flex; justify-content: space-between; gap: 15px; padding: 13px 0; border-bottom: 1px solid #edf0f5; color: #344054; font-size: 12px; }
+    .setting-row:last-child { border: 0; }
+    .setting-row span:last-child { color: #667085; text-align: right; }
+    .assistant-fab { position: fixed; right: 22px; bottom: 20px; z-index: 8; width: 46px; height: 46px; border: 0; border-radius: 50%; background: linear-gradient(145deg, #6938ef, #155eef); color: white; box-shadow: 0 9px 25px #5436d744; font-size: 18px; }
+    .toast { position: fixed; right: 22px; bottom: 77px; z-index: 8; max-width: 310px; padding: 11px 14px; border: 1px solid var(--line); border-radius: 10px; background: white; color: #344054; box-shadow: 0 9px 30px #101d471a; font-size: 11px; }
+    .toast[hidden] { display: none; }
+    @media (max-width: 900px) {
+      .sidebar { width: 68px; padding-inline: 8px; }
+      .nav-item { justify-content: center; padding: 9px 4px; }
+      .nav-copy, .sidebar-foot, .brand-caption, .profile-name { display: none; }
+      main { width: calc(100% - 68px); margin-left: 68px; padding-inline: 22px; }
+      .cards { grid-template-columns: 1fr; }
+      .capability { min-height: 195px; }
+      .home-hero { grid-template-columns: 1fr .7fr; }
+      .chat-layout { grid-template-columns: 1fr; }
+      .prompt-panel { display: none; }
+      .pipeline { grid-template-columns: repeat(6, 150px); }
+    }
+    @media (max-width: 580px) {
+      .topbar { height: 56px; padding: 0 13px; }
+      .brand { font-size: 18px; }
+      .status { padding: 6px 9px; font-size: 10px; }
+      .profile { display: none; }
+      .sidebar { inset: 56px auto 0 0; width: 56px; }
+      .layout { padding-top: 56px; }
+      main { width: calc(100% - 56px); margin-left: 56px; padding: 22px 12px 80px; }
+      .home-hero { display: block; min-height: auto; }
+      .hero-art { min-height: 160px; }
+      h1 { font-size: 33px; }
+      .hero-copy { font-size: 12px; }
+      .field-grid, .about-grid { grid-template-columns: 1fr; }
+      .panel { padding: 14px; }
+      .assistant-fab { right: 12px; bottom: 12px; }
     }
   </style>
 </head>
 <body>
-  <main class="shell">
-    <header>
-      <div class="brand">
-        <div class="logo" aria-hidden="true">D</div>
-        <div>
-          <h1>DataPilot</h1>
-          <p class="subtitle">Ask questions about your inventory</p>
-        </div>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">▤</span><span>DocuPilot</span><span class="brand-caption">Intelligent Document &amp; Data Processing</span></div>
+      <div class="top-actions">
+        <span class="status" id="system-status"><span class="status-dot"></span>Checking system</span>
+        <div class="profile"><span class="profile-avatar">D</span><span class="profile-name">DataPilot<small>Workspace</small></span></div>
       </div>
-      <button class="reset" id="reset" type="button">New chat</button>
     </header>
-
-    <section class="card" aria-label="Inventory chat">
-      <div class="dataset"><strong>Dataset</strong> · Inventory Records Sample Data</div>
-      <div id="messages" role="log" aria-live="polite" aria-relevant="additions"></div>
-      <div class="suggestions" id="suggestions">
-        <button class="suggestion" type="button">Which product has the most stock?</button>
-        <button class="suggestion" type="button">Which item has the highest inventory value?</button>
-        <button class="suggestion" type="button">How many products are listed?</button>
-      </div>
-      <form id="chat-form">
-        <textarea id="message" rows="1" aria-label="Your question" placeholder="Ask a question about the spreadsheet…" required></textarea>
-        <button id="send" type="submit">Send</button>
-      </form>
-      <p class="note">Answers are generated from your spreadsheet and may need verification.</p>
-    </section>
-  </main>
+    <div class="layout">
+      <aside class="sidebar">
+        <nav class="nav" aria-label="Main navigation">
+          <button class="nav-item" data-route="home"><span class="nav-icon">⌂</span><span class="nav-copy">Home</span></button>
+          <button class="nav-item" data-route="data-agent"><span class="nav-icon">▤</span><span class="nav-copy">Data Agent<small>Excel Q&amp;A</small></span></button>
+          <button class="nav-item" data-route="document-assistant"><span class="nav-icon">▣</span><span class="nav-copy">Document Assistant<small>Chat with documents</small></span></button>
+          <button class="nav-item" data-route="document-intelligence"><span class="nav-icon">▧</span><span class="nav-copy">Document Intelligence<small>Classify &amp; extract</small></span></button>
+          <div class="nav-divider"></div>
+          <button class="nav-item" data-route="about"><span class="nav-icon">ⓘ</span><span class="nav-copy">About</span></button>
+          <button class="nav-item" data-route="settings"><span class="nav-icon">⚙</span><span class="nav-copy">Settings</span></button>
+        </nav>
+        <div class="sidebar-foot"><strong>✦ AI-powered workspace</strong>Tools for data questions, cited document help, and structured extraction.</div>
+      </aside>
+      <main><div class="page" id="page"></div></main>
+    </div>
+    <button class="assistant-fab" id="quick-assistant" type="button" aria-label="Ask the document assistant">✦</button>
+    <div class="toast" id="toast" hidden></div>
+  </div>
   <script>
-    const messages = document.querySelector("#messages");
-    const form = document.querySelector("#chat-form");
-    const input = document.querySelector("#message");
-    const send = document.querySelector("#send");
-    const suggestions = document.querySelector("#suggestions");
-    let threadId = sessionStorage.getItem("datapilot-thread-id") || crypto.randomUUID();
-    sessionStorage.setItem("datapilot-thread-id", threadId);
+    const page = document.querySelector("#page");
+    const toast = document.querySelector("#toast");
+    const navButtons = [...document.querySelectorAll(".nav-item")];
+    const newId = () => crypto.randomUUID();
+    const sessionKey = "docupilot-thread-";
+    const threadFor = name => {
+      const key = sessionKey + name;
+      let id = sessionStorage.getItem(key);
+      if (!id) { id = newId(); sessionStorage.setItem(key, id); }
+      return id;
+    };
+    const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, char => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    })[char]);
+    const showToast = message => {
+      toast.textContent = message;
+      toast.hidden = false;
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => { toast.hidden = true; }, 3500);
+    };
 
-    function addMessage(text, role, extraClass = "") {
+    function homePage() {
+      return `<section class="home-hero">
+        <div><span class="eyebrow">✦ &nbsp;AI-Powered</span><h1>Welcome to<br><span class="gradient">DocuPilot!</span></h1>
+        <p class="hero-copy">An intelligent document and data processing platform that helps you extract insights, chat with documents, and classify information from complex files — all in one place.</p></div>
+        <div class="hero-art" aria-hidden="true"><span class="float-label left">▤ &nbsp; Understand Documents</span><span class="float-label right">▧ &nbsp; Extract Structured Data</span><div class="paper-stack"><div class="paper p1"></div><div class="paper p2"></div><div class="paper p3"></div></div><span class="float-label bottom">▣ &nbsp; Ask Questions</span></div>
+      </section>
+      <h2 class="section-heading">Explore Our Capabilities</h2><p class="section-sub">Choose a module to get started. Each module supports a different part of your document and data journey.</p>
+      <section class="cards">
+        <article class="capability blue"><div class="cap-head"><div class="cap-icon">▦</div><h3>Data Agent</h3></div><p class="cap-copy">Ask questions about Excel files in natural language. Get insights, summaries, and answers.</p><ul class="checks"><li>Ask questions about your data</li><li>Get summaries and insights</li><li>Explore trends and patterns</li></ul><button class="cta" data-go="data-agent">Go to Data Agent &nbsp; →</button></article>
+        <article class="capability purple"><div class="cap-head"><div class="cap-icon">▣</div><h3>Document Assistant</h3></div><p class="cap-copy">Chat with your documents using session context and section citations.</p><ul class="checks"><li>Ask questions from documents</li><li>Get cited answers</li><li>Continue across multiple turns</li></ul><button class="cta" data-go="document-assistant">Go to Document Assistant &nbsp; →</button></article>
+        <article class="capability green"><div class="cap-head"><div class="cap-icon">▤</div><h3>Document Intelligence</h3></div><p class="cap-copy">Classify documents and extract structured data with field-level confidence and review flags.</p><ul class="checks"><li>Document classification</li><li>Extract key fields</li><li>Review uncertain handwriting</li></ul><button class="cta" data-go="document-intelligence">Go to Document Intelligence &nbsp; →</button></article>
+      </section>
+      <div class="assurance">Built for real-world document challenges</div><div class="badges"><span class="badge">♧ &nbsp;Review aware</span><span class="badge">ϟ &nbsp;Fast</span><span class="badge">▱ &nbsp;Traceable</span><span class="badge">✦ &nbsp;AI-Powered</span></div>`;
+    }
+
+    function chatPage(kind) {
+      const isData = kind === "data-agent";
+      const title = isData ? "Data Agent" : "Document Assistant";
+      const description = isData
+        ? "Ask questions about the active workbook. The agent can calculate from the data and look up external context."
+        : "Ask about the assignment knowledge document. Replies use the current session context and cite relevant sections.";
+      const hints = isData
+        ? ["Which product has the most stock?", "Which product has the highest inventory value?", "How many products are listed?"]
+        : ["What should the Excel agent do?", "Which fields need human review?", "What is the handwriting evaluation focus?"];
+      return `<h1 class="page-title">${title}</h1><p class="page-description">${description}</p>
+        ${isData ? `<form id="excel-upload-form" class="panel workbook-upload-panel"><div class="workbook-upload-controls"><label for="excel-file"><strong>Use your own workbook</strong></label><input class="file-input" id="excel-file" name="file" type="file" accept=".xlsx,.xlsm" required><button class="primary-button" id="excel-upload-button" type="submit">Upload Excel</button></div><p id="excel-upload-status" class="hint" role="status">Using the default inventory workbook.</p></form>` : ""}
+        <div class="chat-layout"><section class="panel chat-panel"><div class="chat-top"><strong>${title} chat</strong><span>● Ready</span></div><div class="chat-messages" id="chat-messages" role="log" aria-live="polite"></div><form class="chat-form" id="chat-form"><textarea id="chat-input" rows="1" placeholder="Type your question…" aria-label="Your question" required></textarea><button class="primary-button" id="chat-send" type="submit">Send</button></form></section>
+        <aside class="panel prompt-panel"><h2>Try asking</h2><p>Choose a suggestion or write your own question.</p><div class="prompt-list">${hints.map(hint => `<button class="prompt-button" type="button">${escapeHtml(hint)}</button>`).join("")}</div><div ${isData ? 'id="excel-data-source"' : ""} style="margin-top:18px;padding-top:13px;border-top:1px solid #edf0f5;color:#667085;font-size:10px;line-height:1.5">${isData ? "Data source: Inventory Records Sample Data" : "Knowledge source: Questions.docx"}</div></aside></div>`;
+    }
+
+    function intelligencePage() {
+      return `<h1 class="page-title">Document Intelligence</h1><p class="page-description">Upload a multi-page PDF or multiple scans. The pipeline segments pages, classifies them, extracts document-specific fields, validates confidence, and flags items for human review.</p>
+      <section class="panel"><h2>Processing pipeline</h2><p>Each page stays isolated unless the classifier identifies a matching continuation reference.</p>
+        <div class="pipeline">
+          <div class="pipeline-step"><span class="step-number">1</span><strong>Segmentation</strong><small>PDF pages and images become isolated page inputs.</small></div>
+          <div class="pipeline-step"><span class="step-number">2</span><strong>Classifier router</strong><small>Layout anchors assign document type and confidence.</small></div>
+          <div class="pipeline-step"><span class="step-number">3</span><strong>ID / form processor</strong><small>Separate extraction schemas for identity and insurance forms.</small></div>
+          <div class="pipeline-step"><span class="step-number">4</span><strong>Field validation</strong><small>Required values, format, and field-level confidence checks.</small></div>
+          <div class="pipeline-step"><span class="step-number">5</span><strong>Confidence shield</strong><small>Threshold ${window.DOCUPILOT_SETTINGS?.confidence_threshold ?? "0.85"} routes uncertain data to review.</small></div>
+          <div class="pipeline-step"><span class="step-number">6</span><strong>JSON / Excel</strong><small>Structured results, confidence scores, and review report.</small></div>
+        </div>
+      </section>
+      <form id="document-form" class="panel" style="margin-top:14px">
+        <div class="drop-zone"><div><strong>Choose PDF or image files</strong><span>PDF, JPEG, PNG, or WebP · up to 20 files, 20 MB each</span><br><input class="file-input" id="document-files" name="files" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple required></div></div>
+        <label class="consent"><input type="checkbox" id="external-consent" name="external_processing_consent" value="true" required><span>I authorize sending the selected pages to the external OCR and AI services configured for this application. These documents may contain identity, insurance, or bank-account information. Do not select this unless you are authorized to share these files with those services.</span></label>
+        <div class="process-actions"><button id="process-documents" class="primary-button" type="submit">Classify and extract</button><span class="hint">No files are uploaded until you press this button and check the consent box.</span></div>
+        <div id="processing-error" role="alert"></div>
+      </form>
+      <section id="processing-results" class="results" aria-live="polite"></section>`;
+    }
+
+    function pageContent(route) {
+      if (route === "home") return homePage();
+      if (route === "data-agent" || route === "document-assistant") return chatPage(route);
+      if (route === "document-intelligence") return intelligencePage();
+      if (route === "about") return `<h1 class="page-title">About DocuPilot</h1><p class="page-description">A workspace for spreadsheet analysis, cited document support, and confidence-gated document processing.</p><div class="about-grid"><div class="metric"><strong>3</strong><span>Processing modules</span></div><div class="metric"><strong>0.85</strong><span>Default field confidence threshold</span></div><div class="metric"><strong>Human review</strong><span>Uncertain fields are never silently treated as verified</span></div></div><section class="panel" style="margin-top:14px"><h2>Privacy and verification</h2><p>Inventory and support chat use configured AI services. Document intelligence requires explicit consent before sending selected pages to the configured external AI providers. Extraction results are suggestions and require human verification when flagged.</p></section>`;
+      if (route === "settings") return `<h1 class="page-title">Settings</h1><p class="page-description">Current workspace configuration. Threshold values are controlled by server environment settings.</p><section class="panel"><h2>AI providers</h2><div class="setting-row"><span>Primary provider</span><span>${escapeHtml(window.DOCUPILOT_SETTINGS?.primary_provider || "Loading…")}</span></div><div class="setting-row"><span>Configured providers (priority order)</span><span>${escapeHtml((window.DOCUPILOT_SETTINGS?.available_providers || []).join(" → ") || "None configured")}</span></div><h2>Document pipeline</h2><div class="setting-row"><span>Field confidence threshold</span><span>${escapeHtml(window.DOCUPILOT_SETTINGS?.confidence_threshold ?? "Loading…")}</span></div><div class="setting-row"><span>Handwriting confidence penalty</span><span>${escapeHtml(window.DOCUPILOT_SETTINGS?.handwriting_penalty ?? "Loading…")}</span></div><div class="setting-row"><span>Document retention</span><span>Local output folder; excluded from Git</span></div><div class="setting-row"><span>External OCR</span><span>Requires per-upload consent</span></div></section>`;
+      return homePage();
+    }
+
+    function addChatMessage(container, text, role, error = false) {
       const row = document.createElement("div");
-      row.className = `message ${role}`;
-      const avatar = document.createElement("div");
-      avatar.className = "avatar";
+      row.className = `chat-message ${role}`;
+      const avatar = document.createElement("span");
+      avatar.className = "chat-avatar";
       avatar.textContent = role === "user" ? "You" : "D";
       const bubble = document.createElement("div");
-      bubble.className = `bubble ${extraClass}`.trim();
+      bubble.className = `chat-bubble${error ? " error" : ""}`;
       bubble.textContent = text;
       row.append(avatar, bubble);
-      messages.append(row);
-      messages.scrollTop = messages.scrollHeight;
+      container.append(row);
+      container.scrollTop = container.scrollHeight;
       return bubble;
     }
 
-    addMessage("Hi! Ask me about products, stock levels, or calculations in the inventory sheet.", "assistant");
-
-    async function submitQuestion(question) {
+    async function sendDataQuestion(question, mode, controls) {
       const text = question.trim();
-      if (!text || send.disabled) return;
-      suggestions.hidden = true;
-      addMessage(text, "user");
-      input.value = "";
-      send.disabled = true;
-      send.textContent = "…";
-      const answer = addMessage("", "assistant");
-      let buffer = "";
-
+      if (!text || controls.button.disabled) return;
+      addChatMessage(controls.messages, text, "user");
+      controls.input.value = "";
+      controls.button.disabled = true;
+      controls.button.textContent = "…";
+      const answer = addChatMessage(controls.messages, "", "assistant");
       try {
-        const response = await fetch("/api/chat/stream", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: text, thread_id: threadId })
-        });
-        if (!response.ok || !response.body) {
-          throw new Error(`Chat request failed (${response.status}).`);
-        }
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        while (true) {
-          const { value, done } = await reader.read();
-          buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
-          const events = buffer.split("\n\n");
-          buffer = events.pop() || "";
-          for (const event of events) {
-            const line = event.split("\n").find(part => part.startsWith("data: "));
-            if (!line || line === "data: [DONE]") continue;
-            const payload = JSON.parse(line.slice(6));
-            if (payload.event === "token") answer.textContent += payload.text;
-            if (payload.event === "error") throw new Error(payload.details || "The assistant failed.");
+        if (mode === "document-assistant") {
+          const response = await fetch("/api/document-assistant/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: text, thread_id: threadFor(mode) })
+          });
+          if (!response.ok) throw new Error(await responseText(response));
+          const result = await response.json();
+          answer.textContent = result.answer;
+        } else {
+          const response = await fetch("/api/chat/stream", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: text, thread_id: threadFor(mode) })
+          });
+          if (!response.ok || !response.body) throw new Error(await responseText(response));
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          let receivedToken = false;
+          while (true) {
+            const { value, done } = await reader.read();
+            buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+            buffer = buffer.replace(/\r\n/g, "\n");
+            const events = buffer.split("\n\n");
+            buffer = events.pop() || "";
+            for (const event of events) {
+              const line = event.split("\n").find(item => item.startsWith("data: "));
+              if (!line || line === "data: [DONE]") continue;
+              const payload = JSON.parse(line.slice(6));
+              if (payload.event === "status") answer.textContent = payload.text;
+              if (payload.event === "token") {
+                if (!receivedToken) answer.textContent = "";
+                receivedToken = true;
+                answer.textContent += payload.text;
+              }
+              if (payload.event === "error") throw new Error(payload.details || "The assistant failed.");
+            }
+            if (done) break;
           }
-          if (done) break;
         }
-        if (!answer.textContent.trim()) answer.textContent = "I couldn't generate a response. Please try again.";
       } catch (error) {
         answer.classList.add("error");
-        answer.textContent = error.message || "Unable to reach the assistant.";
+        answer.textContent = error.message || "Could not reach the assistant.";
       } finally {
-        send.disabled = false;
-        send.textContent = "Send";
-        input.focus();
-        messages.scrollTop = messages.scrollHeight;
+        controls.button.disabled = false;
+        controls.button.textContent = "Send";
+        controls.input.focus();
       }
     }
 
-    form.addEventListener("submit", event => {
-      event.preventDefault();
-      submitQuestion(input.value);
-    });
-    input.addEventListener("keydown", event => {
-      if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        form.requestSubmit();
+    async function responseText(response) {
+      try {
+        const payload = await response.json();
+        return payload.detail || `Request failed (${response.status}).`;
+      } catch (_) {
+        return `Request failed (${response.status}).`;
       }
+    }
+
+    function wireChat(route) {
+      const messages = document.querySelector("#chat-messages");
+      const form = document.querySelector("#chat-form");
+      const input = document.querySelector("#chat-input");
+      const button = document.querySelector("#chat-send");
+      const controls = { messages, input, button };
+      addChatMessage(messages, route === "data-agent"
+        ? "Hi! Ask me about the inventory workbook."
+        : "Hi! Ask me about the assignment knowledge document. I’ll keep context for this session and cite the source section.", "assistant");
+      form.addEventListener("submit", event => {
+        event.preventDefault();
+        sendDataQuestion(input.value, route, controls);
+      });
+      input.addEventListener("keydown", event => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          form.requestSubmit();
+        }
+      });
+      document.querySelectorAll(".prompt-button").forEach(buttonElement => {
+        buttonElement.addEventListener("click", () => sendDataQuestion(buttonElement.textContent, route, controls));
+      });
+      if (route === "data-agent") wireExcelUpload(controls);
+    }
+
+    function wireExcelUpload(controls) {
+      const form = document.querySelector("#excel-upload-form");
+      const fileInput = document.querySelector("#excel-file");
+      const submit = document.querySelector("#excel-upload-button");
+      const status = document.querySelector("#excel-upload-status");
+      form.addEventListener("submit", async event => {
+        event.preventDefault();
+        if (!fileInput.files.length) return;
+        submit.disabled = true;
+        submit.textContent = "Loading…";
+        controls.button.disabled = true;
+        controls.input.disabled = true;
+        status.textContent = "Uploading and reading workbook…";
+        try {
+          const body = new FormData();
+          body.set("file", fileInput.files[0]);
+          const response = await fetch("/api/data/upload", { method: "POST", body });
+          if (!response.ok) throw new Error(await responseText(response));
+          const workbook = await response.json();
+          status.textContent = `Loaded ${workbook.filename}: ${workbook.total_rows} rows · ${workbook.columns.length} columns.`;
+          document.querySelector("#excel-data-source").textContent = `Data source: ${workbook.filename}`;
+          sessionStorage.setItem(sessionKey + "data-agent", newId());
+          controls.messages.replaceChildren();
+          addChatMessage(controls.messages, `Workbook ${workbook.filename} is loaded. Ask a question about its data.`, "assistant");
+        } catch (failure) {
+          status.textContent = failure.message || "Could not load the workbook.";
+        } finally {
+          submit.disabled = false;
+          submit.textContent = "Upload Excel";
+          controls.button.disabled = false;
+          controls.input.disabled = false;
+        }
+      });
+    }
+
+    function renderDocuments(result) {
+      const results = document.querySelector("#processing-results");
+      const downloads = Object.entries(result.outputs || {}).map(([name, url]) =>
+        `<a href="${escapeHtml(url)}" download>${name === "excel" ? "Download Excel" : `Download ${name.replaceAll("_", " ")}`}</a>`
+      ).join("");
+      const cards = result.documents.map((doc, index) => {
+        const extraction = doc.extraction || {};
+        const dataKey = {
+          AADHAAR_CARD: "aadhaar_data", PAN_CARD: "pan_data",
+          DRIVING_LICENCE: "driving_licence_data", PASSPORT: "passport_data",
+          NACH_MANDATE: "nach_mandate_data", FATCA_ANNEXURE: "fatca_annexure_data",
+          BENEFIT_ILLUSTRATION: "benefit_illustration_data",
+          MORAL_HAZARD_QUESTIONNAIRE: "moral_hazard_data",
+          MULTIPLE_POLICIES_CONSENT: "multiple_policies_data",
+          SUITABILITY_PROFILER: "suitability_profiler_data"
+        }[doc.document_type];
+        const data = dataKey ? (extraction[dataKey] || {}) : {};
+        const matrix = extraction.system_evaluation_matrix || {};
+        const needsReview = Boolean(doc.error) || matrix.final_routing_decision !== "AUTOMATED_PROCESSING";
+        const fieldCards = Object.entries(data).filter(([, value]) => value && typeof value === "object" && "ai_confidence" in value).map(([name, field]) => {
+          const flagged = field.requires_human_review;
+          return `<div class="field"><div class="field-top"><span>${escapeHtml(name.replaceAll("_", " "))}</span><span>${Math.round((field.final_field_score || 0) * 100)}%</span></div><div class="field-value${field.value ? "" : " empty-value"}">${escapeHtml(field.value || "Not extracted")}</div>${flagged ? `<div class="field-review">Human review · ${escapeHtml(field.ai_confidence < result.threshold ? "Below confidence threshold" : "Validation check")}</div>` : ""}</div>`;
+        }).join("");
+        const stages = (doc.stage_trace || []).map(stage =>
+          `<span class="stage-chip${stage.status.includes("FAILED") ? " fail" : stage.status.includes("REVIEW_REQUIRED") ? " review" : ""}">${escapeHtml(stage.stage.replaceAll("_", " "))}: ${escapeHtml(stage.status)}${typeof stage.confidence === "number" ? ` · ${Math.round(stage.confidence * 100)}%` : ""}</span>`
+        ).join("");
+        const error = doc.error ? `<div class="error-box">${escapeHtml(doc.error)}</div>` : "";
+        const ocrLabel = typeof doc.ocr_confidence === "number" ? ` · OCR ${Math.round(doc.ocr_confidence * 100)}%` : "";
+        return `<article class="document-result"><div class="document-head"><div><strong>${escapeHtml(doc.document_type || "UNKNOWN")} · ${escapeHtml((doc.source_files || [doc.source_file]).join(", "))}</strong><small>Pages ${(doc.pages || [doc.page_number]).join(", ")} · ${escapeHtml(doc.processor_route || "UNCLASSIFIED")} · Classification ${Math.round((doc.classification_confidence || 0) * 100)}%${ocrLabel}</small></div><span class="pill${needsReview ? " review" : ""}">${needsReview ? "Human review" : "Passed confidence shield"}</span></div>${fieldCards ? `<div class="field-grid">${fieldCards}</div>` : ""}${error}<div class="stage-list">${stages}</div></article>`;
+      }).join("");
+      const review = result.review_report || {};
+      results.innerHTML = `<section class="panel"><div class="result-summary"><div><h2>Processing complete</h2><p>${result.document_count} independent document(s) · ${result.page_count} page(s) · review threshold ${Math.round(result.threshold * 100)}%</p><p>${review.flagged_fields?.length || 0} field/document flag(s) for human review</p></div><div class="download-links">${downloads}</div></div></section>${cards}`;
+    }
+
+    function wireDocumentProcessing() {
+      const form = document.querySelector("#document-form");
+      const consent = document.querySelector("#external-consent");
+      const submit = document.querySelector("#process-documents");
+      const error = document.querySelector("#processing-error");
+      form.addEventListener("submit", async event => {
+        event.preventDefault();
+        error.replaceChildren();
+        const files = document.querySelector("#document-files").files;
+        if (!files.length) { error.innerHTML = `<div class="error-box">Choose at least one document.</div>`; return; }
+        if (!consent.checked) { error.innerHTML = `<div class="error-box">Consent is required before these files can be sent to the configured external OCR and AI services.</div>`; return; }
+        submit.disabled = true;
+        submit.textContent = "Processing…";
+        document.querySelector("#processing-results").replaceChildren();
+        try {
+          const data = new FormData(form);
+          data.set("external_processing_consent", "true");
+          const response = await fetch("/api/documents/process", { method: "POST", body: data });
+          if (!response.ok) throw new Error(await responseText(response));
+          renderDocuments(await response.json());
+        } catch (failure) {
+          error.innerHTML = `<div class="error-box">${escapeHtml(failure.message || "Document processing failed.")}</div>`;
+        } finally {
+          submit.disabled = false;
+          submit.textContent = "Classify and extract";
+        }
+      });
+    }
+
+    function render() {
+      const route = location.hash.replace(/^#\/?/, "") || "home";
+      const known = ["home", "data-agent", "document-assistant", "document-intelligence", "about", "settings"];
+      const activeRoute = known.includes(route) ? route : "home";
+      navButtons.forEach(button => button.classList.toggle("active", button.dataset.route === activeRoute));
+      page.innerHTML = pageContent(activeRoute);
+      if (activeRoute === "data-agent" || activeRoute === "document-assistant") wireChat(activeRoute);
+      if (activeRoute === "document-intelligence") wireDocumentProcessing();
+      page.querySelectorAll("[data-go]").forEach(button => button.addEventListener("click", () => navigate(button.dataset.go)));
+      window.scrollTo(0, 0);
+    }
+
+    function navigate(route) { location.hash = `/${route}`; }
+    navButtons.forEach(button => button.addEventListener("click", () => navigate(button.dataset.route)));
+    document.querySelector("#quick-assistant").addEventListener("click", () => navigate("document-assistant"));
+    window.addEventListener("hashchange", render);
+    fetch("/api/health").then(response => {
+      if (!response.ok) throw new Error("offline");
+      document.querySelector("#system-status").innerHTML = `<span class="status-dot"></span>System Online`;
+    }).catch(() => {
+      const status = document.querySelector("#system-status");
+      status.classList.add("offline");
+      status.textContent = "System Offline";
     });
-    suggestions.addEventListener("click", event => {
-      if (event.target.matches("button")) submitQuestion(event.target.textContent);
-    });
-    document.querySelector("#reset").addEventListener("click", () => {
-      threadId = crypto.randomUUID();
-      sessionStorage.setItem("datapilot-thread-id", threadId);
-      messages.replaceChildren();
-      suggestions.hidden = false;
-      addMessage("New chat started. What would you like to know about the inventory?", "assistant");
-      input.focus();
-    });
+    fetch("/api/documents/settings").then(async response => {
+      if (!response.ok) throw new Error(`Settings request failed (${response.status}).`);
+      return response.json();
+    }).then(settings => {
+      window.DOCUPILOT_SETTINGS = settings;
+      if (["settings", "document-intelligence"].includes(location.hash.replace(/^#\/?/, ""))) render();
+    }).catch(failure => showToast(`Could not load AI settings: ${failure.message}`));
+    render();
   </script>
 </body>
 </html>

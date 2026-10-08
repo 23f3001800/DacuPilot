@@ -1,7 +1,8 @@
 import re
+from datetime import date, datetime
 from typing import Optional, Dict, Any, List, Literal
 from pydantic import BaseModel, Field, model_validator
-from ..config import Config
+from datapilot.config import Config
 from .fields import FieldEvaluation
 
 
@@ -98,7 +99,7 @@ class MasterDocumentIntelligencePayload(BaseModel):
         "SUITABILITY_PROFILER",
     ]
     text_medium: str = Field(..., description="Medium layout condition checks: PRINTED, HANDWRITTEN, or MIXED")
-    
+
     # Polymorphic optional targets
     aadhaar_data: Optional[AadhaarFields] = None
     pan_data: Optional[PanFields] = None
@@ -110,17 +111,17 @@ class MasterDocumentIntelligencePayload(BaseModel):
     moral_hazard_data: Optional[MoralHazardFields] = None
     multiple_policies_data: Optional[MultiplePoliciesFields] = None
     suitability_profiler_data: Optional[SuitabilityProfilerFields] = None
-    
+
     system_evaluation_matrix: Dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def run_production_evaluation_matrix(self) -> "MasterDocumentIntelligencePayload":
         failures: List[str] = []
         scores: List[float] = []
-        
+
         target_attr = DOCUMENT_DATA_FIELDS[self.document_type]
         data_block = getattr(self, target_attr, None)
-        
+
         if not data_block:
             model_type = {
                 "AADHAAR_CARD": AadhaarFields,
@@ -174,6 +175,21 @@ class MasterDocumentIntelligencePayload(BaseModel):
                     field_obj.regex_match = bool(re.match(r"^[0-9]{12}$", clean_val))
                 elif field_name == "ifsc_code":
                     field_obj.regex_match = bool(re.match(r"^[A-Z]{4}0[A-Z0-9]{6}$", clean_val))
+                elif field_name == "bank_account_number":
+                    field_obj.regex_match = bool(re.fullmatch(r"[A-Z0-9]{8,20}", clean_val))
+                elif field_name in {
+                    "date_of_birth",
+                    "date_of_issue",
+                    "valid_till_date",
+                    "date_of_expiry",
+                    "date",
+                }:
+                    field_obj.regex_match = _is_valid_date(field_obj.value)
+                elif field_name == "amount_figures":
+                    amount = str(field_obj.value).strip().replace(",", "")
+                    field_obj.regex_match = bool(
+                        re.fullmatch(r"(?:INR|RS\.?|₹)?\s*\d+(?:\.\d{1,2})?", amount, re.IGNORECASE)
+                    )
                 else:
                     field_obj.regex_match = True
 
@@ -231,7 +247,7 @@ class MasterDocumentIntelligencePayload(BaseModel):
             and not flagged_fields
         )
         route = "AUTOMATED_PROCESSING" if is_automated else "HUMAN_REVIEWS_REQUIRED"
-        
+
         self.system_evaluation_matrix = {
             "aggregate_confidence_score": round(avg_confidence, 2),
             "validation_failures": failures,
@@ -242,3 +258,19 @@ class MasterDocumentIntelligencePayload(BaseModel):
             "flagged_fields": flagged_fields,
         }
         return self
+
+
+def _is_valid_date(value: str) -> bool:
+    cleaned = value.strip()
+    formats = ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%d-%m-%y", "%d/%m/%y")
+    for date_format in formats:
+        try:
+            datetime.strptime(cleaned, date_format)
+            return True
+        except ValueError:
+            continue
+    try:
+        date.fromisoformat(cleaned)
+        return True
+    except ValueError:
+        return False
