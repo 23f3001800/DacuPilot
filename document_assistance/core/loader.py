@@ -1,6 +1,8 @@
 from dataclasses import dataclass
+from io import BytesIO
 import os
 from pathlib import Path
+import re
 from xml.etree import ElementTree
 from zipfile import BadZipFile, ZipFile
 
@@ -19,6 +21,10 @@ class KnowledgeSection:
 WORD_NS = {
     "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
 }
+MAX_DOCX_XML_BYTES = 10 * 1024 * 1024
+MAX_EXTRACTED_TEXT_BYTES = 10 * 1024 * 1024
+MAX_PDF_PAGES = 100
+MAX_SOURCE_BYTES = 20 * 1024 * 1024
 
 
 def _section_for_text(text: str, current: str) -> str:
@@ -48,7 +54,10 @@ def load_docx_sections(path: str | Path) -> list[KnowledgeSection]:
     except (BadZipFile, KeyError) as error:
         raise ValueError(f"Invalid DOCX knowledge document: {document_path}") from error
 
-    root = ElementTree.fromstring(document_xml)
+    try:
+        root = ElementTree.fromstring(document_xml)
+    except ElementTree.ParseError as error:
+        raise ValueError(f"Invalid DOCX knowledge document: {document_path}") from error
     paragraphs = []
     for paragraph in root.findall(".//w:body/w:p", WORD_NS):
         text = "".join(
@@ -79,6 +88,156 @@ def load_docx_sections(path: str | Path) -> list[KnowledgeSection]:
             )
 
     return sections
+
+
+def extract_uploaded_document(
+    filename: str,
+    content: bytes,
+) -> list[tuple[str, str]]:
+    """Extract text from a supported user document without executing its content."""
+    if not content:
+        raise ValueError("The uploaded document is empty.")
+    if len(content) > MAX_SOURCE_BYTES:
+        raise ValueError("The document exceeds the 20 MB limit.")
+
+    suffix = Path(filename).suffix.lower()
+    if suffix == ".txt":
+        try:
+            text = content.decode("utf-8-sig")
+        except UnicodeDecodeError as error:
+            raise ValueError("Text documents must use UTF-8 encoding.") from error
+        return [("Page 1", text)]
+
+    if suffix == ".docx":
+        try:
+            with ZipFile(BytesIO(content)) as archive:
+                info = archive.getinfo("word/document.xml")
+                if info.file_size > MAX_DOCX_XML_BYTES:
+                    raise ValueError(
+                        "The uploaded DOCX document contains too much text."
+                    )
+                with archive.open(info) as document_file:
+                    document_xml = document_file.read(MAX_DOCX_XML_BYTES + 1)
+        except (BadZipFile, KeyError) as error:
+            raise ValueError("The uploaded DOCX document is invalid.") from error
+        if len(document_xml) > MAX_DOCX_XML_BYTES:
+            raise ValueError("The uploaded DOCX document contains too much text.")
+        try:
+            root = ElementTree.fromstring(document_xml)
+        except ElementTree.ParseError as error:
+            raise ValueError("The uploaded DOCX document is invalid.") from error
+        paragraphs = [
+            "".join(node.text or "" for node in paragraph.findall(".//w:t", WORD_NS))
+            .strip()
+            for paragraph in root.findall(".//w:body/w:p", WORD_NS)
+        ]
+        text = "\n".join(paragraph for paragraph in paragraphs if paragraph)
+        return [("Document body", text)]
+
+    if suffix == ".pdf":
+        try:
+            import pymupdf
+        except ImportError as error:
+            raise RuntimeError("PDF uploads require the PyMuPDF package.") from error
+        try:
+            with pymupdf.open(stream=content, filetype="pdf") as pdf:
+                if not pdf.page_count:
+                    raise ValueError("The uploaded PDF has no pages.")
+                if pdf.page_count > MAX_PDF_PAGES:
+                    raise ValueError(
+                        f"The uploaded PDF exceeds the {MAX_PDF_PAGES}-page limit."
+                    )
+                pages = []
+                extracted_bytes = 0
+                for index, page in enumerate(pdf):
+                    text = page.get_text()
+                    extracted_bytes += len(text.encode("utf-8"))
+                    if extracted_bytes > MAX_EXTRACTED_TEXT_BYTES:
+                        raise ValueError(
+                            "The uploaded PDF contains too much extractable text."
+                        )
+                    pages.append((f"Page {index + 1}", text))
+                return pages
+        except ValueError:
+            raise
+        except Exception as error:
+            raise ValueError("The uploaded PDF could not be read.") from error
+
+    raise ValueError("Upload a PDF, DOCX, or UTF-8 text document.")
+
+
+def load_knowledge_base(directory: str | Path) -> list[KnowledgeSection]:
+    """Load approved DOCX, PDF, and UTF-8 TXT sources from the application KB."""
+    root = Path(directory)
+    if not root.is_dir():
+        raise FileNotFoundError(f"Application knowledge directory not found: {root}")
+
+    sections: list[KnowledgeSection] = []
+    supported_suffixes = {".docx", ".pdf", ".txt"}
+    for document_path in sorted(root.rglob("*")):
+        if not document_path.is_file():
+            continue
+        if document_path.suffix.lower() not in supported_suffixes:
+            continue
+        if document_path.stat().st_size > MAX_SOURCE_BYTES:
+            raise ValueError(
+                f"Application knowledge source {document_path.name} exceeds 20 MB."
+            )
+        source = document_path.relative_to(root).as_posix()
+        if document_path.suffix.lower() == ".docx":
+            source_sections = load_docx_sections(document_path)
+            sections.extend(
+                KnowledgeSection(
+                    source=source,
+                    section=section.section,
+                    text=section.text,
+                )
+                for section in source_sections
+            )
+            continue
+
+        extracted = extract_uploaded_document(
+            source,
+            document_path.read_bytes(),
+        )
+        if not any(text.strip() for _, text in extracted):
+            raise ValueError(
+                f"No extractable text found in application knowledge source {source}."
+            )
+        sections.extend(
+            KnowledgeSection(source=source, section=label, text=text)
+            for label, text in extracted
+            if text.strip()
+        )
+
+    if not sections:
+        raise ValueError(
+            f"No readable PDF, DOCX, or TXT sources found in {root}."
+        )
+    return sections
+
+
+def split_text(text: str, chunk_size: int = 1200, overlap: int = 180) -> list[str]:
+    """Split source text into bounded, overlapping chunks for retrieval."""
+    normalized = re.sub(r"\s+", " ", text).strip()
+    if not normalized:
+        return []
+    if chunk_size <= overlap:
+        raise ValueError("Chunk size must be greater than its overlap.")
+
+    chunks = []
+    start = 0
+    while start < len(normalized):
+        end = min(start + chunk_size, len(normalized))
+        if end < len(normalized):
+            boundary = normalized.rfind(" ", start + chunk_size // 2, end)
+            if boundary > start:
+                end = boundary
+        chunks.append(normalized[start:end].strip())
+        if end == len(normalized):
+            break
+        start = end - overlap
+    return chunks
 
 
 def ingest_pdf_to_vector_db(pdf_path: str | Path):
