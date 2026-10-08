@@ -207,13 +207,41 @@ Checkbox fields must identify a visibly selected option, otherwise return null.
         self,
         image_bytes: bytes,
         mime_type: str,
+        progress_callback: Any = None,
     ) -> Dict[str, Any]:
         if mime_type not in {"image/jpeg", "image/png", "image/webp"}:
             raise ValueError(f"Unsupported image MIME type: {mime_type}")
+        if progress_callback:
+            progress_callback({"step": "ocr", "status": "active", "message": "Recognizing page text with OCR"})
         ocr_result = self._ocr_with_fallback(image_bytes, mime_type)
+        if progress_callback:
+            conf_str = f" ({round(ocr_result.confidence * 100)}% confidence)" if ocr_result.confidence is not None else ""
+            progress_callback({
+                "step": "ocr",
+                "status": "completed",
+                "message": f"OCR text recognized{conf_str}",
+                "ocr_confidence": ocr_result.confidence,
+            })
+
+        if progress_callback:
+            progress_callback({"step": "classification", "status": "active", "message": "Classifying document type from layout anchors"})
         classification = self._classify_text(ocr_result.text)
         classification["ocr_confidence"] = ocr_result.confidence
         document_type = str(classification.get("document_type", "UNKNOWN")).upper()
+        cls_conf = classification.get("classification_confidence", 0.0)
+        try:
+            cls_conf_float = float(cls_conf)
+        except (TypeError, ValueError):
+            cls_conf_float = 0.0
+        if progress_callback:
+            progress_callback({
+                "step": "classification",
+                "status": "completed",
+                "message": f"Classified as {document_type} ({round(cls_conf_float * 100)}% confidence)",
+                "document_type": document_type,
+                "classification_confidence": cls_conf_float,
+            })
+
         if document_type not in DOCUMENT_SCHEMAS:
             return classification
         extractor = (
@@ -221,11 +249,26 @@ Checkbox fields must identify a visibly selected option, otherwise return null.
             if document_type in IDENTITY_DOCUMENTS
             else self.form_processor
         )
+        if progress_callback:
+            progress_callback({
+                "step": "extraction",
+                "status": "active",
+                "message": f"Extracting schema fields using {extractor.processor_name}",
+                "document_type": document_type,
+            })
         classification["fields"] = self.extract_page(
             ocr_result.text,
             document_type,
             extractor,
         )
+        if progress_callback:
+            fields_count = len(classification["fields"]) if isinstance(classification["fields"], dict) else 0
+            progress_callback({
+                "step": "extraction",
+                "status": "completed",
+                "message": f"Extracted {fields_count} field(s) for {document_type}",
+                "document_type": document_type,
+            })
         return classification
 
     def execute_raw_ocr_analysis(self, image_path: str) -> Dict[str, Any]:

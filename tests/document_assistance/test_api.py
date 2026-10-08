@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -61,8 +61,22 @@ class DocumentAssistantApiTests(unittest.TestCase):
         paths = set(root_app.openapi()["paths"])
 
         self.assertIn("/api/document-assistant/chat", paths)
+        self.assertIn("/api/document-assistant/chat/stream", paths)
         self.assertIn("/api/document-assistant/documents", paths)
         self.assertIn("/api/document-assistant/session/{thread_id}", paths)
+
+    def test_homepage_matches_document_assistant_knowledge_without_external_upload(self):
+        response = TestClient(root_app).get("/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Nimbus Orchard Technologies Company Handbook", response.text)
+        self.assertIn("What is the annual leave entitlement?", response.text)
+        self.assertNotIn('id="document-assistant-files"', response.text)
+        self.assertNotIn('id="document-assistant-consent"', response.text)
+        self.assertNotIn('id="document-assistant-attach"', response.text)
+        self.assertNotIn('id="document-assistant-upload-form"', response.text)
+        self.assertNotIn("Questions.docx", response.text)
+        self.assertNotIn("assignment knowledge document", response.text)
 
     def test_chat_endpoint_passes_the_session_id_to_conversation_state(self):
         messages = [
@@ -84,6 +98,28 @@ class DocumentAssistantApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(invoke.call_args.args[0]["session_id"], self.session_id)
         self.assertEqual(response.json()["answer"], "Review low-confidence fields.")
+
+    def test_stream_endpoint_returns_sse_events(self):
+        async def mock_astream(messages):
+            yield AIMessage(content="Annual leave is 25 days [E1].")
+
+        mock_llm = MagicMock()
+        mock_llm.astream = mock_astream
+
+        with patch("document_assistance.api.get_llm", return_value=mock_llm):
+            response = self.client.post(
+                "/api/document-assistant/chat/stream",
+                json={
+                    "message": "What is the annual leave policy?",
+                    "thread_id": self.session_id,
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("text/event-stream", response.headers["content-type"])
+        self.assertIn("data: [DONE]", response.text)
+        self.assertIn('"event": "status"', response.text)
+        self.assertIn('"event": "token"', response.text)
 
     def test_multi_file_upload_is_atomic_when_a_document_is_invalid(self):
         store = SessionDocumentStore()

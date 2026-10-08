@@ -174,6 +174,28 @@ class DocumentPipelineTests(unittest.TestCase):
         self.assertIn("mock provider failure", result["documents"][0]["error"])
         self.assertTrue(result["review_report"]["human_review_required"])
 
+    def test_progress_callback_receives_boundary_events(self):
+        processor = FakePageProcessor([pan_response()])
+        events = []
+        with tempfile.TemporaryDirectory() as output_directory:
+            result = process_uploads(
+                [("scan.jpg", b"\xff\xd8\xffscan")],
+                processor_factory=lambda: processor,
+                output_root=output_directory,
+                progress_callback=events.append,
+            )
+
+        stages = [e.get("stage") for e in events]
+        self.assertIn("segmentation", stages)
+        self.assertIn("page_start", stages)
+        self.assertIn("ocr", stages)
+        self.assertIn("classification", stages)
+        self.assertIn("validation", stages)
+        self.assertIn("confidence_shield", stages)
+        self.assertIn("grouping", stages)
+        self.assertIn("review", stages)
+        self.assertIn("export", stages)
+
 
 if __name__ == "__main__":
     unittest.main()

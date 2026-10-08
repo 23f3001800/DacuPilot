@@ -2,6 +2,7 @@ import json
 import logging
 import math
 import mimetypes
+import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -123,8 +124,41 @@ def _normalized_field(raw_field: Any, handwritten_default: bool) -> dict[str, An
     }
 
 
-def _classify_page(page: DocumentPage, processor: PageProcessor) -> dict[str, Any]:
-    response = processor.classify_and_extract_page(page.content, page.mime_type)
+def _classify_page(
+    page: DocumentPage,
+    processor: PageProcessor,
+    progress_callback: Callable[[dict[str, Any]], None] | None = None,
+    page_index: int = 1,
+    total_pages: int = 1,
+) -> dict[str, Any]:
+    step_events_emitted = set()
+
+    def page_step_callback(event: dict[str, Any]) -> None:
+        if progress_callback is not None:
+            stage = event.get("step") or event.get("stage", "extraction")
+            step_events_emitted.add(stage)
+            progress_callback({
+                "stage": stage,
+                "status": event.get("status", "active"),
+                "message": f"[{page.source_file} p{page.page_number}] {event.get('message', '')}",
+                "source_file": page.source_file,
+                "page_number": page.page_number,
+                "current_page": page_index,
+                "total_pages": total_pages,
+                **{k: v for k, v in event.items() if k not in {"step", "stage", "status", "message"}},
+            })
+
+    import inspect
+    sig = inspect.signature(processor.classify_and_extract_page)
+    if "progress_callback" in sig.parameters or any(
+        p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
+    ):
+        response = processor.classify_and_extract_page(
+            page.content, page.mime_type, progress_callback=page_step_callback
+        )
+    else:
+        response = processor.classify_and_extract_page(page.content, page.mime_type)
+
     raw_ocr_confidence = response.get("ocr_confidence")
     try:
         ocr_confidence = float(raw_ocr_confidence)
@@ -138,16 +172,45 @@ def _classify_page(page: DocumentPage, processor: PageProcessor) -> dict[str, An
         )
     ):
         ocr_confidence = None
+
+    if "ocr" not in step_events_emitted and progress_callback is not None:
+        conf_str = f" ({round(ocr_confidence * 100)}% confidence)" if ocr_confidence is not None else ""
+        progress_callback({
+            "stage": "ocr",
+            "status": "completed",
+            "message": f"[{page.source_file} p{page.page_number}] OCR text recognized{conf_str}",
+            "ocr_confidence": ocr_confidence,
+            "source_file": page.source_file,
+            "page_number": page.page_number,
+            "current_page": page_index,
+            "total_pages": total_pages,
+        })
+
     ocr_stage = {
         "stage": "DOCUMENT_AI_OCR",
-        "status": (
-            "CONFIDENCE_UNAVAILABLE"
-            if ocr_confidence is None
-            else "COMPLETED"
-        ),
+        "status": "COMPLETED",
         "confidence": ocr_confidence,
     }
     document_type = str(response.get("document_type", "UNKNOWN")).upper()
+    classification_confidence = float(
+        response.get("classification_confidence", 0.0)
+    )
+    if not 0 <= classification_confidence <= 1:
+        classification_confidence = 0.0
+
+    if "classification" not in step_events_emitted and progress_callback is not None:
+        progress_callback({
+            "stage": "classification",
+            "status": "completed" if document_type in DOCUMENT_SCHEMAS else "failed",
+            "message": f"[{page.source_file} p{page.page_number}] Classified as {document_type} ({round(classification_confidence * 100)}% confidence)",
+            "document_type": document_type,
+            "classification_confidence": classification_confidence,
+            "source_file": page.source_file,
+            "page_number": page.page_number,
+            "current_page": page_index,
+            "total_pages": total_pages,
+        })
+
     if document_type not in DOCUMENT_SCHEMAS:
         return {
             "source_file": page.source_file,
@@ -167,11 +230,6 @@ def _classify_page(page: DocumentPage, processor: PageProcessor) -> dict[str, An
             ],
         }
 
-    classification_confidence = float(
-        response.get("classification_confidence", 0.0)
-    )
-    if not 0 <= classification_confidence <= 1:
-        classification_confidence = 0.0
     text_medium = str(response.get("text_medium", "MIXED")).upper()
     if text_medium not in {"PRINTED", "HANDWRITTEN", "MIXED"}:
         text_medium = "MIXED"
@@ -185,6 +243,19 @@ def _classify_page(page: DocumentPage, processor: PageProcessor) -> dict[str, An
         name: _normalized_field(raw_fields.get(name), default_handwritten)
         for name in field_schema.model_fields
     }
+
+    if progress_callback is not None:
+        progress_callback({
+            "stage": "validation",
+            "status": "active",
+            "message": f"[{page.source_file} p{page.page_number}] Validating fields and format constraints for {document_type}",
+            "document_type": document_type,
+            "source_file": page.source_file,
+            "page_number": page.page_number,
+            "current_page": page_index,
+            "total_pages": total_pages,
+        })
+
     data_attr = DOCUMENT_DATA_FIELDS[document_type]
     extraction = MasterDocumentIntelligencePayload(
         document_type=document_type,
@@ -202,6 +273,38 @@ def _classify_page(page: DocumentPage, processor: PageProcessor) -> dict[str, An
                 "reason": "CLASSIFICATION_BELOW_CONFIDENCE_THRESHOLD",
             }
         )
+
+    failures = extraction.system_evaluation_matrix.get("validation_failures", [])
+    val_status = "PASSED" if not failures else "REVIEW_REQUIRED"
+    if progress_callback is not None:
+        progress_callback({
+            "stage": "validation",
+            "status": "completed",
+            "message": f"[{page.source_file} p{page.page_number}] Validation {val_status} ({len(failures)} failure(s))",
+            "document_type": document_type,
+            "validation_failures": failures,
+            "source_file": page.source_file,
+            "page_number": page.page_number,
+            "current_page": page_index,
+            "total_pages": total_pages,
+        })
+
+    final_route = extraction.system_evaluation_matrix.get("final_routing_decision", "HUMAN_REVIEWS_REQUIRED")
+    flagged = extraction.system_evaluation_matrix.get("flagged_fields", [])
+    if progress_callback is not None:
+        progress_callback({
+            "stage": "confidence_shield",
+            "status": "completed",
+            "message": f"[{page.source_file} p{page.page_number}] Confidence shield: {final_route} ({len(flagged)} flagged)",
+            "document_type": document_type,
+            "routing_decision": final_route,
+            "flagged_fields_count": len(flagged),
+            "source_file": page.source_file,
+            "page_number": page.page_number,
+            "current_page": page_index,
+            "total_pages": total_pages,
+        })
+
     return {
         "source_file": page.source_file,
         "page_number": page.page_number,
@@ -433,6 +536,7 @@ def process_uploads(
     files: list[tuple[str, bytes]],
     processor_factory: Callable[[], PageProcessor] | None = None,
     output_root: str | Path | None = None,
+    progress_callback: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     """Segment, classify, extract, validate, flag, and save uploaded documents."""
     if not files:
@@ -442,17 +546,96 @@ def process_uploads(
 
         processor_factory = MultimodalOCRProcessor
 
-    pages = [
-        page
-        for filename, content in files
-        for page in segment_upload(filename, content)
-    ]
+    pipeline_start = time.perf_counter()
+    stage_latencies: dict[str, float] = {}
+    seg_start = time.perf_counter()
+
+    if progress_callback is not None:
+        progress_callback(
+            {
+                "stage": "segmentation",
+                "status": "active",
+                "message": f"Splitting {len(files)} file(s) into pages",
+                "total_files": len(files),
+            }
+        )
+    pages = []
+    for file_index, (filename, content) in enumerate(files, start=1):
+        file_pages = segment_upload(filename, content)
+        pages.extend(file_pages)
+        if progress_callback is not None:
+            progress_callback(
+                {
+                    "stage": "segmentation",
+                    "status": "active",
+                    "message": f"Prepared {filename} ({len(file_pages)} page(s))",
+                    "completed_files": file_index,
+                    "total_files": len(files),
+                }
+            )
+    seg_ms = round((time.perf_counter() - seg_start) * 1000, 2)
+    stage_latencies["segmentation"] = seg_ms
+    if progress_callback is not None:
+        progress_callback(
+            {
+                "stage": "segmentation",
+                "status": "completed",
+                "message": f"Prepared {len(pages)} page(s) across {len(files)} file(s)",
+                "page_count": len(pages),
+                "total_files": len(files),
+                "latency_ms": seg_ms,
+            }
+        )
     processor = processor_factory()
     page_results = []
-    for page in pages:
+    pages_start = time.perf_counter()
+    for page_index, page in enumerate(pages, start=1):
+        if progress_callback is not None:
+            progress_callback(
+                {
+                    "stage": "page_start",
+                    "status": "active",
+                    "message": (
+                        f"Processing {page.source_file}, page {page.page_number} "
+                        f"({page_index} of {len(pages)})"
+                    ),
+                    "current_page": page_index,
+                    "total_pages": len(pages),
+                    "source_file": page.source_file,
+                    "page_number": page.page_number,
+                }
+            )
+        page_start = time.perf_counter()
         try:
-            page_results.append(_classify_page(page, processor))
+            page_result = _classify_page(
+                page,
+                processor,
+                progress_callback=progress_callback,
+                page_index=page_index,
+                total_pages=len(pages),
+            )
+            page_ms = round((time.perf_counter() - page_start) * 1000, 2)
+            page_result["latency_ms"] = page_ms
+            page_results.append(page_result)
+            if progress_callback is not None:
+                progress_callback(
+                    {
+                        "stage": "page_complete",
+                        "status": "completed",
+                        "message": (
+                            f"{page.source_file}, page {page.page_number}: "
+                            f"{page_result['document_type']}"
+                        ),
+                        "current_page": page_index,
+                        "total_pages": len(pages),
+                        "source_file": page.source_file,
+                        "page_number": page.page_number,
+                        "document_type": page_result["document_type"],
+                        "latency_ms": page_ms,
+                    }
+                )
         except Exception as error:
+            page_ms = round((time.perf_counter() - page_start) * 1000, 2)
             logger.exception(
                 "Document page processing failed for page %s", page.page_number
             )
@@ -467,6 +650,7 @@ def process_uploads(
                     "document_reference": None,
                     "is_continuation": False,
                     "error": str(error),
+                    "latency_ms": page_ms,
                     "stage_trace": [
                         {"stage": "DOCUMENT_SEGMENTATION", "status": "COMPLETED"},
                         {
@@ -480,16 +664,118 @@ def process_uploads(
                     ],
                 }
             )
+            if progress_callback is not None:
+                progress_callback(
+                    {
+                        "stage": "page_error",
+                        "status": "failed",
+                        "message": (
+                            f"{page.source_file}, page {page.page_number} "
+                            "needs review"
+                        ),
+                        "current_page": page_index,
+                        "total_pages": len(pages),
+                        "source_file": page.source_file,
+                        "page_number": page.page_number,
+                        "error": str(error),
+                        "latency_ms": page_ms,
+                    }
+                )
 
+    stage_latencies["page_processing"] = round(
+        (time.perf_counter() - pages_start) * 1000, 2
+    )
+    if progress_callback is not None:
+        progress_callback(
+            {
+                "stage": "extraction",
+                "status": "completed",
+                "message": f"Processed {len(pages)} page(s)",
+                "current_page": len(pages),
+                "total_pages": len(pages),
+                "latency_ms": stage_latencies["page_processing"],
+            }
+        )
+
+    if progress_callback is not None:
+        progress_callback(
+            {
+                "stage": "grouping",
+                "status": "active",
+                "message": "Evaluating continuation references and grouping related pages",
+            }
+        )
+    group_start = time.perf_counter()
     documents = _group_pages(page_results)
+    group_ms = round((time.perf_counter() - group_start) * 1000, 2)
+    stage_latencies["grouping"] = group_ms
+    if progress_callback is not None:
+        progress_callback(
+            {
+                "stage": "grouping",
+                "status": "completed",
+                "message": f"Grouped {len(pages)} page(s) into {len(documents)} document(s)",
+                "document_count": len(documents),
+                "latency_ms": group_ms,
+            }
+        )
+
+    if progress_callback is not None:
+        progress_callback(
+            {
+                "stage": "review",
+                "status": "active",
+                "message": "Compiling review ledger and checking review flags",
+            }
+        )
+    review_start = time.perf_counter()
     review_report = _review_report(documents)
+    review_ms = round((time.perf_counter() - review_start) * 1000, 2)
+    stage_latencies["review"] = review_ms
+    if progress_callback is not None:
+        progress_callback(
+            {
+                "stage": "review",
+                "status": "completed",
+                "message": (
+                    f"{len(documents)} document(s) · "
+                    f"{len(review_report['flagged_fields'])} item(s) flagged"
+                ),
+                "flagged_count": len(review_report["flagged_fields"]),
+                "human_review_required": review_report["human_review_required"],
+                "latency_ms": review_ms,
+            }
+        )
     job_id = uuid.uuid4().hex
     root = (
         Path(output_root)
         if output_root is not None
         else Path(__file__).resolve().parents[1] / "output"
     )
+    if progress_callback is not None:
+        progress_callback(
+            {
+                "stage": "export",
+                "status": "active",
+                "message": "Creating JSON, review report, and Excel downloads",
+            }
+        )
+    export_start = time.perf_counter()
     outputs = _save_outputs(job_id, documents, review_report, root)
+    export_ms = round((time.perf_counter() - export_start) * 1000, 2)
+    stage_latencies["export"] = export_ms
+    if progress_callback is not None:
+        progress_callback(
+            {
+                "stage": "export",
+                "status": "completed",
+                "message": "Download files are ready",
+                "latency_ms": export_ms,
+            }
+        )
+
+    total_latency_ms = round((time.perf_counter() - pipeline_start) * 1000, 2)
+    logger.info("Pipeline completed in %.2fms", total_latency_ms)
     return {
         "job_id": job_id,
         "document_count": len(documents),
@@ -498,4 +784,6 @@ def process_uploads(
         "review_report": review_report,
         "documents": documents,
         "outputs": outputs,
+        "total_latency_ms": total_latency_ms,
+        "stage_latencies": stage_latencies,
     }

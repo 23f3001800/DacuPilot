@@ -11,7 +11,10 @@ from excel_agent.api import router as excel_agent_router
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 
+from datapilot.latency import latency_middleware_factory
+
 app = FastAPI(title="DocuPilot | Intelligent Document and Data Processing")
+app.add_middleware(latency_middleware_factory())
 app.include_router(excel_agent_router)
 app.include_router(document_assistant_router)
 app.include_router(document_intelligence_router)

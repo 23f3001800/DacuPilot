@@ -34,6 +34,9 @@ class AppConfig:
     log_level: str
     azure_document_intelligence_endpoint: str = ""
     azure_document_intelligence_key: str = field(default="", repr=False)
+    openai_api_key: str = field(default="", repr=False)
+    openai_base_url: str = "https://api.openai.com/v1"
+    openai_model: str = "gpt-4o"
 
     @classmethod
     def from_environment(cls) -> "AppConfig":
@@ -53,10 +56,13 @@ class AppConfig:
             or ""
         ).strip()
         azure_auth_mode = os.getenv("AZURE_OPENAI_AUTH_MODE", "api-key").strip().lower()
+        openai_key = os.getenv("OPENAI_API_KEY", "").strip()
+        openai_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").strip().rstrip("/")
+        openai_model = os.getenv("OPENAI_MODEL", "gpt-4o").strip()
         configured_primary = (
             os.getenv("AI_PRIMARY_PROVIDER")
             or os.getenv("TRACEROOT_PROVIDER")
-            or "gemini"
+            or ("openai" if openai_key else "gemini")
         ).strip().lower()
 
         return cls(
@@ -67,6 +73,9 @@ class AppConfig:
             azure_base_url=azure_url,
             azure_model=azure_model,
             azure_auth_mode=azure_auth_mode,
+            openai_api_key=openai_key,
+            openai_base_url=openai_url,
+            openai_model=openai_model,
             tavily_api_key=os.getenv("TAVILY_API_KEY", "").strip(),
             excel_file_path=os.getenv("EXCEL_FILE_PATH", str(DEFAULT_EXCEL_FILE)),
             gcp_project_id=os.getenv("GCP_PROJECT_ID", "").strip().strip('"'),

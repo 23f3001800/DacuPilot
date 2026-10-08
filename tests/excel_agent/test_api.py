@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 import asyncio
+from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -52,6 +53,8 @@ class ExcelApiTests(unittest.TestCase):
         self.assertIn('payload.event === "status"', response.text)
         self.assertIn("receivedToken = false", response.text)
         self.assertIn('id="excel-file"', response.text)
+        self.assertIn('fileInput.addEventListener("change", uploadWorkbook)', response.text)
+        self.assertIn("Choose a file to upload it automatically.", response.text)
         self.assertIn("/api/data/upload", response.text)
         self.assertIn("/ui/data-upload.css", response.text)
         self.assertIn("sessionStorage", response.text)
@@ -191,6 +194,51 @@ class ExcelApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["total_rows"], 1)
         self.assertEqual(response.json()["columns"], ["Product", "Stock"])
+
+    def test_excel_upload_replaces_the_active_agent_dataset(self):
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.append(["UploadedProduct", "Units"])
+        sheet.append(["CUSTOM_FILE_SENT", 37])
+        content = BytesIO()
+        workbook.save(content)
+        original_dataset = agent.df, agent.schema_context, agent.sandbox_repl
+
+        try:
+            with tempfile.TemporaryDirectory() as temporary_directory:
+                with patch.object(
+                    api,
+                    "UPLOAD_DIRECTORY",
+                    Path(temporary_directory),
+                ):
+                    response = TestClient(app).post(
+                        "/api/data/upload",
+                        files={
+                            "file": (
+                                "custom-workbook.xlsx",
+                                content.getvalue(),
+                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            )
+                        },
+                    )
+                    schema_response = TestClient(app).get("/api/data/schema")
+
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["columns"], ["UploadedProduct", "Units"])
+            self.assertEqual(response.json()["total_rows"], 1)
+            self.assertEqual(schema_response.status_code, 200)
+            self.assertEqual(
+                schema_response.json()["first_3_rows_sample"],
+                [{"UploadedProduct": "CUSTOM_FILE_SENT", "Units": 37}],
+            )
+            self.assertEqual(
+                agent.sandbox_repl.execute_code(
+                    "print(df['UploadedProduct'].iloc[0])"
+                ).strip(),
+                "CUSTOM_FILE_SENT",
+            )
+        finally:
+            agent.df, agent.schema_context, agent.sandbox_repl = original_dataset
 
     def test_excel_upload_rejects_non_excel_file(self):
         response = TestClient(app).post(

@@ -120,15 +120,41 @@ credential files.
 | `GET /api/health` | Server health |
 | `GET /api/data/schema` | Active workbook schema |
 | `POST /api/data/upload` | Upload an Excel workbook |
-| `POST /api/chat/stream` | Stream Data Agent replies |
-| `POST /api/document-assistant/chat` | Ask the Document Assistant |
+| `POST /api/chat/stream` | Stream Data Agent replies with tool execution and latency (SSE) |
+| `POST /api/document-assistant/chat` | Ask the Document Assistant (synchronous) |
+| `POST /api/document-assistant/chat/stream` | Stream Document Assistant replies with citations and step updates (SSE) |
 | `POST /api/document-assistant/documents` | Add session-scoped evidence |
 | `DELETE /api/document-assistant/session/{thread_id}` | Remove session evidence and conversation |
-| `GET /api/documents/settings` | Report active AI providers and thresholds |
-| `POST /api/documents/process` | Process consented PDF/image uploads |
+| `GET /api/documents/settings` | Report active AI providers, models, endpoints, and safety thresholds |
+| `POST /api/documents/process` | Process consented PDF/image uploads (synchronous) |
+| `POST /api/documents/process/stream` | Stream real-time progress events and results for consented uploads (SSE) |
+| `GET /api/documents/{job_id}/{filename}` | Download job artifacts (`documents.json`, `review_report.json`, `documents.xlsx`) |
+| `GET /api/documents/{job_id}/evaluation.json` | Job evaluation matrices (`quality`, `routing`, `throughput`) |
+
+The application supports pure **OpenAI** (with custom base URLs like Ollama, vLLM, DeepSeek, or Groq), **Google Gemini**, and **Azure OpenAI**. See `.env.example` for all configuration variables.
 
 The application does not currently provide user authentication. Treat
 conversation IDs as identifiers, not as access control.
+
+## Performance & Evaluation Framework
+
+DocuPilot includes built-in latency tracking and evaluation matrices (inspired by DevDocs-AI patterns):
+- **Latency Tracking**: Measured across every pipeline stage (segmentation, OCR/processing, grouping, review, export), API endpoints (`X-Latency-Ms` header), SSE events, and rendered in the frontend.
+- **Evaluation Matrices**:
+  1. *Pipeline Quality Matrix*: Average classification confidence, field confidence distribution, and validation pass rates.
+  2. *Throughput Matrix*: Stage-by-stage latencies, pages per second, and total processing duration.
+  3. *Routing Matrix*: Automated processing rate vs. human review flags broken down by trigger reason.
+
+## Document Pipeline Verification & Known Failure Modes
+
+Live end-to-end verification against real test assets (`data/Question3/`) confirms how the pipeline handles edge cases, low confidence scores, and unsupported documents:
+
+| Category | Observed Behavior / Asset | Pipeline Resolution |
+| :--- | :--- | :--- |
+| **Unsupported Document Type** | `Proposal Ashok.pdf` (Page 1)<br>`Assignment Ashok.pdf` (Pages 1 & 2) | Classified as `UNKNOWN`. Not present in the 10 supported schemas; logged in `review_report.json` under `flagged_fields` with reason `"Unsupported or unknown document type: UNKNOWN"` and marked for human review without failing the batch job. |
+| **Handwriting Confidence Penalty** | `ECS.jpeg` (`NACH_MANDATE`) | Hand-filled fields (`bank_account_number`, `ifsc_code`, `frequency`) receive the configured handwriting penalty (0.20) and score below the 0.85 threshold; flagged in `review_report.json` and routed to `HUMAN_REVIEWS_REQUIRED`. |
+| **Partial / Incomplete Form** | `Proposal Ashok.pdf` (Page 2 - `MORAL_HAZARD_QUESTIONNAIRE`) | Page-level classification confidence (0.75) is below threshold (0.85); flagged with reason `CLASSIFICATION_BELOW_CONFIDENCE_THRESHOLD`. |
+| **OCR Provider Failover** | Azure DI DNS unreachable or GCP DocAI billing disabled | Automatically cascades: Azure DI → Google DocAI → Vision LLM fallback. OCR confidence is reported as unavailable or derived from fallback, with pipeline completing successfully. |
 
 ## Tests
 

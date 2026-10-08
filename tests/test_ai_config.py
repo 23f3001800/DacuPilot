@@ -399,6 +399,50 @@ class ProviderConfigurationTests(unittest.TestCase):
         with self.assertRaisesRegex(ConnectionError, "fallback unavailable"):
             create_completion_with_fallback(clients, messages=[])
 
+    def test_openai_primary_provider_with_custom_endpoint_and_model(self):
+        env = {
+            "AI_PRIMARY_PROVIDER": "openai",
+            "OPENAI_API_KEY": "sk-test-key",
+            "OPENAI_BASE_URL": "http://localhost:11434/v1",
+            "OPENAI_MODEL": "llama-3.3",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            providers = configured_providers()
+
+        self.assertEqual(len(providers), 1)
+        self.assertEqual(providers[0].name, "OpenAI")
+        self.assertEqual(providers[0].base_url, "http://localhost:11434/v1")
+        self.assertEqual(providers[0].model, "llama-3.3")
+
+    def test_openai_fallback_ordering_when_gemini_is_primary(self):
+        env = {
+            "AI_PRIMARY_PROVIDER": "gemini",
+            "GEMINI_API_KEY": "gemini-test",
+            "GEMINI_MODEL": "gemini-3.6-flash",
+            "OPENAI_API_KEY": "sk-test",
+            "OPENAI_MODEL": "gpt-4o",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            providers = configured_providers()
+
+        self.assertEqual([p.name for p in providers], ["Gemini", "OpenAI"])
+
+    def test_public_settings_includes_active_model_and_ocr_status(self):
+        from datapilot.llm_provider import public_settings
+        env = {
+            "AI_PRIMARY_PROVIDER": "openai",
+            "OPENAI_API_KEY": "sk-test",
+            "OPENAI_MODEL": "gpt-4o",
+            "GCP_PROJECT_ID": "proj-123",
+            "DOCAI_PROCESSOR_ID": "proc-456",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            settings = public_settings()
+
+        self.assertEqual(settings["primary_provider"], "OpenAI")
+        self.assertEqual(settings["active_model"], "gpt-4o")
+        self.assertTrue(settings["google_ocr_configured"])
+
 
 if __name__ == "__main__":
     unittest.main()

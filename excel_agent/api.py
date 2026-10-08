@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -76,6 +77,7 @@ async def upload_excel(file: UploadFile = File(...)):
 
     UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
     stored_path = UPLOAD_DIRECTORY / f"{uuid4().hex}{Path(file.filename).suffix.lower()}"
+    start = time.perf_counter()
     try:
         stored_path.write_bytes(content)
         schema = await run_in_threadpool(agent.set_dataset, str(stored_path))
@@ -87,8 +89,10 @@ async def upload_excel(file: UploadFile = File(...)):
             detail="Could not read the uploaded workbook. Check the file and try again.",
         ) from error
 
+    elapsed_ms = round((time.perf_counter() - start) * 1000, 2)
     logger.info(
-        "Data Agent workbook uploaded (%s rows, %s columns)",
+        "Data Agent workbook uploaded in %.2fms (%s rows, %s columns)",
+        elapsed_ms,
         schema["total_rows"],
         len(schema["columns"]),
     )
@@ -97,6 +101,7 @@ async def upload_excel(file: UploadFile = File(...)):
         "total_rows": schema["total_rows"],
         "columns": schema["columns"],
         "data_types": schema["data_types"],
+        "latency_ms": elapsed_ms,
     }
 
 
@@ -116,6 +121,7 @@ async def stream_chat_endpoint(payload: ChatRequest):
 
 async def sse_event_generator(user_message: str, thread_id: str):
     """Stream data-agent tokens, tool starts, metrics, errors, and a final sentinel."""
+    stream_start = time.perf_counter()
     config = {"configurable": {"thread_id": thread_id}}
     initial_input = {"messages": [HumanMessage(content=user_message)]}
 
@@ -161,5 +167,8 @@ async def sse_event_generator(user_message: str, thread_id: str):
             }
         )
     finally:
+        stream_ms = round((time.perf_counter() - stream_start) * 1000, 2)
+        logger.info("LATENCY data_agent.stream: %.2fms (thread=%s)", stream_ms, thread_id)
+        yield _sse({"event": "latency", "total_ms": stream_ms})
         logger.info("Data-agent stream closed for thread %s", thread_id)
         yield _sse("[DONE]")

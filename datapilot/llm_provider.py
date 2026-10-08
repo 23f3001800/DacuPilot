@@ -117,7 +117,22 @@ def configured_providers(config: AppConfig | None = None) -> list[ModelProvider]
             "AZURE_OPENAI_AUTH_MODE=azure-cli."
         )
 
+    openai_ready = bool(
+        settings.openai_api_key
+        or (settings.openai_base_url and settings.openai_base_url.rstrip("/") != "https://api.openai.com/v1")
+    )
+
     providers = {
+        "openai": (
+            ModelProvider(
+                name="OpenAI",
+                base_url=settings.openai_base_url or "https://api.openai.com/v1",
+                api_key=settings.openai_api_key or "local",
+                model=settings.openai_model or "gpt-4o",
+            )
+            if openai_ready
+            else None
+        ),
         "gemini": (
             ModelProvider(
                 name="Gemini",
@@ -142,18 +157,17 @@ def configured_providers(config: AppConfig | None = None) -> list[ModelProvider]
     }
     if settings.ai_primary_provider not in providers:
         raise RuntimeError(
-            "AI_PRIMARY_PROVIDER must be 'gemini' or 'azure'; "
+            "AI_PRIMARY_PROVIDER must be 'openai', 'gemini', or 'azure'; "
             "TRACEROOT_PROVIDER is also accepted."
         )
 
-    ordered = [
-        providers[settings.ai_primary_provider],
-        providers["azure" if settings.ai_primary_provider == "gemini" else "gemini"],
+    order = [settings.ai_primary_provider] + [
+        k for k in ["gemini", "azure", "openai"] if k != settings.ai_primary_provider
     ]
-    configured = [provider for provider in ordered if provider is not None]
+    configured = [providers[k] for k in order if providers.get(k) is not None]
     if not configured:
         raise RuntimeError(
-            "Configure GEMINI_API_KEY or the Azure OpenAI-compatible provider "
+            "Configure GEMINI_API_KEY or OPENAI_API_KEY or the Azure OpenAI-compatible provider "
             "settings to use AI features."
         )
     return configured
@@ -228,15 +242,29 @@ def create_completion_with_fallback(clients, **kwargs):
 
 def public_settings() -> dict[str, object]:
     try:
-        providers = configured_provider_names()
+        provider_list = configured_providers()
+        providers = [p.name for p in provider_list]
+        active_model = provider_list[0].model if provider_list else "N/A"
+        active_endpoint = provider_list[0].base_url if provider_list else "N/A"
     except RuntimeError:
         providers = []
+        active_model = "N/A"
+        active_endpoint = "N/A"
     settings = get_config()
+    google_ocr_active = bool(settings.gcp_project_id and settings.docai_processor_id)
+    azure_ocr_active = bool(
+        settings.azure_document_intelligence_endpoint
+        and settings.azure_document_intelligence_key
+    )
     return {
         "primary_provider": (
             providers[0] if providers else settings.ai_primary_provider.title()
         ),
         "available_providers": providers,
+        "active_model": active_model,
+        "active_endpoint": active_endpoint,
         "confidence_threshold": Config.FIELD_CONFIDENCE_THRESHOLD,
         "handwriting_penalty": Config.HANDWRITTEN_PENALTY,
+        "google_ocr_configured": google_ocr_active,
+        "azure_ocr_configured": azure_ocr_active,
     }
