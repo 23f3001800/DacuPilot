@@ -19,3 +19,4 @@ __pycache__/
 *service_account*.json
 *google-credentials*.json
 gen-lang-client-0380050852-428bf93e6b37.json
+*.zip

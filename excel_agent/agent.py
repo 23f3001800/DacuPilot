@@ -27,23 +27,28 @@ logging.getLogger("openai").setLevel(logging.WARNING)
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 _settings = get_config()
-df, schema_context = load_real_world_excel(_settings.excel_file_path)
-sandbox_repl = PythonSandboxREPL(df)
+if _settings.excel_file_path and Path(_settings.excel_file_path).exists():
+    df, schema_context = load_real_world_excel(_settings.excel_file_path)
+    sandbox_repl = PythonSandboxREPL(df)
+else:
+    df, schema_context, sandbox_repl = None, None, None
 _dataset_lock = threading.RLock()
 
 
-def set_dataset(file_path: str) -> dict:
+def set_dataset(file_path: str, filename: str = None) -> dict:
     """Load a workbook and atomically replace the Data Agent's shared dataset."""
     global df, schema_context, sandbox_repl
     new_df, new_schema = load_real_world_excel(file_path)
+    new_schema["filename"] = filename or Path(file_path).name
     with _dataset_lock:
         df = new_df
         schema_context = new_schema
         sandbox_repl = PythonSandboxREPL(new_df)
     logger.info(
-        "Data Agent workbook loaded: %s rows, %s columns",
+        "Data Agent workbook loaded: %s rows, %s columns (%s)",
         new_schema["total_rows"],
         len(new_schema["columns"]),
+        new_schema["filename"],
     )
     return new_schema
 
@@ -84,6 +89,19 @@ class AgentGraphState(TypedDict):
 # 3. NODE DEFINITIONS
 # ==========================================
 async def analyst_reasoning_node(state: AgentGraphState):
+    if df is None or schema_context is None:
+        from langchain_core.messages import AIMessage
+        return {
+            "messages": [
+                AIMessage(
+                    content=(
+                        "⚠️ **No Excel workbook has been uploaded yet.**\n\n"
+                        "Please upload an Excel workbook (`.xlsx` or `.xlsm`) using the **Upload Excel** "
+                        "button above before asking questions or running calculations."
+                    )
+                )
+            ]
+        }
     llm = get_llm()
     system_prompt = SystemMessage(content=f"""
 You are an enterprise data analyst agent. You manipulate a preloaded Pandas DataFrame named `df`.
@@ -122,9 +140,12 @@ async def tool_execution_node(state: AgentGraphState):
         try:
             if tool_name == "execute_pandas_code":
                 with _dataset_lock:
-                    output = sandbox_repl.execute_code(
-                        CodeExecutionInput(**raw_args).code
-                    )
+                    if sandbox_repl is None:
+                        output = "Error: No Excel workbook has been loaded. Upload an Excel workbook first."
+                    else:
+                        output = sandbox_repl.execute_code(
+                            CodeExecutionInput(**raw_args).code
+                        )
             elif tool_name == "web_search_lookup":
                 search_res = get_tavily_client().search(
                     query=WebSearchInput(**raw_args).query,

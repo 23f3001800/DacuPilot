@@ -42,6 +42,42 @@ class FakeGraph:
 
 
 class ExcelApiTests(unittest.TestCase):
+    def setUp(self):
+        self._orig_df = agent.df
+        self._orig_schema = agent.schema_context
+        self._orig_repl = agent.sandbox_repl
+        import pandas as pd
+        from excel_agent.engine import PythonSandboxREPL
+        self.dummy_df = pd.DataFrame({"item": ["pen"], "quantity": [10]})
+        self.dummy_schema = {
+            "filename": "sample.xlsx",
+            "total_rows": 1,
+            "columns": ["item", "quantity"],
+            "data_types": {"item": "str", "quantity": "int64"},
+            "summary": {},
+        }
+        agent.df = self.dummy_df
+        agent.schema_context = self.dummy_schema
+        agent.sandbox_repl = PythonSandboxREPL(self.dummy_df)
+
+    def tearDown(self):
+        agent.df = self._orig_df
+        agent.schema_context = self._orig_schema
+        agent.sandbox_repl = self._orig_repl
+
+    def test_stream_triggers_guardrail_when_no_workbook_is_loaded(self):
+        agent.df = None
+        agent.schema_context = None
+        agent.sandbox_repl = None
+        response = TestClient(app).post(
+            "/api/chat/stream",
+            json={"message": "How much stock?", "thread_id": "test-session"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Workbook Required", response.text)
+        self.assertIn("No Excel workbook has been uploaded yet", response.text)
+        self.assertTrue(response.text.endswith("data: [DONE]\n\n"))
+
     def test_homepage_serves_inventory_chat_ui(self):
         response = TestClient(app).get("/")
 

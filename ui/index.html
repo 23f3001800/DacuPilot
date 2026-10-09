@@ -288,7 +288,7 @@
         ? "Ask questions about the active workbook. The agent can calculate from the data and look up external context."
         : "Ask about company documentation and policies. Answers cite the source page or section.";
       return `<h1 class="page-title">${title}</h1><p class="page-description">${description}</p>
-        ${isData ? `<form id="excel-upload-form" class="panel workbook-upload-panel"><div class="workbook-upload-controls"><label for="excel-file"><strong>Use your own workbook</strong></label><input class="file-input" id="excel-file" name="file" type="file" accept=".xlsx,.xlsm"><button class="primary-button" id="excel-upload-button" type="submit">Upload Excel</button></div><p id="excel-upload-status" class="hint" role="status">Using the default inventory workbook. Choose a file to upload it automatically.</p></form>` : ""}
+        ${isData ? `<form id="excel-upload-form" class="panel workbook-upload-panel"><div class="workbook-upload-controls"><label for="excel-file"><strong>Upload your Excel workbook</strong></label><input class="file-input" id="excel-file" name="file" type="file" accept=".xlsx,.xlsm"><button class="primary-button" id="excel-upload-button" type="submit">Upload Excel</button></div><p id="excel-upload-status" class="hint" role="status">No default workbook loaded. Choose a file to upload it automatically.</p><div id="excel-data-source" class="data-source-badge" style="display:none;margin-top:8px;font-size:12px;color:#027a48;background:#ecfdf5;border:1px solid #a7f3d0;padding:6px 12px;border-radius:8px;font-weight:600;align-items:center;gap:6px;"></div></form>` : ""}
         <div class="chat-layout"><section class="panel chat-panel"><div class="chat-top"><strong>${title} chat</strong><span>● Ready</span></div><div class="chat-messages" id="chat-messages" role="log" aria-live="polite"></div><form class="chat-form" id="chat-form"><textarea id="chat-input" rows="1" placeholder="Type your question…" aria-label="Your question" required></textarea><button class="primary-button" id="chat-send" type="submit">Send</button></form></section></div>`;
     }
 
@@ -579,6 +579,33 @@
       const status = document.querySelector("#excel-upload-status");
       let uploadInProgress = false;
 
+      // Query active workbook schema on load so user knows what is ingested
+      fetch("/api/data/schema")
+        .then(res => res.ok ? res.json() : null)
+        .then(schema => {
+          if (!schema || !schema.filename || !schema.loaded) {
+            if (status) {
+              status.style.color = "#b54708";
+              status.style.fontWeight = "600";
+              status.innerHTML = `⚠️ No Excel workbook uploaded yet. Choose a file to upload it automatically.`;
+            }
+            return;
+          }
+          const rows = schema.total_rows != null ? Number(schema.total_rows).toLocaleString() : "";
+          const cols = (schema.columns || []).length;
+          if (status) {
+            status.style.color = "#027a48";
+            status.style.fontWeight = "500";
+            status.innerHTML = `<span style="font-weight:700;">✓ Ingested Dataset:</span> <strong>${escapeHtml(schema.filename)}</strong> (${rows} rows · ${cols} columns). Choose a file below to replace it.`;
+          }
+          const sourceBadge = document.querySelector("#excel-data-source");
+          if (sourceBadge) {
+            sourceBadge.style.display = "inline-flex";
+            sourceBadge.innerHTML = `<span>📊</span> <span>Active Dataset: <strong>${escapeHtml(schema.filename)}</strong> (${rows} rows)</span>`;
+          }
+        })
+        .catch(() => {});
+
       async function uploadWorkbook() {
         if (!fileInput.files.length || uploadInProgress) return;
         const file = fileInput.files[0];
@@ -588,21 +615,37 @@
         submit.textContent = "Loading…";
         controls.button.disabled = true;
         controls.input.disabled = true;
-        status.textContent = "Uploading and reading workbook…";
+        if (status) {
+          status.style.color = "#475467";
+          status.textContent = `Uploading and ingesting "${file.name}"…`;
+        }
         try {
           const body = new FormData();
           body.set("file", fileInput.files[0]);
           const response = await fetch("/api/data/upload", { method: "POST", body });
           if (!response.ok) throw new Error(await responseText(response));
           const workbook = await response.json();
-          const latText = workbook.latency_ms ? ` · ${workbook.latency_ms} ms` : "";
-          status.textContent = `Loaded ${workbook.filename}: ${workbook.total_rows} rows · ${workbook.columns.length} columns${latText}.`;
-          document.querySelector("#excel-data-source").textContent = `Data source: ${workbook.filename}`;
+          const latText = workbook.latency_ms ? ` (latency: ${workbook.latency_ms} ms)` : "";
+          const rowsFormatted = Number(workbook.total_rows || 0).toLocaleString();
+          const colsCount = (workbook.columns || []).length;
+          if (status) {
+            status.style.color = "#027a48";
+            status.style.fontWeight = "600";
+            status.innerHTML = `<span style="font-weight:700;">✓ Successfully ingested &amp; loaded:</span> <strong>${escapeHtml(workbook.filename)}</strong> (${rowsFormatted} rows · ${colsCount} columns)${latText}.`;
+          }
+          const sourceBadge = document.querySelector("#excel-data-source");
+          if (sourceBadge) {
+            sourceBadge.style.display = "inline-flex";
+            sourceBadge.innerHTML = `<span>📊</span> <span>Active Dataset: <strong>${escapeHtml(workbook.filename)}</strong> (${rowsFormatted} rows)</span>`;
+          }
           sessionStorage.setItem(sessionKey + "data-agent", newId());
           controls.messages.replaceChildren();
-          addChatMessage(controls.messages, `Workbook ${workbook.filename} is loaded. Ask a question about its data.`, "assistant");
+          addChatMessage(controls.messages, `✓ Workbook "${workbook.filename}" is successfully ingested and active (${rowsFormatted} rows, ${colsCount} columns). Ask any analytical or statistical question about its data.`, "assistant");
         } catch (failure) {
-          status.textContent = failure.message || "Could not load the workbook.";
+          if (status) {
+            status.style.color = "#dc2626";
+            status.textContent = failure.message || "Could not load the workbook.";
+          }
         } finally {
           uploadInProgress = false;
           fileInput.disabled = false;

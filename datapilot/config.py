@@ -77,7 +77,7 @@ class AppConfig:
             openai_base_url=openai_url,
             openai_model=openai_model,
             tavily_api_key=os.getenv("TAVILY_API_KEY", "").strip(),
-            excel_file_path=os.getenv("EXCEL_FILE_PATH", str(DEFAULT_EXCEL_FILE)),
+            excel_file_path=os.getenv("EXCEL_FILE_PATH", "").strip(),
             gcp_project_id=os.getenv("GCP_PROJECT_ID", "").strip().strip('"'),
             gcp_location=os.getenv("GCP_LOCATION", "").strip().strip('"'),
             docai_processor_id=os.getenv("DOCAI_PROCESSOR_ID", "").strip().strip('"'),

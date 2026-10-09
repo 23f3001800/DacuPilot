@@ -12,6 +12,7 @@ Three focused matrices inspired by the DevDocs-AI evaluation framework
 from __future__ import annotations
 
 import math
+import re
 from typing import Any, Sequence
 
 

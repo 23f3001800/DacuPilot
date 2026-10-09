@@ -58,7 +58,16 @@ def _tool_calls(chunk: Any) -> list[dict[str, Any]]:
 
 @router.get("/api/data/schema")
 async def data_schema():
-    return agent.schema_context
+    if agent.schema_context is None:
+        return {
+            "loaded": False,
+            "filename": None,
+            "total_rows": 0,
+            "columns": [],
+            "data_types": {},
+            "summary": {},
+        }
+    return {"loaded": True, **agent.schema_context}
 
 
 @router.post("/api/data/upload")
@@ -80,7 +89,9 @@ async def upload_excel(file: UploadFile = File(...)):
     start = time.perf_counter()
     try:
         stored_path.write_bytes(content)
-        schema = await run_in_threadpool(agent.set_dataset, str(stored_path))
+        schema = await run_in_threadpool(
+            agent.set_dataset, str(stored_path), file.filename
+        )
     except Exception as error:
         stored_path.unlink(missing_ok=True)
         logger.exception("Excel workbook upload failed (%s)", type(error).__name__)
@@ -137,6 +148,31 @@ async def sse_event_generator(user_message: str, thread_id: str):
                 "attempting to override system safety policies. Please ask a "
                 "question about the workbook dataset."
             ),
+        })
+        yield _sse({"event": "latency", "total_ms": 1.0})
+        yield _sse("[DONE]")
+        return
+
+    # 2. Guardrail: User did not provide Excel workbook input
+    if agent.df is None or agent.schema_context is None:
+        logger.info("Guardrail triggered: No Excel workbook provided for thread %s", thread_id)
+        yield _sse({"event": "status", "text": "Workbook Required"})
+        yield _sse({
+            "event": "token",
+            "text": (
+                "⚠️ **No Excel workbook has been uploaded yet.**\n\n"
+                "Please upload an Excel workbook (`.xlsx` or `.xlsm`) using the **Upload Excel** "
+                "button above before asking questions or running calculations."
+            ),
+        })
+        yield _sse({
+            "event": "evaluation",
+            "confidence_score": 1.0,
+            "payload": {
+                "confidence_score": 1.0,
+                "evaluation_rationale": "Guardrail triggered: Dataset upload required before data analysis.",
+                "data_coverage_percentage": 0.0,
+            },
         })
         yield _sse({"event": "latency", "total_ms": 1.0})
         yield _sse("[DONE]")
