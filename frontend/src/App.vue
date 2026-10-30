@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref } from "vue";
 import { getHealth } from "./api";
+import DataAgentView from "./views/DataAgentView.vue";
 
 const routes = [
   { id: "home", label: "Home" },
@@ -36,3 +37,13 @@ onMounted(async () => {
         </button>
       </nav>
       <main class="content">
+        <DataAgentView v-if="activeRoute === 'data-agent'" />
+        <template v-else>
+          <p class="eyebrow">Vue migration foundation</p>
+          <h1>{{ routes.find((route) => route.id === activeRoute)?.label }}</h1>
+          <p>The legacy HTML workflow remains available while this Vue client is migrated feature by feature.</p>
+        </template>
+      </main>
+    </div>
+  </div>
+</template>
