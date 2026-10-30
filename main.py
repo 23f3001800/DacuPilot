@@ -1,4 +1,5 @@
 import logging
+import os
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -9,10 +10,19 @@ from document_assistance.api import router as document_assistant_router
 from document_intelligence.api import router as document_intelligence_router
 from excel_agent.api import router as excel_agent_router
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from datapilot.latency import latency_middleware_factory
 
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "DATAPILOT_ALLOWED_ORIGINS", "http://localhost:8080,http://localhost:5173"
+    ).split(",")
+    if origin.strip()
+]
+app.add_middleware(CORSMiddleware, allow_origins=allowed_origins, allow_methods=["*"], allow_headers=["*"])
 app = FastAPI(title="DocuPilot | Intelligent Document and Data Processing")
 app.add_middleware(latency_middleware_factory())
 app.include_router(excel_agent_router)

@@ -167,9 +167,9 @@ async def sse_event_generator(user_message: str, thread_id: str):
         })
         yield _sse({
             "event": "evaluation",
-            "confidence_score": 1.0,
+            "confidence_score": 0.0,
             "payload": {
-                "confidence_score": 1.0,
+                "confidence_score": 0.0,
                 "evaluation_rationale": "Guardrail triggered: Dataset upload required before data analysis.",
                 "data_coverage_percentage": 0.0,
             },
@@ -214,7 +214,7 @@ async def sse_event_generator(user_message: str, thread_id: str):
                         if hasattr(result, "model_dump"):
                             result = result.model_dump()
                         metrics = result.get("evaluation_metrics", {}) if isinstance(result, dict) else {}
-                        conf = metrics.get("confidence_score", 0.95) if isinstance(metrics, dict) else 0.95
+                        conf = metrics.get("confidence_score", 0.0) if isinstance(metrics, dict) else 0.0
                         yield _sse({
                             "event": "evaluation",
                             "confidence_score": conf,
