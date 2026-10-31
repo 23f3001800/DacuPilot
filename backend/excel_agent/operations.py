@@ -31,7 +31,7 @@ def _validate_formula(formula: str, columns: list[str]) -> None:
     for node in ast.walk(tree):
         if isinstance(node, (ast.Call, ast.Attribute, ast.Lambda, ast.Import, ast.ImportFrom)):
             raise ValueError("Formula calls, attributes, and imports are not allowed.")
-        if isinstance(node, ast.Name) and node.id not in allowed_columns:
+        if isinstance(node, ast.Name) and node.id not in allowed_columns and node.id != "df":
             raise ValueError(f"Formula references unknown column '{node.id}'.")
         if isinstance(node, ast.Subscript):
             if not isinstance(node.value, ast.Name) or node.value.id != "df":
@@ -51,6 +51,8 @@ def _evaluate(frame: pd.DataFrame, formula: str) -> pd.Series:
     _validate_formula(formula, [str(column) for column in frame.columns])
     result = eval(compile(ast.parse(formula, mode="eval"), "<column-formula>", "eval"),
                   {"__builtins__": {}, "df": frame}, {})
+    if isinstance(result, pd.DataFrame):
+        raise ValueError("Formula must return one value per row, not a dataframe.")
     if not isinstance(result, pd.Series):
         result = pd.Series([result] * len(frame), index=frame.index)
     return result

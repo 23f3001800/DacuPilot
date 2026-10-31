@@ -9,6 +9,11 @@ const question = ref("");
 const sending = ref(false);
 const messages = ref([]);
 const evaluation = ref(null);
+const citations = ref([]);
+const assistantEnabled = ref(true);
+const elapsedMs = ref(0);
+const thinkingSteps = ref([]);
+let latencyTimer;
 const status = ref("");
 const threadId = ref(sessionStorage.getItem("datapilot-thread-id") || crypto.randomUUID());
 const preview = ref(null);
@@ -52,23 +57,41 @@ async function ingestWorkbook() {
 
 async function ask(text = question.value) {
   const message = text.trim();
-  if (!message || sending.value) return;
+  if (!message || sending.value || !assistantEnabled.value) return;
   question.value = "";
   messages.value.push({ role: "user", text: message });
-  messages.value.push({ role: "assistant", text: "" });
+  messages.value.push({ role: "assistant", text: "", thinking: true, citations: [], confidence: null, latencyMs: null });
   sending.value = true;
   status.value = "Starting analysis...";
   evaluation.value = null;
+  citations.value = [];
+  thinkingSteps.value = ["Understanding your request"];
+  const startedAt = performance.now();
+  elapsedMs.value = 0;
+  clearInterval(latencyTimer);
+  latencyTimer = setInterval(() => { elapsedMs.value = Math.round(performance.now() - startedAt); }, 100);
 
   try {
     await streamAssistant({
       message,
       threadId: threadId.value,
       onEvent(event) {
-        if (event.event === "token") messages.value.at(-1).text += event.text || "";
-        if (event.event === "status" || event.event === "tool_start") status.value = event.text || (event.tool ? "Running " + event.tool + "..." : "");
-        if (event.event === "final_answer") messages.value.at(-1).text = event.text || messages.value.at(-1).text;
-        if (event.event === "evaluation" || event.event === "metrics_evaluation") evaluation.value = event;
+        const current = messages.value.at(-1);
+        if (event.event === "token") current.text += event.text || "";
+        if (event.event === "status" || event.event === "tool_start") {
+          status.value = event.text || (event.tool ? "Running " + event.tool + "..." : "Working...");
+          thinkingSteps.value.push(status.value);
+        }
+        if (event.event === "final_answer") current.text = event.text || current.text;
+        if (event.event === "evaluation" || event.event === "metrics_evaluation") {
+          evaluation.value = event.payload?.evaluation_metrics || event.evaluation_metrics || event;
+          current.confidence = evaluation.value.confidence_score ?? evaluation.value.confidence;
+        }
+        if (event.event === "citation" || event.event === "citations") {
+          const incoming = event.citations || event.payload?.citations || [];
+          citations.value = Array.isArray(incoming) ? incoming : [incoming];
+          current.citations = citations.value;
+        }
         if (event.thread_id) {
           threadId.value = event.thread_id;
           sessionStorage.setItem("datapilot-thread-id", event.thread_id);
@@ -78,6 +101,11 @@ async function ask(text = question.value) {
   } catch (error) {
     messages.value.at(-1).text = error.message;
   } finally {
+    clearInterval(latencyTimer);
+    elapsedMs.value = Math.round(performance.now() - startedAt);
+    const current = messages.value.at(-1);
+    current.thinking = false;
+    current.latencyMs = elapsedMs.value;
     sending.value = false;
     status.value = "";
   }
@@ -131,7 +159,7 @@ onMounted(loadSchema);
       <div class="panel-heading"><div><h2>Workbook preview</h2><p class="helper">Read-only preview of the active dataset.</p></div><span class="preview-count">{{ preview.total_rows }} rows</span></div>
       <div class="table-scroll"><table><thead><tr><th v-for="column in preview.columns" :key="column">{{ column }}</th></tr></thead><tbody><tr v-for="(row, index) in preview.rows" :key="index"><td v-for="column in preview.columns" :key="column">{{ row[column] ?? "-" }}</td></tr></tbody></table></div>
     </section>
-    <div class="agent-grid">
+    <div class="agent-grid" :class="{ 'assistant-collapsed': !assistantEnabled }">
       <section class="panel">
         <h2>Workbook</h2>
         <input type="file" accept=".xlsx,.xlsm" @change="selectFile" />
@@ -156,25 +184,30 @@ onMounted(loadSchema);
       </section>
 
       <section class="panel chat-panel">
-        <h2>Ask the agent</h2>
+        <div class="assistant-heading">
+          <div class="assistant-title"><span class="assistant-orb">✦</span><div><h2>DataPilot Assistant</h2><span class="assistant-online"><i /> {{ assistantEnabled ? 'Online' : 'Paused' }}</span></div></div>
+          <button class="assistant-toggle" :class="{ on: assistantEnabled }" type="button" @click="assistantEnabled = !assistantEnabled"><i /> {{ assistantEnabled ? 'Assistant on' : 'Assistant off' }}</button>
+        </div>
+        <div v-if="!assistantEnabled" class="assistant-offline">Assistant is paused. Turn the toggle on to ask questions.</div>
         <div class="prompt-row">
-          <button v-for="prompt in prompts" :key="prompt" class="prompt-button" @click="ask(prompt)">{{ prompt }}</button>
+          <button v-for="prompt in prompts" :key="prompt" class="prompt-button" :disabled="!assistantEnabled" @click="ask(prompt)">{{ prompt }}</button>
         </div>
         <div class="message-list" aria-live="polite">
           <p v-if="!messages.length" class="helper">Your conversation will appear here.</p>
           <div v-for="(message, index) in messages" :key="index" :class="['message', message.role]">
-            <strong>{{ message.role === "user" ? "You" : "Data Agent" }}</strong>
-            <p>{{ message.text }}</p>
+            <strong>{{ message.role === "user" ? "You" : "DataPilot Assistant" }}</strong>
+            <div v-if="message.role === 'assistant' && message.thinking" class="thinking"><span /><span /><span /> {{ status || 'Thinking through your workbook...' }}</div>
+            <p v-if="message.text">{{ message.text }}</p>
+            <div v-if="message.role === 'assistant' && !message.thinking && message.latencyMs !== null" class="answer-meta"><span class="latency">Latency {{ message.latencyMs }} ms</span><span v-if="message.confidence !== null">Confidence {{ Math.round(Number(message.confidence) * 100) }}%</span><span v-if="message.citations?.length">{{ message.citations.length }} citation{{ message.citations.length === 1 ? '' : 's' }}</span></div>
+            <div v-if="message.citations?.length" class="citations"><span v-for="(citation, citeIndex) in message.citations" :key="citeIndex">{{ citation.title || citation.source || citation }}</span></div>
           </div>
         </div>
         <form class="question-form" @submit.prevent="ask()">
-          <input v-model="question" placeholder="Ask a question about the workbook..." :disabled="sending" />
-          <button class="primary-button" type="submit" :disabled="sending || !question.trim()">Send</button>
+          <input v-model="question" placeholder="Ask anything about your data..." :disabled="sending || !assistantEnabled" />
+          <span v-if="sending" class="live-latency">{{ elapsedMs }} ms</span>
+          <button class="primary-button" type="submit" :disabled="sending || !question.trim() || !assistantEnabled">Send</button>
         </form>
-        <div v-if="evaluation" class="evaluation-card">
-          <strong>Evaluation</strong>
-          <span>Confidence: {{ evaluation.confidence_score ?? evaluation.payload?.evaluation_metrics?.confidence_score ?? "n/a" }}</span>
-        </div>
+        <div v-if="evaluation && !sending" class="evaluation-card"><strong>Answer quality</strong><span>Confidence: {{ Math.round(Number(evaluation.confidence_score ?? evaluation.confidence ?? 0) * 100) }}%</span><span v-if="citations.length">{{ citations.length }} citations</span></div>
       </section>
     </div>
   </section>
