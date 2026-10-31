@@ -36,6 +36,7 @@ class DatasetContext:
     data_frame: object
     schema: dict
     sandbox: PythonSandboxREPL
+    file_path: str | None = None
 
 
 _settings = get_config()
@@ -57,7 +58,7 @@ def _context_for(thread_id: str = "default") -> DatasetContext | None:
             return None
         if df is None or schema_context is None or sandbox_repl is None:
             return None
-        return DatasetContext(df, schema_context, sandbox_repl)
+        return DatasetContext(df, schema_context, sandbox_repl, _settings.excel_file_path)
 
 
 def set_dataset(file_path: str, filename: str = None, thread_id: str = "default", sheet_name: str | None = None) -> dict:
@@ -70,7 +71,7 @@ def set_dataset(file_path: str, filename: str = None, thread_id: str = "default"
         schema_context = new_schema
         sandbox_repl = PythonSandboxREPL(new_df)
         if thread_id != "default":
-            _datasets[thread_id] = DatasetContext(new_df, new_schema, sandbox_repl)
+            _datasets[thread_id] = DatasetContext(new_df, new_schema, sandbox_repl, str(file_path))
     logger.info(
         "Data Agent workbook loaded: %s rows, %s columns (%s)",
         new_schema["total_rows"],
@@ -86,6 +87,12 @@ def has_dataset(thread_id: str = "default") -> bool:
 
 def get_dataset_context(thread_id: str = "default") -> DatasetContext | None:
     return _context_for(thread_id)
+
+
+def delete_dataset(thread_id: str = "default") -> DatasetContext | None:
+    """Remove a conversation-scoped workbook and return its metadata."""
+    with _dataset_lock:
+        return _datasets.pop(thread_id, None)
 
 
 def get_llm() -> ChatOpenAI:
@@ -191,13 +198,13 @@ SECURITY DIRECTIVES:
 async def tool_execution_node(state: AgentGraphState):
     last_msg = state["messages"][-1]
     tool_responses = []
-    
+
     for tool_call in last_msg.tool_calls:
         tool_name = tool_call["name"]
         raw_args = tool_call["args"]
         logger.info("Executing tool %s", tool_name)
         evidence = {}
-        
+
         try:
             if tool_name == "execute_pandas_code":
                 context = _context_for(state.get("thread_id", "default"))
@@ -227,7 +234,7 @@ async def tool_execution_node(state: AgentGraphState):
         except Exception as e:
             output = f"Error: {str(e)}"
             logger.exception("Tool %s failed", tool_name)
-            
+
         tool_responses.append(ToolMessage(content=output, tool_call_id=tool_call["id"], name=tool_name, additional_kwargs=evidence))
     return {"messages": tool_responses, "tool_rounds": state.get("tool_rounds", 0) + 1}
 

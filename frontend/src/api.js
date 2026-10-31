@@ -40,6 +40,16 @@ export async function getWorkbookDashboard(threadId = "default") {
   return response.json();
 }
 
+export function getWorkbookDownloadUrl(threadId = "default") {
+  return `/api/data/workbook/download?thread_id=${encodeURIComponent(threadId)}`;
+}
+
+export async function deleteWorkbook(threadId = "default") {
+  const response = await fetch(`/api/data/workbook?thread_id=${encodeURIComponent(threadId)}`, { method: "DELETE" });
+  if (!response.ok) throw new Error(await readError(response));
+  return response.json();
+}
+
 export async function previewColumnOperation({ threadId, columnName, formula }) {
   const response = await fetch("/api/data/column/preview", {
     method: "POST",

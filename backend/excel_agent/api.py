@@ -6,7 +6,7 @@ from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
@@ -216,6 +216,24 @@ async def upload_excel(
         "data_types": schema["data_types"],
         "latency_ms": elapsed_ms,
     }
+
+
+@router.get("/api/data/workbook/download")
+async def download_workbook(thread_id: str = Query("default", min_length=1)):
+    context = agent.get_dataset_context(thread_id)
+    if context is None or not context.file_path or not Path(context.file_path).is_file():
+        raise HTTPException(status_code=404, detail="No saved workbook is available for this session.")
+    return FileResponse(context.file_path, filename=context.schema.get("filename", Path(context.file_path).name), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+@router.delete("/api/data/workbook")
+async def delete_workbook(thread_id: str = Query("default", min_length=1)):
+    context = agent.delete_dataset(thread_id)
+    if context is None:
+        raise HTTPException(status_code=404, detail="No workbook is loaded for this session.")
+    if context.file_path:
+        Path(context.file_path).unlink(missing_ok=True)
+    return {"deleted": True, "thread_id": thread_id}
 
 
 @router.post("/api/chat/stream")

@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, ref } from "vue";
-import { getWorkbookDashboard, getWorkbookPreview, getWorkbookSchema, streamAssistant, uploadWorkbook } from "../api";
+import { deleteWorkbook, getWorkbookDashboard, getWorkbookDownloadUrl, getWorkbookPreview, getWorkbookSchema, streamAssistant, uploadWorkbook } from "../api";
 
 const schema = ref(null);
 const file = ref(null);
@@ -24,6 +24,15 @@ const prompts = [
   "Which columns have missing values?",
   "Show the most important trends in this data.",
 ];
+
+function chartPoints(chart) {
+  const values = chart?.series?.[0]?.values || [];
+  if (!values.length) return "";
+  const max = Math.max(...values.map(Number));
+  const min = Math.min(...values.map(Number));
+  const range = max - min || 1;
+  return values.map((value, index) => `${(index / Math.max(1, values.length - 1)) * 100},${96 - ((Number(value) - min) / range) * 82}`).join(" ");
+}
 
 async function loadSchema() {
   try {
@@ -51,12 +60,25 @@ async function ingestWorkbook() {
   }
 }
 
+async function removeWorkbook() {
+  if (!schema.value || !confirm("Delete the saved workbook from this session?")) return;
+  try {
+    await deleteWorkbook(threadId.value);
+    schema.value = null;
+    preview.value = null;
+    dashboard.value = null;
+    uploadStatus.value = "Workbook deleted.";
+    messages.value.push({ role: "assistant", text: "The saved workbook was deleted from this session." });
+  } catch (error) { uploadStatus.value = error.message; }
+}
+
 async function ask(text = question.value) {
   const message = text.trim();
   if (!message || sending.value || !assistantEnabled.value) return;
   question.value = "";
   messages.value.push({ role: "user", text: message });
-  messages.value.push({ role: "assistant", text: "", thinking: true, citations: [], confidence: null, latencyMs: null });
+  const wantsChart = /chart|graph|plot|visual|trend/i.test(message);
+  messages.value.push({ role: "assistant", text: "", thinking: true, citations: [], confidence: null, latencyMs: null, chart: null });
   sending.value = true;
   status.value = "Starting analysis...";
   evaluation.value = null;
@@ -100,6 +122,11 @@ async function ask(text = question.value) {
     clearInterval(latencyTimer);
     elapsedMs.value = Math.round(performance.now() - startedAt);
     const current = messages.value.at(-1);
+    if (wantsChart && dashboard.value?.charts?.length) {
+      current.chart = dashboard.value.charts[0];
+      const existing = JSON.parse(sessionStorage.getItem("datapilot-generated-charts") || "[]");
+      sessionStorage.setItem("datapilot-generated-charts", JSON.stringify([...existing, { ...current.chart, generatedAt: new Date().toISOString() }].slice(-12)));
+    }
     current.thinking = false;
     current.latencyMs = elapsedMs.value;
     sending.value = false;
@@ -127,6 +154,7 @@ onMounted(loadSchema);
         <input type="file" accept=".xlsx,.xlsm" @change="selectFile" />
         <button class="primary-button" :disabled="!file" @click="ingestWorkbook">Upload workbook</button>
         <p v-if="uploadStatus" class="helper">{{ uploadStatus }}</p>
+        <div v-if="schema?.loaded" class="workbook-actions"><a class="secondary-button" :href="getWorkbookDownloadUrl(threadId)" download>Save Excel file</a><button class="danger-button" type="button" @click="removeWorkbook">Delete workbook</button></div>
         <div v-if="schema?.columns?.length" class="schema-list">
           <h3>Columns</h3>
           <span v-for="column in schema.columns" :key="column" class="schema-chip">{{ column }}</span>
@@ -154,6 +182,7 @@ onMounted(loadSchema);
             <strong>{{ message.role === "user" ? "You" : "DataPilot Assistant" }}</strong>
             <div v-if="message.role === 'assistant' && message.thinking" class="thinking"><span /><span /><span /> {{ status || 'Thinking through your workbook...' }}<b class="thinking-latency">{{ sending ? elapsedMs : 0 }} ms</b></div>
             <p v-if="message.text">{{ message.text }}</p>
+            <div v-if="message.chart" class="chat-chart"><div class="chat-chart-title"><b>{{ message.chart.title }}</b><span>Generated from workbook data</span></div><svg viewBox="0 0 100 100" preserveAspectRatio="none"><polyline :points="chartPoints(message.chart)" /></svg></div>
             <div v-if="message.role === 'assistant' && !message.thinking && message.latencyMs !== null" class="answer-meta"><span class="latency">Latency {{ message.latencyMs }} ms</span><span v-if="message.confidence !== null">Confidence {{ Math.round(Number(message.confidence) * 100) }}%</span><span v-if="message.citations?.length">{{ message.citations.length }} citation{{ message.citations.length === 1 ? '' : 's' }}</span></div>
             <div v-if="message.citations?.length" class="citations"><span v-for="(citation, citeIndex) in message.citations" :key="citeIndex">{{ citation.title || citation.source || citation }}</span></div>
           </div>
