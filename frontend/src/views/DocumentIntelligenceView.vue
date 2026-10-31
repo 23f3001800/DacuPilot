@@ -1,4 +1,4 @@
-+<script setup>
+<script setup>
 import { ref } from "vue";
 
 const files = ref([]);
@@ -53,7 +53,7 @@ async function processDocuments() {
 </script>
 
 <template>
-  <section class="agent-view">
+  <section class="workflow-view">
     <div class="view-heading"><div><p class="eyebrow">Structured extraction</p><h1>Document Intelligence</h1><p>Process documents, review uncertain fields, and download structured outputs.</p></div><span v-if="status" class="status-pill">{{ status }}</span></div>
     <section class="panel">
       <h2>Process documents</h2>

@@ -1,4 +1,4 @@
-+<script setup>
+<script setup>
 import { onMounted, ref } from "vue";
 import { streamAssistant } from "../api";
 
@@ -49,7 +49,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <section class="agent-view">
+  <section class="workflow-view">
     <div class="view-heading">
       <div>
         <p class="eyebrow">Grounded document chat</p>

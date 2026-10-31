@@ -79,7 +79,7 @@ onMounted(loadSchema);
 </script>
 
 <template>
-  <section class="agent-view">
+  <section class="workflow-view">
     <div class="view-heading">
       <div>
         <p class="eyebrow">Workbook analysis</p>

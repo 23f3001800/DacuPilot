@@ -123,3 +123,14 @@ h1 { margin: 0 0 12px; color: #101d47; font-size: clamp(32px, 5vw, 52px); letter
 .capability-action span { margin-left: 8px; font-size: 18px; }
 @media (max-width: 1050px) { .hero { grid-template-columns: 1fr; } .hero-visual { min-height: 220px; } .capability-grid { grid-template-columns: 1fr; } .capability-card { min-height: 280px; } }
 @media (max-width: 700px) { .topbar { padding: 0 16px; } .brand-copy span, .topbar::after { display: none; } .sidebar { width: 74px; } .nav-item { padding: 10px; font-size: 0; } .nav-item::before { left: 29px; } .content { padding: 32px 18px; } .hero-copy h1 { font-size: 44px; } .hero { min-height: auto; } .hero-visual { display: none; } }
+.workflow-view { max-width: 1180px; margin: 0 auto; }
+.workflow-view .view-heading { margin-bottom: 30px; }
+.workflow-view .view-heading h1 { font-size: clamp(38px, 5vw, 58px); }
+.workflow-view .panel { border-radius: 18px; box-shadow: 0 12px 32px rgba(28, 56, 117, .06); }
+.workflow-view .panel h2 { color: #10245c; font-size: 20px; }
+.workflow-view .panel input[type="file"] { padding: 16px; border: 1px dashed #a9bde8; border-radius: 12px; background: #f8faff; color: #45628f; }
+.workflow-view .primary-button { box-shadow: 0 7px 15px rgba(31, 99, 237, .18); }
+.workflow-view .chat-panel { min-height: 520px; }
+.workflow-view .message-list { min-height: 280px; border-radius: 14px; }
+.workflow-view .prompt-button { border-radius: 999px; }
+.workflow-view .evaluation-card { border: 1px solid #bde8cd; }
