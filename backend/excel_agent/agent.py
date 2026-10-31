@@ -1,6 +1,7 @@
 import json
 import logging
 import threading
+import ast
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict, Annotated, Sequence, Literal
@@ -99,6 +100,28 @@ def get_tavily_client() -> TavilyClient:
         raise RuntimeError("TAVILY_API_KEY is required to use web search.")
     return TavilyClient(api_key=_settings.tavily_api_key)
 
+
+def _code_evidence(code: str, context: DatasetContext) -> dict:
+    columns = set()
+    validated = False
+    try:
+        tree = ast.parse(code, mode="exec")
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assert):
+                validated = True
+            if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == "df":
+                key = node.slice
+                if isinstance(key, ast.Constant) and isinstance(key.value, str):
+                    columns.add(key.value)
+    except SyntaxError:
+        pass
+    return {
+        "rows_available": len(context.data_frame),
+        "columns_referenced": len(columns),
+        "columns_available": len(context.schema.get("columns", [])),
+        "result_validated": validated,
+    }
+
 # Pydantic Schemas
 class CodeExecutionInput(BaseModel):
     code: str = Field(description="The executable Pandas code string. You MUST print variables.")
@@ -173,6 +196,7 @@ async def tool_execution_node(state: AgentGraphState):
         tool_name = tool_call["name"]
         raw_args = tool_call["args"]
         logger.info("Executing tool %s", tool_name)
+        evidence = {}
         
         try:
             if tool_name == "execute_pandas_code":
@@ -181,10 +205,12 @@ async def tool_execution_node(state: AgentGraphState):
                     if context is None:
                         output = "Error: No Excel workbook has been loaded. Upload an Excel workbook first."
                     else:
-                        output = context.sandbox.execute_code(
-                            CodeExecutionInput(**raw_args).code
-                        )
+                        code = CodeExecutionInput(**raw_args).code
+                        output = context.sandbox.execute_code(code)
+                        evidence = _code_evidence(code, context)
+                        evidence["non_empty_result"] = bool(output.strip()) and not output.startswith("ERROR")
             elif tool_name == "web_search_lookup":
+                evidence = {"evidence_type": "web"}
                 search_res = get_tavily_client().search(
                     query=WebSearchInput(**raw_args).query,
                     max_results=2,
@@ -195,13 +221,14 @@ async def tool_execution_node(state: AgentGraphState):
                     if result.get("content")
                 ) or "No data."
             else:
+                evidence = {}
                 output = "Invalid tool."
             logger.info("Tool %s executed successfully", tool_name)
         except Exception as e:
             output = f"Error: {str(e)}"
             logger.exception("Tool %s failed", tool_name)
             
-        tool_responses.append(ToolMessage(content=output, tool_call_id=tool_call["id"], name=tool_name))
+        tool_responses.append(ToolMessage(content=output, tool_call_id=tool_call["id"], name=tool_name, additional_kwargs=evidence))
     return {"messages": tool_responses, "tool_rounds": state.get("tool_rounds", 0) + 1}
 
 async def data_evaluation_node(state: AgentGraphState):
@@ -228,10 +255,12 @@ async def data_evaluation_node(state: AgentGraphState):
         return {"structured_response": payload}
 
     had_error = False
+    evidence_items = []
     for m in messages:
         if isinstance(m, ToolMessage):
             had_tool = True
             tool_names.add(getattr(m, "name", "unknown"))
+            evidence_items.append(getattr(m, "additional_kwargs", {}) or {})
             if "error:" in str(m.content).lower():
                 had_error = True
 
@@ -244,9 +273,15 @@ async def data_evaluation_node(state: AgentGraphState):
         cov = 0.0
         rationale = "Tool execution reported an error; no successful result was evaluated."
     elif "execute_pandas_code" in tool_names:
-        conf = 0.85
-        cov = 100.0
-        rationale = "The answer includes a successful Pandas execution over the active workbook."
+        pandas_items = [item for item in evidence_items if item.get("rows_available") is not None]
+        evidence = pandas_items[-1] if pandas_items else {}
+        row_factor = min(1.0, evidence.get("rows_available", 0) / 100.0)
+        column_factor = min(1.0, evidence.get("columns_referenced", 0) / max(1, evidence.get("columns_available", 1)))
+        result_factor = 1.0 if evidence.get("non_empty_result") else 0.0
+        validation_factor = 1.0 if evidence.get("result_validated") else 0.0
+        conf = round(min(0.99, 0.35 + (0.25 * row_factor) + (0.20 * column_factor) + (0.15 * result_factor) + (0.05 * validation_factor)), 2)
+        cov = round(100 * ((0.6 * row_factor) + (0.4 * column_factor)), 1)
+        rationale = "Confidence derived from workbook size, referenced columns, non-empty output, and explicit assertions."
     elif "web_search_lookup" in tool_names:
         conf = 0.60
         cov = 0.0
