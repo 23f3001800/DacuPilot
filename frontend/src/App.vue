@@ -4,6 +4,9 @@ import { getHealth, streamAssistant } from "./api";
 import DataAgentView from "./views/DataAgentView.vue";
 import DocumentIntelligenceView from "./views/DocumentIntelligenceView.vue";
 import HomeView from "./views/HomeView.vue";
+import AnalyticsView from "./views/AnalyticsView.vue";
+import WorkflowView from "./views/WorkflowView.vue";
+import SettingsView from "./views/SettingsView.vue";
 
 const routes = [
   { id: "home", label: "Home", icon: "⌂", hint: "Workspace overview" },
@@ -59,7 +62,9 @@ onMounted(async () => { try { await getHealth(); online.value = true; } catch { 
         <HomeView v-if="activeRoute === 'home'" @navigate="activeRoute = $event === 'document-intelligence' ? 'documents' : $event" />
         <DataAgentView v-else-if="activeRoute === 'data-agent'" />
         <DocumentIntelligenceView v-else-if="activeRoute === 'documents'" />
-        <section v-else class="product-page"><p class="eyebrow">{{ routes.find((route) => route.id === activeRoute)?.label }}</p><h1>{{ routes.find((route) => route.id === activeRoute)?.label }}</h1><p class="page-lead">A focused workspace for your next step in the document and data journey.</p><div class="empty-product"><span>{{ activeRoute === 'analytics' ? '◒' : activeRoute === 'workflows' ? '✣' : '⚙' }}</span><h2>{{ activeRoute === 'analytics' ? 'Visual analysis dashboard' : activeRoute === 'workflows' ? 'Agent workflow builder' : 'Workspace settings' }}</h2><p>{{ activeRoute === 'analytics' ? 'Upload a workbook in Data Studio to populate live KPIs, trends, and distribution charts here.' : activeRoute === 'workflows' ? 'Build repeatable upload, analysis, and export steps with observable agent activity.' : 'Control your workspace preferences and processing behavior.' }}</p><button class="primary-button" @click="activeRoute = activeRoute === 'analytics' ? 'data-agent' : 'home'">{{ activeRoute === 'analytics' ? 'Open Data Studio' : 'Back to workspace' }} →</button></div></section>
+        <AnalyticsView v-else-if="activeRoute === 'analytics'" />
+        <WorkflowView v-else-if="activeRoute === 'workflows'" />
+        <SettingsView v-else-if="activeRoute === 'settings'" />
       </main>
     </div>
     <button class="assistant-fab" :class="{ active: assistantOpen }" aria-label="Toggle DataPilot Assistant" @click="assistantOpen = !assistantOpen">✦<span>AI Assistant</span></button>
