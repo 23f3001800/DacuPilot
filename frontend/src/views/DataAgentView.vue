@@ -112,26 +112,38 @@ async function ask(text = question.value) {
 }
 
 async function previewColumn() {
+  const activity = { role: "assistant", text: `I’m checking how to add “${columnName.value}” from the workbook data…`, thinking: true, citations: [], confidence: null, latencyMs: null };
+  messages.value.push(activity);
   operationStatus.value = "Validating column operation...";
   try {
     operationPreview.value = await previewColumnOperation({ threadId: threadId.value, columnName: columnName.value, formula: formula.value });
     operationStatus.value = "Preview ready. Confirm to create a new workbook version.";
+    activity.thinking = false;
+    activity.text = `I prepared “${columnName.value}” using ${formula.value}. Review the preview on the left, then confirm to create a new workbook version.`;
   } catch (error) {
     operationStatus.value = error.message;
     operationPreview.value = null;
+    activity.thinking = false;
+    activity.text = `I could not prepare that column: ${error.message}`;
   }
 }
 
 async function applyColumn() {
   if (!operationPreview.value) return;
+  const activity = { role: "assistant", text: `Applying “${operationPreview.value.column_name}” and updating the workbook…`, thinking: true, citations: [], confidence: null, latencyMs: null };
+  messages.value.push(activity);
   operationStatus.value = "Creating versioned workbook...";
   try {
-    await applyColumnOperation({ threadId: threadId.value, operationId: operationPreview.value.operation_id });
+    const version = await applyColumnOperation({ threadId: threadId.value, operationId: operationPreview.value.operation_id });
     operationStatus.value = "New workbook version created.";
     operationPreview.value = null;
     await loadSchema();
+    activity.thinking = false;
+    activity.text = `Done. I added “${version.column_name}” and created a new version of the workbook with ${version.total_rows} rows. The original file was preserved.`;
   } catch (error) {
     operationStatus.value = error.message;
+    activity.thinking = false;
+    activity.text = `The workbook update could not be completed: ${error.message}`;
   }
 }
 
@@ -149,18 +161,8 @@ onMounted(loadSchema);
       <span v-if="status" class="status-pill">{{ status }}</span>
     </div>
 
-    <div v-if="dashboard?.loaded" class="dashboard-strip">
-      <div v-for="kpi in dashboard.kpis" :key="kpi.label" class="dashboard-kpi"><span>{{ kpi.label }}</span><strong>{{ kpi.value }}</strong></div>
-    </div>
-    <div v-if="dashboard?.charts?.length" class="chart-grid">
-      <section v-for="chart in dashboard.charts" :key="chart.title" class="panel mini-chart"><h2>{{ chart.title }}</h2><div class="chart-bars"><i v-for="(value, index) in chart.series[0].values" :key="index" :style="{ height: `${Math.max(8, Math.min(100, Number(value) || 0))}%` }" /></div></section>
-    </div>
-    <section v-if="preview?.loaded" class="panel workbook-preview">
-      <div class="panel-heading"><div><h2>Workbook preview</h2><p class="helper">Read-only preview of the active dataset.</p></div><span class="preview-count">{{ preview.total_rows }} rows</span></div>
-      <div class="table-scroll"><table><thead><tr><th v-for="column in preview.columns" :key="column">{{ column }}</th></tr></thead><tbody><tr v-for="(row, index) in preview.rows" :key="index"><td v-for="column in preview.columns" :key="column">{{ row[column] ?? "-" }}</td></tr></tbody></table></div>
-    </section>
-    <div class="agent-grid" :class="{ 'assistant-collapsed': !assistantEnabled }">
-      <section class="panel">
+    <div class="studio-layout" :class="{ 'assistant-collapsed': !assistantEnabled }">
+      <section class="panel workbook-panel">
         <h2>Workbook</h2>
         <input type="file" accept=".xlsx,.xlsm" @change="selectFile" />
         <button class="primary-button" :disabled="!file" @click="ingestWorkbook">Upload workbook</button>
@@ -170,6 +172,11 @@ onMounted(loadSchema);
           <span v-for="column in schema.columns" :key="column" class="schema-chip">{{ column }}</span>
         </div>
         <p v-else class="helper">No workbook schema loaded yet.</p>
+        <section v-if="preview?.loaded" class="workbook-preview">
+          <div class="panel-heading"><div><h2>Excel sheet</h2><p class="helper">Live read-only view of the active worksheet.</p></div><span class="preview-count">{{ preview.total_rows }} rows</span></div>
+          <div class="table-scroll excel-table"><table><thead><tr><th class="row-number">#</th><th v-for="column in preview.columns" :key="column">{{ column }}</th></tr></thead><tbody><tr v-for="(row, index) in preview.rows" :key="index"><td class="row-number">{{ index + 1 }}</td><td v-for="column in preview.columns" :key="column">{{ row[column] ?? "" }}</td></tr></tbody></table></div>
+        </section>
+        <div v-if="dashboard?.loaded" class="workbook-kpis"><div v-for="kpi in dashboard.kpis" :key="kpi.label"><span>{{ kpi.label }}</span><b>{{ kpi.value }}</b></div></div>
         <hr class="panel-rule" />
         <h2>Add a calculated column</h2>
         <p class="helper">Preview first; applying creates a new workbook version.</p>
@@ -196,7 +203,7 @@ onMounted(loadSchema);
           <p v-if="!messages.length" class="helper">Your conversation will appear here.</p>
           <div v-for="(message, index) in messages" :key="index" :class="['message', message.role]">
             <strong>{{ message.role === "user" ? "You" : "DataPilot Assistant" }}</strong>
-            <div v-if="message.role === 'assistant' && message.thinking" class="thinking"><span /><span /><span /> {{ status || 'Thinking through your workbook...' }}</div>
+            <div v-if="message.role === 'assistant' && message.thinking" class="thinking"><span /><span /><span /> {{ status || 'Thinking through your workbook...' }}<b class="thinking-latency">{{ sending ? elapsedMs : 0 }} ms</b></div>
             <p v-if="message.text">{{ message.text }}</p>
             <div v-if="message.role === 'assistant' && !message.thinking && message.latencyMs !== null" class="answer-meta"><span class="latency">Latency {{ message.latencyMs }} ms</span><span v-if="message.confidence !== null">Confidence {{ Math.round(Number(message.confidence) * 100) }}%</span><span v-if="message.citations?.length">{{ message.citations.length }} citation{{ message.citations.length === 1 ? '' : 's' }}</span></div>
             <div v-if="message.citations?.length" class="citations"><span v-for="(citation, citeIndex) in message.citations" :key="citeIndex">{{ citation.title || citation.source || citation }}</span></div>
