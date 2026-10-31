@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, ref } from "vue";
-import { applyColumnOperation, getWorkbookDashboard, getWorkbookPreview, getWorkbookSchema, previewColumnOperation, streamAssistant, uploadWorkbook } from "../api";
+import { getWorkbookDashboard, getWorkbookPreview, getWorkbookSchema, streamAssistant, uploadWorkbook } from "../api";
 
 const schema = ref(null);
 const file = ref(null);
@@ -18,10 +18,6 @@ const status = ref("");
 const threadId = ref(sessionStorage.getItem("datapilot-thread-id") || crypto.randomUUID());
 const preview = ref(null);
 const dashboard = ref(null);
-const columnName = ref("");
-const formula = ref("");
-const operationPreview = ref(null);
-const operationStatus = ref("");
 
 const prompts = [
   "Summarize the uploaded workbook.",
@@ -111,42 +107,6 @@ async function ask(text = question.value) {
   }
 }
 
-async function previewColumn() {
-  const activity = { role: "assistant", text: `I’m checking how to add “${columnName.value}” from the workbook data…`, thinking: true, citations: [], confidence: null, latencyMs: null };
-  messages.value.push(activity);
-  operationStatus.value = "Validating column operation...";
-  try {
-    operationPreview.value = await previewColumnOperation({ threadId: threadId.value, columnName: columnName.value, formula: formula.value });
-    operationStatus.value = "Preview ready. Confirm to create a new workbook version.";
-    activity.thinking = false;
-    activity.text = `I prepared “${columnName.value}” using ${formula.value}. Review the preview on the left, then confirm to create a new workbook version.`;
-  } catch (error) {
-    operationStatus.value = error.message;
-    operationPreview.value = null;
-    activity.thinking = false;
-    activity.text = `I could not prepare that column: ${error.message}`;
-  }
-}
-
-async function applyColumn() {
-  if (!operationPreview.value) return;
-  const activity = { role: "assistant", text: `Applying “${operationPreview.value.column_name}” and updating the workbook…`, thinking: true, citations: [], confidence: null, latencyMs: null };
-  messages.value.push(activity);
-  operationStatus.value = "Creating versioned workbook...";
-  try {
-    const version = await applyColumnOperation({ threadId: threadId.value, operationId: operationPreview.value.operation_id });
-    operationStatus.value = "New workbook version created.";
-    operationPreview.value = null;
-    await loadSchema();
-    activity.thinking = false;
-    activity.text = `Done. I added “${version.column_name}” and created a new version of the workbook with ${version.total_rows} rows. The original file was preserved.`;
-  } catch (error) {
-    operationStatus.value = error.message;
-    activity.thinking = false;
-    activity.text = `The workbook update could not be completed: ${error.message}`;
-  }
-}
-
 onMounted(loadSchema);
 </script>
 
@@ -177,17 +137,6 @@ onMounted(loadSchema);
           <div class="table-scroll excel-table"><table><thead><tr><th class="row-number">#</th><th v-for="column in preview.columns" :key="column">{{ column }}</th></tr></thead><tbody><tr v-for="(row, index) in preview.rows" :key="index"><td class="row-number">{{ index + 1 }}</td><td v-for="column in preview.columns" :key="column">{{ row[column] ?? "" }}</td></tr></tbody></table></div>
         </section>
         <div v-if="dashboard?.loaded" class="workbook-kpis"><div v-for="kpi in dashboard.kpis" :key="kpi.label"><span>{{ kpi.label }}</span><b>{{ kpi.value }}</b></div></div>
-        <hr class="panel-rule" />
-        <h2>Add a calculated column</h2>
-        <p class="helper">Preview first; applying creates a new workbook version.</p>
-        <input v-model="columnName" class="text-input" placeholder="Column name, e.g. Profit Margin" />
-        <input v-model="formula" class="text-input" placeholder='Formula, e.g. df["Profit"] / df["Revenue"]' />
-        <button class="secondary-button" :disabled="!columnName || !formula" @click="previewColumn">Preview column</button>
-        <p v-if="operationStatus" class="helper">{{ operationStatus }}</p>
-        <div v-if="operationPreview" class="operation-preview">
-          <strong>{{ operationPreview.column_name }}</strong><span>{{ operationPreview.formula }}</span>
-          <button class="primary-button" @click="applyColumn">Confirm and create version</button>
-        </div>
       </section>
 
       <section class="panel chat-panel">
