@@ -2,6 +2,7 @@
 
 ---
 
+
 ## 1. Setting Secrets (`.env`)
 
 Create a `.env` file in the project root by copying the template:

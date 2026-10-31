@@ -11,6 +11,7 @@ _BLOCKED_NAMES = {
 _BLOCKED_ATTRIBUTES = {
     "read_csv", "read_excel", "read_json", "read_pickle", "read_parquet",
     "read_sql", "read_sql_query", "read_sql_table", "to_csv", "to_excel",
+}
 
 class PythonSandboxREPL:
     def __init__(self, data_frame):

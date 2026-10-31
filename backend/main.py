@@ -22,14 +22,14 @@ allowed_origins = [
     ).split(",")
     if origin.strip()
 ]
-app.add_middleware(CORSMiddleware, allow_origins=allowed_origins, allow_methods=["*"], allow_headers=["*"])
 app = FastAPI(title="DocuPilot | Intelligent Document and Data Processing")
 app.add_middleware(latency_middleware_factory())
+app.add_middleware(CORSMiddleware, allow_origins=allowed_origins, allow_methods=["*"], allow_headers=["*"])
 app.include_router(excel_agent_router)
 app.include_router(document_assistant_router)
 app.include_router(document_intelligence_router)
-UI_FILE = Path(__file__).resolve().parent / "ui" / "index.html"
-DATA_UPLOAD_STYLESHEET = Path(__file__).resolve().parent / "ui" / "data-upload.css"
+UI_FILE = Path(__file__).resolve().parent.parent / "frontend" / "legacy-ui" / "ui" / "index.html"
+DATA_UPLOAD_STYLESHEET = Path(__file__).resolve().parent.parent / "frontend" / "legacy-ui" / "ui" / "data-upload.css"
 
 
 @app.get("/", include_in_schema=False)
