@@ -2,8 +2,12 @@ import sys
 import ast
 import io
 import contextlib
+import multiprocessing
+import queue
+from typing import Any
 
 MAX_CODE_LENGTH = 12000
+MAX_EXECUTION_SECONDS = 5
 _BLOCKED_NAMES = {
     "__import__", "eval", "exec", "compile", "open", "input", "help",
     "dir", "vars", "getattr", "setattr", "delattr", "globals", "locals",
@@ -13,11 +17,39 @@ _BLOCKED_ATTRIBUTES = {
     "read_sql", "read_sql_query", "read_sql_table", "to_csv", "to_excel",
 }
 
+
+def _execute_in_child(code: str, data_frame: Any, result_queue: Any) -> None:
+    try:
+        import builtins
+        import pandas as pd
+
+        allowed_builtins = {
+            name: getattr(builtins, name)
+            for name in (
+                "abs", "all", "any", "bool", "dict", "enumerate", "float",
+                "int", "len", "list", "max", "min", "print", "range",
+                "round", "set", "sorted", "str", "sum", "tuple", "zip",
+            )
+            if hasattr(builtins, name)
+        }
+        stdout_buffer = io.StringIO()
+        sandbox_globals = {
+            "__builtins__": allowed_builtins,
+            "pd": pd,
+            "df": data_frame,
+        }
+        with contextlib.redirect_stdout(stdout_buffer):
+            exec(code, sandbox_globals, {})
+        output = stdout_buffer.getvalue()
+        result_queue.put(
+            output if output.strip() else "Code executed successfully with no print output."
+        )
+    except Exception as exc:
+        result_queue.put(f"ERROR during execution: {type(exc).__name__}: {exc}")
+
 class PythonSandboxREPL:
     def __init__(self, data_frame):
-        # Bind the live dataframe inside the sandbox context
-        self.globals = {"pd": sys.modules['pandas'], "df": data_frame}
-        self.locals = {}
+        self.data_frame = data_frame
 
     def _validate_code(self, clean_code: str) -> str | None:
         if len(clean_code) > MAX_CODE_LENGTH:
@@ -41,7 +73,7 @@ class PythonSandboxREPL:
             "sorted", "range", "str", "int", "float", "bool", "list", "dict",
             "set", "tuple", "enumerate", "zip", "any", "all", "True", "False",
             "None",
-        } | set(self.locals) | assigned_names
+        } | assigned_names
 
         for node in ast.walk(tree):
             if isinstance(node, (ast.Import, ast.ImportFrom)):
@@ -62,14 +94,19 @@ class PythonSandboxREPL:
         if validation_error:
             return validation_error
         
-        stdout_buffer = io.StringIO()
-        
+        context = multiprocessing.get_context("spawn")
+        result_queue = context.Queue()
+        process = context.Process(
+            target=_execute_in_child,
+            args=(clean_code, self.data_frame, result_queue),
+        )
+        process.start()
+        process.join(MAX_EXECUTION_SECONDS)
+        if process.is_alive():
+            process.terminate()
+            process.join()
+            return f"ERROR: Execution timed out after {MAX_EXECUTION_SECONDS} seconds."
         try:
-            # Catch standard output prints
-            with contextlib.redirect_stdout(stdout_buffer):
-                exec(clean_code, self.globals, self.locals)
-            output = stdout_buffer.getvalue()
-            return output if output.strip() else "Code executed successfully with no print output."
-        except Exception as e:
-            # Return error strings back to the LLM so it can rewrite its query
-            return f"ERROR during execution: {type(e).__name__}: {str(e)}"
+            return result_queue.get_nowait()
+        except queue.Empty:
+            return "ERROR during execution: Child process returned no result."
