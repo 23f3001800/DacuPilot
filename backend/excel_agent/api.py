@@ -172,6 +172,7 @@ async def data_schema(thread_id: str = Query("default", min_length=1)):
 async def upload_excel(
     file: UploadFile = File(...),
     thread_id: str = Form("default", min_length=1),
+    sheet_name: str | None = Form(None),
 ):
     if not file.filename or Path(file.filename).suffix.lower() not in {".xlsx", ".xlsm"}:
         raise HTTPException(
@@ -191,7 +192,7 @@ async def upload_excel(
     try:
         stored_path.write_bytes(content)
         schema = await run_in_threadpool(
-            agent.set_dataset, str(stored_path), file.filename, thread_id
+            agent.set_dataset, str(stored_path), file.filename, thread_id, sheet_name
         )
     except Exception as error:
         stored_path.unlink(missing_ok=True)

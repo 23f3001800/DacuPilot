@@ -60,10 +60,10 @@ def _context_for(thread_id: str = "default") -> DatasetContext | None:
         return DatasetContext(df, schema_context, sandbox_repl)
 
 
-def set_dataset(file_path: str, filename: str = None, thread_id: str = "default") -> dict:
+def set_dataset(file_path: str, filename: str = None, thread_id: str = "default", sheet_name: str | None = None) -> dict:
     """Load a workbook into an isolated conversation-scoped dataset."""
     global df, schema_context, sandbox_repl
-    new_df, new_schema = load_real_world_excel(file_path)
+    new_df, new_schema = load_real_world_excel(file_path, sheet_name=sheet_name)
     new_schema["filename"] = filename or Path(file_path).name
     with _dataset_lock:
         df = new_df
