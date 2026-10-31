@@ -124,6 +124,7 @@ async function ask(text = question.value) {
     const current = messages.value.at(-1);
     if (wantsChart && dashboard.value?.charts?.length) {
       current.chart = dashboard.value.charts[0];
+      current.text = current.text.replace(/```[\s\S]*?```/g, "").replace(/I couldn’t render an image in this environment, but I can \(and did\) prepare the data and can give you ready-to-run code to produce a trend chart locally\./gi, "Chart generated from the uploaded workbook:").trim();
       const existing = JSON.parse(sessionStorage.getItem("datapilot-generated-charts") || "[]");
       sessionStorage.setItem("datapilot-generated-charts", JSON.stringify([...existing, { ...current.chart, generatedAt: new Date().toISOString() }].slice(-12)));
     }
