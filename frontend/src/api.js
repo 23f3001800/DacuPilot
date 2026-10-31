@@ -28,6 +28,18 @@ export async function uploadWorkbook(file, threadId = "default") {
   return response.json();
 }
 
+export async function getWorkbookPreview(threadId = "default") {
+  const response = await fetch(`/api/data/preview?thread_id=${encodeURIComponent(threadId)}`);
+  if (!response.ok) throw new Error(await readError(response));
+  return response.json();
+}
+
+export async function getWorkbookDashboard(threadId = "default") {
+  const response = await fetch(`/api/data/dashboard?thread_id=${encodeURIComponent(threadId)}`);
+  if (!response.ok) throw new Error(await readError(response));
+  return response.json();
+}
+
 export async function streamAssistant({ message, threadId, mode = "data-agent", onEvent }) {
   const endpoint = mode === "document-assistant"
     ? "/api/document-assistant/chat/stream"

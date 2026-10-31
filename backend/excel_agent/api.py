@@ -56,6 +56,63 @@ def _tool_calls(chunk: Any) -> list[dict[str, Any]]:
     ]
 
 
+def _json_safe(value: Any) -> Any:
+    if hasattr(value, "item"):
+        value = value.item()
+    if isinstance(value, float) and value != value:
+        return None
+    return value
+
+
+@router.get("/api/data/preview")
+async def data_preview(
+    thread_id: str = Query("default", min_length=1),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+):
+    context = agent.get_dataset_context(thread_id)
+    if context is None:
+        return {"loaded": False, "columns": [], "rows": [], "total_rows": 0, "offset": offset, "limit": limit}
+    frame = context.data_frame.iloc[offset:offset + limit]
+    rows = [
+        {str(key): _json_safe(value) for key, value in row.items()}
+        for row in frame.to_dict(orient="records")
+    ]
+    return {
+        "loaded": True,
+        "columns": [str(column) for column in context.data_frame.columns],
+        "rows": rows,
+        "total_rows": len(context.data_frame),
+        "offset": offset,
+        "limit": limit,
+    }
+
+
+@router.get("/api/data/dashboard")
+async def data_dashboard(thread_id: str = Query("default", min_length=1)):
+    context = agent.get_dataset_context(thread_id)
+    if context is None:
+        return {"loaded": False, "kpis": [], "charts": []}
+    frame = context.data_frame
+    numeric = frame.select_dtypes(include="number")
+    kpis = [
+        {"label": "Rows", "value": len(frame)},
+        {"label": "Columns", "value": len(frame.columns)},
+        {"label": "Numeric fields", "value": len(numeric.columns)},
+        {"label": "Missing values", "value": int(frame.isna().sum().sum())},
+    ]
+    charts = []
+    for column in list(numeric.columns)[:3]:
+        series = numeric[column].dropna().head(20)
+        charts.append({
+            "type": "line",
+            "title": f"{column} trend",
+            "labels": [str(index + 1) for index in range(len(series))],
+            "series": [{"name": str(column), "values": [_json_safe(value) for value in series.tolist()]}],
+        })
+    return {"loaded": True, "kpis": kpis, "charts": charts}
+
+
 @router.get("/api/data/schema")
 async def data_schema(thread_id: str = Query("default", min_length=1)):
     context = agent.get_dataset_context(thread_id)

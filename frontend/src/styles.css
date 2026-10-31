@@ -123,6 +123,25 @@ h1 { margin: 0 0 12px; color: #101d47; font-size: clamp(32px, 5vw, 52px); letter
 .capability-action span { margin-left: 8px; font-size: 18px; }
 @media (max-width: 1050px) { .hero { grid-template-columns: 1fr; } .hero-visual { min-height: 220px; } .capability-grid { grid-template-columns: 1fr; } .capability-card { min-height: 280px; } }
 @media (max-width: 700px) { .topbar { padding: 0 16px; } .brand-copy span, .topbar::after { display: none; } .sidebar { width: 74px; } .nav-item { padding: 10px; font-size: 0; } .nav-item::before { left: 29px; } .content { padding: 32px 18px; } .hero-copy h1 { font-size: 44px; } .hero { min-height: auto; } .hero-visual { display: none; } }
+
+.dashboard-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+.dashboard-kpi { padding: 16px 18px; border: 1px solid #dce5f5; border-radius: 14px; background: #fff; box-shadow: 0 8px 20px rgba(28, 56, 117, .05); }
+.dashboard-kpi span { display: block; color: #61779c; font-size: 12px; }
+.dashboard-kpi strong { display: block; margin-top: 7px; color: #10245c; font-size: 26px; }
+.chart-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 18px; }
+.mini-chart { min-height: 190px; }
+.mini-chart h2 { font-size: 15px; }
+.chart-bars { display: flex; align-items: end; gap: 5px; height: 110px; padding: 10px 4px 0; border-bottom: 1px solid #dce5f5; }
+.chart-bars i { flex: 1; min-height: 8px; border-radius: 5px 5px 0 0; background: linear-gradient(#4b82f1, #8b5cf6); }
+.workbook-preview { margin-bottom: 18px; }
+.panel-heading { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+.preview-count { padding: 6px 10px; border-radius: 999px; background: #eaf1ff; color: #155eef; font-size: 11px; font-weight: 700; }
+.table-scroll { overflow-x: auto; border: 1px solid #e4e9f2; border-radius: 10px; }
+.table-scroll table { width: 100%; border-collapse: collapse; color: #34405e; font-size: 12px; white-space: nowrap; }
+.table-scroll th { background: #f4f7fc; color: #173a79; font-weight: 700; }
+.table-scroll th, .table-scroll td { padding: 10px 12px; border-bottom: 1px solid #edf1f7; text-align: left; }
+@media (max-width: 900px) { .dashboard-strip, .chart-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .dashboard-strip, .chart-grid { grid-template-columns: 1fr; } }
 .workflow-view { max-width: 1180px; margin: 0 auto; }
 .workflow-view .view-heading { margin-bottom: 30px; }
 .workflow-view .view-heading h1 { font-size: clamp(38px, 5vw, 58px); }

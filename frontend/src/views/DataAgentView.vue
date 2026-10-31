@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, ref } from "vue";
-import { getWorkbookSchema, streamAssistant, uploadWorkbook } from "../api";
+import { getWorkbookDashboard, getWorkbookPreview, getWorkbookSchema, streamAssistant, uploadWorkbook } from "../api";
 
 const schema = ref(null);
 const file = ref(null);
@@ -11,6 +11,8 @@ const messages = ref([]);
 const evaluation = ref(null);
 const status = ref("");
 const threadId = ref(sessionStorage.getItem("datapilot-thread-id") || crypto.randomUUID());
+const preview = ref(null);
+const dashboard = ref(null);
 
 const prompts = [
   "Summarize the uploaded workbook.",
@@ -21,6 +23,8 @@ const prompts = [
 async function loadSchema() {
   try {
     schema.value = await getWorkbookSchema(threadId.value);
+    preview.value = await getWorkbookPreview(threadId.value);
+    dashboard.value = await getWorkbookDashboard(threadId.value);
   } catch {
     schema.value = null;
   }
@@ -89,6 +93,16 @@ onMounted(loadSchema);
       <span v-if="status" class="status-pill">{{ status }}</span>
     </div>
 
+    <div v-if="dashboard?.loaded" class="dashboard-strip">
+      <div v-for="kpi in dashboard.kpis" :key="kpi.label" class="dashboard-kpi"><span>{{ kpi.label }}</span><strong>{{ kpi.value }}</strong></div>
+    </div>
+    <div v-if="dashboard?.charts?.length" class="chart-grid">
+      <section v-for="chart in dashboard.charts" :key="chart.title" class="panel mini-chart"><h2>{{ chart.title }}</h2><div class="chart-bars"><i v-for="(value, index) in chart.series[0].values" :key="index" :style="{ height: `${Math.max(8, Math.min(100, Number(value) || 0))}%` }" /></div></section>
+    </div>
+    <section v-if="preview?.loaded" class="panel workbook-preview">
+      <div class="panel-heading"><div><h2>Workbook preview</h2><p class="helper">Read-only preview of the active dataset.</p></div><span class="preview-count">{{ preview.total_rows }} rows</span></div>
+      <div class="table-scroll"><table><thead><tr><th v-for="column in preview.columns" :key="column">{{ column }}</th></tr></thead><tbody><tr v-for="(row, index) in preview.rows" :key="index"><td v-for="column in preview.columns" :key="column">{{ row[column] ?? "-" }}</td></tr></tbody></table></div>
+    </section>
     <div class="agent-grid">
       <section class="panel">
         <h2>Workbook</h2>
