@@ -235,6 +235,12 @@ h1 { margin: 0 0 12px; color: #101d47; font-size: clamp(32px, 5vw, 52px); letter
 
 /* Final audit overrides: one profile badge, tighter shell, readable assistant, and real charts. */
 .content { padding: 34px 40px; }
+.content { padding: 22px 26px 32px; }
+.workflow-view, .product-page { max-width: 1240px; }
+.workflow-view .view-heading { margin-bottom: 18px; }
+.workflow-view .view-heading h1, .product-page h1 { font-size: clamp(32px, 3.8vw, 44px); letter-spacing: -1.5px; }
+.workflow-view .view-heading > div > p:last-child, .product-page .page-lead { font-size: 14px; }
+.page-heading { margin-bottom: 20px; }
 .studio-layout { grid-template-columns: minmax(0, 1.15fr) minmax(460px, 1fr); gap: 12px; }
 .studio-layout .chat-panel { min-height: 700px; }
 .chat-panel .message-list { min-height: 430px; max-height: 570px; padding: 16px; }
