@@ -69,3 +69,57 @@ h1 { margin: 0 0 12px; color: #101d47; font-size: clamp(32px, 5vw, 52px); letter
 .download-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .download-link { padding: 8px 10px; border-radius: 7px; background: #eaf1ff; color: #155eef; font-size: 12px; text-decoration: none; }
 @media (max-width: 640px) { .result-grid { grid-template-columns: repeat(2, 1fr); } }
+/* Reference-aligned DocuPilot visual system */
+.topbar { height: 82px; padding: 0 30px; background: #fff; border-bottom: 1px solid #dfe5f0; }
+.brand-mark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; background: linear-gradient(135deg, #2864f0, #5534f4); color: #fff; font-size: 20px; font-weight: 800; }
+.brand-copy { display: flex; align-items: center; gap: 24px; }
+.brand-copy strong { color: #10245c; font-size: 24px; letter-spacing: -1px; }
+.brand-copy span { padding-left: 24px; border-left: 1px solid #d9dfeb; color: #3f5c91; font-size: 14px; }
+.topbar .status { margin-left: auto; margin-right: 26px; padding: 10px 17px; border-radius: 999px; background: #e5f8ee; color: #087443; font-size: 12px; font-weight: 700; }
+.topbar::after { content: "D   DataPilot\\A      Workspace"; white-space: pre; display: grid; place-items: center start; min-width: 140px; height: 42px; padding-left: 52px; border-left: 1px solid #d9dfeb; color: #516587; font-size: 12px; line-height: 1.3; background: radial-gradient(circle at 20px 21px, #1f5dec 0 19px, transparent 20px); }
+.sidebar { width: 218px; padding: 18px 12px; background: #fff; border-right: 1px solid #dfe5f0; }
+.nav-item { position: relative; min-height: 54px; margin-bottom: 5px; padding: 10px 12px 10px 54px; color: #18315f; font-size: 14px; font-weight: 700; }
+.nav-item::before { position: absolute; left: 18px; top: 16px; color: #153d83; font-size: 16px; }
+ .nav-item:nth-child(1)::before { content: "H"; }
+ .nav-item:nth-child(2)::before { content: "#"; }
+ .nav-item:nth-child(3)::before { content: "[]"; }
+ .nav-item:nth-child(4)::before { content: "="; }
+.nav-item.active { background: #e8efff; color: #155eef; }
+.content { max-width: none; padding: 58px clamp(28px, 5.4vw, 104px); background: #f6f8fc; }
+.home-view { max-width: 1470px; margin: 0 auto; }
+.hero { display: grid; grid-template-columns: minmax(420px, 1fr) minmax(390px, .9fr); align-items: center; min-height: 285px; gap: 20px; }
+.hero-copy h1 { margin: 0; color: #10245c; font-size: clamp(46px, 5vw, 64px); line-height: 1.06; letter-spacing: -2.6px; }
+.hero-copy h1 span { color: #2d5bea; }
+.hero-description { max-width: 680px; margin: 18px 0 0; color: #33558e; font-size: 17px; line-height: 1.55; }
+.hero-visual { position: relative; min-height: 285px; }
+.document-stack { position: absolute; left: 50%; top: 50%; width: 150px; height: 185px; transform: translate(-50%, -50%) rotate(-7deg); filter: drop-shadow(0 18px 25px rgba(35, 83, 210, .2)); }
+.document-sheet { position: absolute; width: 150px; height: 185px; border: 1px solid #b9ccff; border-radius: 18px; background: rgba(239, 245, 255, .92); }
+.document-sheet.back { transform: translate(-25px, 8px) rotate(-9deg); opacity: .7; }
+.document-sheet.front { padding: 39px 27px; transform: rotate(6deg); background: #fff; }
+.document-sheet.front i { display: block; height: 10px; margin-bottom: 16px; border-radius: 999px; background: #9db9ff; }
+.document-sheet.front i:first-child { width: 62%; background: #5b86f5; }
+.floating-label { position: absolute; z-index: 2; padding: 12px 18px; border: 1px solid #c4d5ff; border-radius: 18px; background: rgba(255,255,255,.9); box-shadow: 0 10px 28px rgba(46, 82, 170, .08); color: #214c9e; font-size: 12px; font-weight: 700; }
+.floating-label.understand { left: 4%; top: 7%; }
+.floating-label.extract { right: 0; top: 15%; color: #5423dc; border-color: #dacdff; }
+.floating-label.ask { right: 0; bottom: 8%; color: #008753; border-color: #9de6c1; }
+.capability-heading { margin: 20px 0 18px; }
+.capability-heading h2 { margin: 0 0 5px; color: #112a63; font-size: 26px; letter-spacing: -.6px; }
+.capability-heading p { margin: 0; color: #5d759e; font-size: 14px; }
+.capability-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.capability-card { display: flex; min-height: 325px; flex-direction: column; padding: 24px; border: 1px solid; border-radius: 15px; }
+.capability-card.blue { border-color: #9dccff; background: linear-gradient(145deg, #f0f8ff, #eaf3ff); }
+.capability-card.purple { border-color: #d5c8ff; background: linear-gradient(145deg, #fbf9ff, #f5f1ff); }
+.capability-card.green { border-color: #98e8c1; background: linear-gradient(145deg, #f1fff7, #e9fff2); }
+.capability-title { display: flex; align-items: center; gap: 17px; }
+.capability-title h3 { margin: 0; color: #10245c; font-size: 20px; }
+.capability-icon { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; color: #008753; background: #c4f4dc; font-size: 28px; }
+.capability-card.purple .capability-icon { color: #5b24e8; background: #e4d9ff; }
+.capability-card p { min-height: 52px; margin: 18px 0 8px; color: #315484; font-size: 14px; line-height: 1.5; }
+.capability-card ul { margin: 0 0 18px; padding: 0; list-style: none; color: #204e91; font-size: 13px; line-height: 2; }
+.capability-action { width: 100%; margin-top: auto; padding: 14px 16px; border: 0; border-radius: 10px; color: #fff; font-weight: 800; }
+.blue .capability-action { background: #1f63ed; }
+.purple .capability-action { background: linear-gradient(90deg, #6531ed, #704eea); }
+.green .capability-action { background: linear-gradient(90deg, #09a763, #0ab66e); }
+.capability-action span { margin-left: 8px; font-size: 18px; }
+@media (max-width: 1050px) { .hero { grid-template-columns: 1fr; } .hero-visual { min-height: 220px; } .capability-grid { grid-template-columns: 1fr; } .capability-card { min-height: 280px; } }
+@media (max-width: 700px) { .topbar { padding: 0 16px; } .brand-copy span, .topbar::after { display: none; } .sidebar { width: 74px; } .nav-item { padding: 10px; font-size: 0; } .nav-item::before { left: 29px; } .content { padding: 32px 18px; } .hero-copy h1 { font-size: 44px; } .hero { min-height: auto; } .hero-visual { display: none; } }

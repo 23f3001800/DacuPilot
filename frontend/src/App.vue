@@ -4,6 +4,7 @@ import { getHealth } from "./api";
 import DataAgentView from "./views/DataAgentView.vue";
 import DocumentAssistantView from "./views/DocumentAssistantView.vue";
 import DocumentIntelligenceView from "./views/DocumentIntelligenceView.vue";
+import HomeView from "./views/HomeView.vue";
 
 const routes = [
   { id: "home", label: "Home" },
@@ -27,7 +28,7 @@ onMounted(async () => {
 <template>
   <div class="app-shell">
     <header class="topbar">
-      <strong>? DataPilot</strong>
+      <div class="brand-mark">&#9638;</div><div class="brand-copy"><strong>DocuPilot</strong><span>Intelligent Document and Data Processing</span></div>
       <span :class="['status', { offline: !online }]">
         <span class="status-dot" />{{ online ? "System Online" : "System Offline" }}
       </span>
@@ -39,7 +40,8 @@ onMounted(async () => {
         </button>
       </nav>
       <main class="content">
-        <DataAgentView v-if="activeRoute === 'data-agent'" />
+        <HomeView v-if="activeRoute === 'home'" @navigate="activeRoute = $event" />
+        <DataAgentView v-else-if="activeRoute === 'data-agent'" />
         <DocumentAssistantView v-else-if="activeRoute === 'document-assistant'" />
         <DocumentIntelligenceView v-else-if="activeRoute === 'document-intelligence'" />
         <template v-else>
