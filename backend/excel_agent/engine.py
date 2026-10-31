@@ -45,15 +45,13 @@ class PythonSandboxREPL:
 
         for node in ast.walk(tree):
             if isinstance(node, (ast.Import, ast.ImportFrom)):
-                return "ERROR: Imports are not allowed in spreadsheet analysis code."
-            if isinstance(node, ast.Name) and node.id not in allowed_names:
-                return f"ERROR: Name '{node.id}' is not allowed in spreadsheet analysis code."
+                return "ERROR: Imports are blocked by sandbox safety policies."
             if isinstance(node, ast.Attribute):
                 if node.attr.startswith("__") or node.attr in _BLOCKED_ATTRIBUTES:
-                    return f"ERROR: Attribute '{node.attr}' is restricted."
+                    return "ERROR: Attribute is blocked by sandbox safety policies."
             if isinstance(node, ast.Call):
                 if isinstance(node.func, ast.Name) and node.func.id in _BLOCKED_NAMES:
-                    return f"ERROR: Call '{node.func.id}' is restricted."
+                    return "ERROR: Call is blocked by sandbox safety policies."
 
     def execute_code(self, code_string: str) -> str:
         """Executes Python code and captures text printed to stdout."""
