@@ -157,7 +157,7 @@ Use Python 3.12 and run these commands from the repository root:
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements.txt
+python -m pip install -r backend/requirements.txt
 ```
 
 Create a `.env` file in the repository root. For Gemini, start with:
@@ -171,7 +171,7 @@ GEMINI_MODEL=gemini-3.6-flash
 Set the required values for your chosen provider and services, then start the server:
 
 ```bash
-python main.py
+PYTHONPATH=backend python -m backend.main
 ```
 
 Open [http://localhost:8000](http://localhost:8000).

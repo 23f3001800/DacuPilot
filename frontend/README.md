@@ -10,7 +10,7 @@ npm run dev
 ```
 
 The Vite dev server runs on port `5173` and proxies `/api` requests to
-`http://localhost:8000`. The legacy frontend in `ui/index.html` remains the
+`http://localhost:8000`. The legacy frontend in `frontend/legacy-ui/ui/index.html` remains the
 default FastAPI-served client until the workflows are migrated and verified.
 
 ## Migration order

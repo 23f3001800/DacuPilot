@@ -83,12 +83,12 @@ source .venv/bin/activate
 ### Step 2: Install Dependencies
 ```bash
 pip install --upgrade pip
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 ```
 
 ### Step 3: Run the Application
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+PYTHONPATH=backend uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 Access the application in your browser:
