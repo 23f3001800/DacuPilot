@@ -3,6 +3,7 @@ import { onMounted, ref } from "vue";
 import { getHealth } from "./api";
 import DataAgentView from "./views/DataAgentView.vue";
 import DocumentAssistantView from "./views/DocumentAssistantView.vue";
+import DocumentIntelligenceView from "./views/DocumentIntelligenceView.vue";
 
 const routes = [
   { id: "home", label: "Home" },
@@ -40,6 +41,7 @@ onMounted(async () => {
       <main class="content">
         <DataAgentView v-if="activeRoute === 'data-agent'" />
         <DocumentAssistantView v-else-if="activeRoute === 'document-assistant'" />
+        <DocumentIntelligenceView v-else-if="activeRoute === 'document-intelligence'" />
         <template v-else>
           <p class="eyebrow">Vue migration foundation</p>
           <h1>{{ routes.find((route) => route.id === activeRoute)?.label }}</h1>

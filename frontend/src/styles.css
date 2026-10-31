@@ -62,3 +62,10 @@ h1 { margin: 0 0 12px; color: #101d47; font-size: clamp(32px, 5vw, 52px); letter
 .question-form { display: flex; gap: 8px; margin-top: 14px; }
 .evaluation-card { display: flex; gap: 12px; margin-top: 14px; padding: 9px 11px; border-radius: 8px; background: #f0fdf4; color: #166534; font-size: 12px; }
 @media (max-width: 820px) { .agent-grid { grid-template-columns: 1fr; } .view-heading { display: block; } .status-pill { display: inline-block; margin-top: 10px; } }
+.consent-row { display: flex; align-items: flex-start; gap: 8px; max-width: 720px; margin: 14px 0; color: #34405e; font-size: 12px; line-height: 1.5; }
+.error-message { margin-top: 12px; color: #b42318; font-size: 12px; }
+.result-panel { margin-top: 18px; }
+.result-grid { display: grid; grid-template-columns: repeat(4, minmax(100px, 1fr)); gap: 12px; color: #34405e; font-size: 12px; }
+.download-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.download-link { padding: 8px 10px; border-radius: 7px; background: #eaf1ff; color: #155eef; font-size: 12px; text-decoration: none; }
+@media (max-width: 640px) { .result-grid { grid-template-columns: repeat(2, 1fr); } }
