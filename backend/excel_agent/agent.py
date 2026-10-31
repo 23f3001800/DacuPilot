@@ -1,6 +1,7 @@
 import json
 import logging
 import threading
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict, Annotated, Sequence, Literal
 from pydantic import BaseModel, Field
@@ -29,6 +30,13 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 MAX_TOOL_ROUNDS = 5
 
 
+@dataclass
+class DatasetContext:
+    data_frame: object
+    schema: dict
+    sandbox: PythonSandboxREPL
+
+
 _settings = get_config()
 if _settings.excel_file_path and Path(_settings.excel_file_path).exists():
     df, schema_context = load_real_world_excel(_settings.excel_file_path)
@@ -36,10 +44,23 @@ if _settings.excel_file_path and Path(_settings.excel_file_path).exists():
 else:
     df, schema_context, sandbox_repl = None, None, None
 _dataset_lock = threading.RLock()
+_datasets: dict[str, DatasetContext] = {}
 
 
-def set_dataset(file_path: str, filename: str = None) -> dict:
-    """Load a workbook and atomically replace the Data Agent's shared dataset."""
+def _context_for(thread_id: str = "default") -> DatasetContext | None:
+    with _dataset_lock:
+        context = _datasets.get(thread_id)
+        if context is not None:
+            return context
+        if _datasets and thread_id != "default":
+            return None
+        if df is None or schema_context is None or sandbox_repl is None:
+            return None
+        return DatasetContext(df, schema_context, sandbox_repl)
+
+
+def set_dataset(file_path: str, filename: str = None, thread_id: str = "default") -> dict:
+    """Load a workbook into an isolated conversation-scoped dataset."""
     global df, schema_context, sandbox_repl
     new_df, new_schema = load_real_world_excel(file_path)
     new_schema["filename"] = filename or Path(file_path).name
@@ -47,6 +68,8 @@ def set_dataset(file_path: str, filename: str = None) -> dict:
         df = new_df
         schema_context = new_schema
         sandbox_repl = PythonSandboxREPL(new_df)
+        if thread_id != "default":
+            _datasets[thread_id] = DatasetContext(new_df, new_schema, sandbox_repl)
     logger.info(
         "Data Agent workbook loaded: %s rows, %s columns (%s)",
         new_schema["total_rows"],
@@ -54,6 +77,14 @@ def set_dataset(file_path: str, filename: str = None) -> dict:
         new_schema["filename"],
     )
     return new_schema
+
+
+def has_dataset(thread_id: str = "default") -> bool:
+    return _context_for(thread_id) is not None
+
+
+def get_dataset_context(thread_id: str = "default") -> DatasetContext | None:
+    return _context_for(thread_id)
 
 
 def get_llm() -> ChatOpenAI:
@@ -88,12 +119,14 @@ class AgentGraphState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
     structured_response: FinalStructuredPayload
     tool_rounds: int
+    thread_id: str
 
 # ==========================================
 # 3. NODE DEFINITIONS
 # ==========================================
 async def analyst_reasoning_node(state: AgentGraphState):
-    if df is None or schema_context is None:
+    context = _context_for(state.get("thread_id", "default"))
+    if context is None:
         from langchain_core.messages import AIMessage
         return {
             "messages": [
@@ -109,9 +142,9 @@ async def analyst_reasoning_node(state: AgentGraphState):
     llm = get_llm()
     system_prompt = SystemMessage(content=f"""
 You are an enterprise data analyst agent. You manipulate a preloaded Pandas DataFrame named `df`.
-Columns: {schema_context['columns']}
-Data Types: {json.dumps(schema_context['data_types'])}
-Metrics Count: {schema_context['total_rows']}
+        Columns: {context.schema['columns']}
+Data Types: {json.dumps(context.schema['data_types'])}
+Metrics Count: {context.schema['total_rows']}
 
 SECURITY DIRECTIVES:
 - You must strictly only analyze the data in `df` or perform web lookups for terms.
@@ -143,11 +176,12 @@ async def tool_execution_node(state: AgentGraphState):
         
         try:
             if tool_name == "execute_pandas_code":
+                context = _context_for(state.get("thread_id", "default"))
                 with _dataset_lock:
-                    if sandbox_repl is None:
+                    if context is None:
                         output = "Error: No Excel workbook has been loaded. Upload an Excel workbook first."
                     else:
-                        output = sandbox_repl.execute_code(
+                        output = context.sandbox.execute_code(
                             CodeExecutionInput(**raw_args).code
                         )
             elif tool_name == "web_search_lookup":
@@ -179,7 +213,7 @@ async def data_evaluation_node(state: AgentGraphState):
     # A missing workbook is a handled application state, not a successful
     tool_names = set()
     # analysis. Keep telemetry honest until a dataset is actually loaded.
-    if df is None or schema_context is None:
+    if _context_for(state.get("thread_id", "default")) is None:
         payload = FinalStructuredPayload(
             conversational_summary=content_str[:300]
             or "No workbook is available for analysis.",

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, Field
@@ -57,8 +57,9 @@ def _tool_calls(chunk: Any) -> list[dict[str, Any]]:
 
 
 @router.get("/api/data/schema")
-async def data_schema():
-    if agent.schema_context is None:
+async def data_schema(thread_id: str = Query("default", min_length=1)):
+    context = agent.get_dataset_context(thread_id)
+    if context is None:
         return {
             "loaded": False,
             "filename": None,
@@ -67,11 +68,14 @@ async def data_schema():
             "data_types": {},
             "summary": {},
         }
-    return {"loaded": True, **agent.schema_context}
+    return {"loaded": True, **context.schema}
 
 
 @router.post("/api/data/upload")
-async def upload_excel(file: UploadFile = File(...)):
+async def upload_excel(
+    file: UploadFile = File(...),
+    thread_id: str = Form("default", min_length=1),
+):
     if not file.filename or Path(file.filename).suffix.lower() not in {".xlsx", ".xlsm"}:
         raise HTTPException(
             status_code=400,
@@ -90,7 +94,7 @@ async def upload_excel(file: UploadFile = File(...)):
     try:
         stored_path.write_bytes(content)
         schema = await run_in_threadpool(
-            agent.set_dataset, str(stored_path), file.filename
+            agent.set_dataset, str(stored_path), file.filename, thread_id
         )
     except Exception as error:
         stored_path.unlink(missing_ok=True)
@@ -154,7 +158,7 @@ async def sse_event_generator(user_message: str, thread_id: str):
         return
 
     # 2. Guardrail: User did not provide Excel workbook input
-    if agent.df is None or agent.schema_context is None:
+    if not agent.has_dataset(thread_id):
         logger.info("Guardrail triggered: No Excel workbook provided for thread %s", thread_id)
         yield _sse({"event": "status", "text": "Workbook Required"})
         yield _sse({
@@ -179,7 +183,10 @@ async def sse_event_generator(user_message: str, thread_id: str):
         return
 
     config = {"configurable": {"thread_id": thread_id}}
-    initial_input = {"messages": [HumanMessage(content=user_message)]}
+    initial_input = {
+        "messages": [HumanMessage(content=user_message)],
+        "thread_id": thread_id,
+    }
 
     try:
         yield _sse({"event": "status", "text": "Thinking..."})

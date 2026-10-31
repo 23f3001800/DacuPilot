@@ -20,7 +20,7 @@ const prompts = [
 
 async function loadSchema() {
   try {
-    schema.value = await getWorkbookSchema();
+    schema.value = await getWorkbookSchema(threadId.value);
   } catch {
     schema.value = null;
   }
@@ -34,7 +34,7 @@ async function ingestWorkbook() {
   if (!file.value) return;
   uploadStatus.value = "Uploading workbook...";
   try {
-    await uploadWorkbook(file.value);
+    await uploadWorkbook(file.value, threadId.value);
     uploadStatus.value = "Workbook uploaded.";
     await loadSchema();
   } catch (error) {

@@ -13,15 +13,16 @@ export async function getHealth() {
   return response.json();
 }
 
-export async function getWorkbookSchema() {
-  const response = await fetch("/api/data/schema");
+export async function getWorkbookSchema(threadId = "default") {
+  const response = await fetch(`/api/data/schema?thread_id=${encodeURIComponent(threadId)}`);
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
 }
 
-export async function uploadWorkbook(file) {
+export async function uploadWorkbook(file, threadId = "default") {
   const body = new FormData();
   body.set("file", file);
+  body.set("thread_id", threadId);
   const response = await fetch("/api/data/upload", { method: "POST", body });
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
