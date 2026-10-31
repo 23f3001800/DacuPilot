@@ -142,6 +142,11 @@ h1 { margin: 0 0 12px; color: #101d47; font-size: clamp(32px, 5vw, 52px); letter
 .table-scroll th, .table-scroll td { padding: 10px 12px; border-bottom: 1px solid #edf1f7; text-align: left; }
 @media (max-width: 900px) { .dashboard-strip, .chart-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 560px) { .dashboard-strip, .chart-grid { grid-template-columns: 1fr; } }
+.panel-rule { margin: 22px 0; border: 0; border-top: 1px solid #e4e9f2; }
+.text-input { display: block; width: 100%; margin: 8px 0; padding: 10px 12px; border: 1px solid #d0d5dd; border-radius: 8px; color: #203b70; }
+.secondary-button { padding: 10px 14px; border: 1px solid #9bb6ef; border-radius: 8px; background: #f1f5ff; color: #155eef; font-weight: 700; }
+.secondary-button:disabled { opacity: .5; cursor: not-allowed; }
+.operation-preview { display: grid; gap: 8px; margin-top: 12px; padding: 12px; border: 1px solid #bde8cd; border-radius: 10px; background: #f2fff7; color: #166534; font-size: 12px; }
 .workflow-view { max-width: 1180px; margin: 0 auto; }
 .workflow-view .view-heading { margin-bottom: 30px; }
 .workflow-view .view-heading h1 { font-size: clamp(38px, 5vw, 58px); }

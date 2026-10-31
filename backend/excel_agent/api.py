@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 from . import agent
+from .operations import ColumnOperationRequest, apply_operation, preview_operation
 
 logger = logging.getLogger("datapilot.api")
 router = APIRouter(tags=["data agent"])
@@ -111,6 +112,45 @@ async def data_dashboard(thread_id: str = Query("default", min_length=1)):
             "series": [{"name": str(column), "values": [_json_safe(value) for value in series.tolist()]}],
         })
     return {"loaded": True, "kpis": kpis, "charts": charts}
+
+
+@router.post("/api/data/column/preview")
+async def preview_column_operation(payload: ColumnOperationRequest):
+    context = agent.get_dataset_context(payload.thread_id)
+    if context is None:
+        raise HTTPException(status_code=404, detail="No workbook is loaded for this session.")
+    try:
+        return await run_in_threadpool(
+            preview_operation,
+            payload.thread_id,
+            context.data_frame,
+            payload.column_name,
+            payload.formula,
+        )
+    except (SyntaxError, ValueError) as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+class ApplyColumnOperationRequest(BaseModel):
+    thread_id: str = Field(min_length=1)
+    operation_id: str = Field(min_length=1)
+
+
+@router.post("/api/data/column/apply")
+async def apply_column_operation(payload: ApplyColumnOperationRequest):
+    try:
+        column_name, updated, formula = await run_in_threadpool(
+            apply_operation, payload.operation_id, payload.thread_id
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    version_path = UPLOAD_DIRECTORY / f"{uuid4().hex}.xlsx"
+    updated.to_excel(version_path, index=False)
+    schema = await run_in_threadpool(
+        agent.set_dataset, str(version_path), version_path.name, payload.thread_id
+    )
+    return {"versioned": True, "filename": version_path.name, "column_name": column_name,
+            "formula": formula, "total_rows": schema["total_rows"], "columns": schema["columns"]}
 
 
 @router.get("/api/data/schema")

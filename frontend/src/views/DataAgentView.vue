@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, ref } from "vue";
-import { getWorkbookDashboard, getWorkbookPreview, getWorkbookSchema, streamAssistant, uploadWorkbook } from "../api";
+import { applyColumnOperation, getWorkbookDashboard, getWorkbookPreview, getWorkbookSchema, previewColumnOperation, streamAssistant, uploadWorkbook } from "../api";
 
 const schema = ref(null);
 const file = ref(null);
@@ -13,6 +13,10 @@ const status = ref("");
 const threadId = ref(sessionStorage.getItem("datapilot-thread-id") || crypto.randomUUID());
 const preview = ref(null);
 const dashboard = ref(null);
+const columnName = ref("");
+const formula = ref("");
+const operationPreview = ref(null);
+const operationStatus = ref("");
 
 const prompts = [
   "Summarize the uploaded workbook.",
@@ -79,6 +83,30 @@ async function ask(text = question.value) {
   }
 }
 
+async function previewColumn() {
+  operationStatus.value = "Validating column operation...";
+  try {
+    operationPreview.value = await previewColumnOperation({ threadId: threadId.value, columnName: columnName.value, formula: formula.value });
+    operationStatus.value = "Preview ready. Confirm to create a new workbook version.";
+  } catch (error) {
+    operationStatus.value = error.message;
+    operationPreview.value = null;
+  }
+}
+
+async function applyColumn() {
+  if (!operationPreview.value) return;
+  operationStatus.value = "Creating versioned workbook...";
+  try {
+    await applyColumnOperation({ threadId: threadId.value, operationId: operationPreview.value.operation_id });
+    operationStatus.value = "New workbook version created.";
+    operationPreview.value = null;
+    await loadSchema();
+  } catch (error) {
+    operationStatus.value = error.message;
+  }
+}
+
 onMounted(loadSchema);
 </script>
 
@@ -114,6 +142,17 @@ onMounted(loadSchema);
           <span v-for="column in schema.columns" :key="column" class="schema-chip">{{ column }}</span>
         </div>
         <p v-else class="helper">No workbook schema loaded yet.</p>
+        <hr class="panel-rule" />
+        <h2>Add a calculated column</h2>
+        <p class="helper">Preview first; applying creates a new workbook version.</p>
+        <input v-model="columnName" class="text-input" placeholder="Column name, e.g. Profit Margin" />
+        <input v-model="formula" class="text-input" placeholder='Formula, e.g. df["Profit"] / df["Revenue"]' />
+        <button class="secondary-button" :disabled="!columnName || !formula" @click="previewColumn">Preview column</button>
+        <p v-if="operationStatus" class="helper">{{ operationStatus }}</p>
+        <div v-if="operationPreview" class="operation-preview">
+          <strong>{{ operationPreview.column_name }}</strong><span>{{ operationPreview.formula }}</span>
+          <button class="primary-button" @click="applyColumn">Confirm and create version</button>
+        </div>
       </section>
 
       <section class="panel chat-panel">

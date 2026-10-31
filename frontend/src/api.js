@@ -40,6 +40,26 @@ export async function getWorkbookDashboard(threadId = "default") {
   return response.json();
 }
 
+export async function previewColumnOperation({ threadId, columnName, formula }) {
+  const response = await fetch("/api/data/column/preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ thread_id: threadId, column_name: columnName, formula }),
+  });
+  if (!response.ok) throw new Error(await readError(response));
+  return response.json();
+}
+
+export async function applyColumnOperation({ threadId, operationId }) {
+  const response = await fetch("/api/data/column/apply", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ thread_id: threadId, operation_id: operationId }),
+  });
+  if (!response.ok) throw new Error(await readError(response));
+  return response.json();
+}
+
 export async function streamAssistant({ message, threadId, mode = "data-agent", onEvent }) {
   const endpoint = mode === "document-assistant"
     ? "/api/document-assistant/chat/stream"
