@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, ref } from "vue";
-import { deleteWorkbook, getWorkbookDashboard, getWorkbookDownloadUrl, getWorkbookPreview, getWorkbookSchema, streamAssistant, uploadWorkbook } from "../api";
+import { deleteWorkbook, generateWorkbookChart, getWorkbookDashboard, getWorkbookDownloadUrl, getWorkbookPreview, getWorkbookSchema, streamAssistant, uploadWorkbook } from "../api";
 
 const schema = ref(null);
 const file = ref(null);
@@ -26,7 +26,7 @@ const prompts = [
 ];
 
 function chartPoints(chart) {
-  const values = chart?.series?.[0]?.values || [];
+  const values = chart?.series?.[0]?.values || chart?.values || [];
   if (!values.length) return "";
   const max = Math.max(...values.map(Number));
   const min = Math.min(...values.map(Number));
@@ -122,8 +122,10 @@ async function ask(text = question.value) {
     clearInterval(latencyTimer);
     elapsedMs.value = Math.round(performance.now() - startedAt);
     const current = messages.value.at(-1);
-    if (wantsChart && dashboard.value?.charts?.length) {
-      current.chart = dashboard.value.charts[0];
+    if (wantsChart) {
+      try { current.chart = await generateWorkbookChart(threadId.value); } catch { current.chart = null; }
+    }
+    if (wantsChart && current.chart) {
       current.text = current.text.replace(/```[\s\S]*?```/g, "").replace(/I couldn’t render an image in this environment, but I can \(and did\) prepare the data and can give you ready-to-run code to produce a trend chart locally\./gi, "Chart generated from the uploaded workbook:").trim();
       const existing = JSON.parse(sessionStorage.getItem("datapilot-generated-charts") || "[]");
       sessionStorage.setItem("datapilot-generated-charts", JSON.stringify([...existing, { ...current.chart, generatedAt: new Date().toISOString() }].slice(-12)));

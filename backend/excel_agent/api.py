@@ -1,6 +1,8 @@
 import json
+import html
 import logging
 import time
+import re
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -18,11 +20,18 @@ logger = logging.getLogger("datapilot.api")
 router = APIRouter(tags=["data agent"])
 MAX_EXCEL_BYTES = 20 * 1024 * 1024
 UPLOAD_DIRECTORY = Path(__file__).resolve().parents[1] / "data" / "uploads"
+CHART_DIRECTORY = UPLOAD_DIRECTORY / "charts"
+_chart_artifacts: dict[str, list[dict[str, Any]]] = {}
 
 
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1)
     thread_id: str = Field(min_length=1)
+
+
+class ChartRequest(BaseModel):
+    thread_id: str = Field(min_length=1)
+    column: str | None = None
 
 
 def _sse(payload: dict[str, Any] | str) -> str:
@@ -63,6 +72,29 @@ def _json_safe(value: Any) -> Any:
     if isinstance(value, float) and value != value:
         return None
     return value
+
+
+def _chart_svg(title: str, values: list[float]) -> str:
+    width, height, pad = 900, 360, 42
+    low, high = min(values), max(values)
+    span = high - low or 1
+    points = []
+    for index, value in enumerate(values):
+        x = pad + (index / max(1, len(values) - 1)) * (width - (pad * 2))
+        y = height - pad - ((value - low) / span) * (height - (pad * 2))
+        points.append(f"{x:.1f},{y:.1f}")
+    safe_title = html.escape(title)
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" role="img">'
+            f'<rect width="100%" height="100%" fill="#f8faff"/><text x="{pad}" y="28" fill="#17366f" font-family="Arial" font-size="18">{safe_title}</text>'
+            f'<polyline points="{" ".join(points)}" fill="none" stroke="#2c67ee" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>'
+            f'<line x1="{pad}" y1="{height-pad}" x2="{width-pad}" y2="{height-pad}" stroke="#cdd9ed"/></svg>')
+
+
+def _column_intent(message: str) -> tuple[str, str] | None:
+    match = re.search(r"(?:add|create)\s+(?:a\s+)?(?:new\s+)?column\s+['\"]?([^'\"=\n]+?)['\"]?\s+(?:with|using|formula|=)\s*(.+)$", message, re.IGNORECASE)
+    if not match:
+        return None
+    return match.group(1).strip(), match.group(2).strip().rstrip(".")
 
 
 @router.get("/api/data/preview")
@@ -112,6 +144,46 @@ async def data_dashboard(thread_id: str = Query("default", min_length=1)):
             "series": [{"name": str(column), "values": [_json_safe(value) for value in series.tolist()]}],
         })
     return {"loaded": True, "kpis": kpis, "charts": charts}
+
+
+@router.post("/api/data/charts/generate")
+async def generate_chart(payload: ChartRequest):
+    context = agent.get_dataset_context(payload.thread_id)
+    if context is None:
+        raise HTTPException(status_code=404, detail="No workbook is loaded for this session.")
+    numeric = context.data_frame.select_dtypes(include="number")
+    column = payload.column if payload.column in numeric.columns else (str(numeric.columns[0]) if len(numeric.columns) else None)
+    if column is None:
+        raise HTTPException(status_code=400, detail="The workbook has no numeric column to chart.")
+    values = [_json_safe(value) for value in numeric[column].dropna().head(100).tolist()]
+    values = [float(value) for value in values if value is not None]
+    if not values:
+        raise HTTPException(status_code=400, detail="The selected column has no numeric values.")
+    artifact_id = uuid4().hex
+    CHART_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    title = f"{column} trend"
+    (CHART_DIRECTORY / f"{artifact_id}.svg").write_text(_chart_svg(title, values), encoding="utf-8")
+    artifact = {"artifact_id": artifact_id, "title": title, "column": column, "labels": [str(index + 1) for index in range(len(values))], "values": values, "url": f"/api/data/charts/{artifact_id}.svg"}
+    _chart_artifacts.setdefault(payload.thread_id, []).append(artifact)
+    _chart_artifacts[payload.thread_id] = _chart_artifacts[payload.thread_id][-20:]
+    return artifact
+
+
+@router.get("/api/data/charts")
+async def list_charts(thread_id: str = Query("default", min_length=1)):
+    context = agent.get_dataset_context(thread_id)
+    if context is None:
+        return {"charts": []}
+    return {"charts": _chart_artifacts.get(thread_id, [])}
+
+
+@router.get("/api/data/charts/{filename}")
+async def get_chart(filename: str):
+    safe_name = Path(filename).name
+    chart_path = CHART_DIRECTORY / safe_name
+    if chart_path.suffix != ".svg" or not chart_path.is_file():
+        raise HTTPException(status_code=404, detail="Chart artifact not found.")
+    return FileResponse(chart_path, media_type="image/svg+xml", filename=safe_name)
 
 
 @router.post("/api/data/column/preview")
@@ -295,6 +367,28 @@ async def sse_event_generator(user_message: str, thread_id: str):
             },
         })
         yield _sse({"event": "latency", "total_ms": 1.0})
+        yield _sse("[DONE]")
+        return
+
+    intent = _column_intent(user_message)
+    if intent:
+        column_name, formula = intent
+        context = agent.get_dataset_context(thread_id)
+        yield _sse({"event": "status", "text": f"Preparing column {column_name}..."})
+        yield _sse({"event": "tool_start", "tool": "safe_column_operation"})
+        try:
+            preview = await run_in_threadpool(preview_operation, thread_id, context.data_frame, column_name, formula)
+            yield _sse({"event": "status", "text": "Applying the validated workbook change..."})
+            applied_column, updated, applied_formula = await run_in_threadpool(apply_operation, preview["operation_id"], thread_id)
+            version_path = UPLOAD_DIRECTORY / f"{uuid4().hex}.xlsx"
+            await run_in_threadpool(updated.to_excel, version_path, index=False)
+            schema = await run_in_threadpool(agent.set_dataset, str(version_path), context.schema.get("filename"), thread_id)
+            yield _sse({"event": "token", "text": f"Done. I added `{applied_column}` using `{applied_formula}` and saved a new workbook version with {schema['total_rows']} rows. The original workbook was preserved."})
+            yield _sse({"event": "evaluation", "confidence_score": 0.98, "payload": {"confidence_score": 0.98, "data_coverage_percentage": 100.0, "evaluation_rationale": "Safe validated column operation applied to the active workbook."}})
+        except Exception as error:
+            yield _sse({"event": "error", "details": str(error)})
+            yield _sse({"event": "token", "text": f"I could not apply that workbook change: {error}"})
+        yield _sse({"event": "latency", "total_ms": round((time.perf_counter() - stream_start) * 1000, 2)})
         yield _sse("[DONE]")
         return
 

@@ -40,6 +40,18 @@ export async function getWorkbookDashboard(threadId = "default") {
   return response.json();
 }
 
+export async function generateWorkbookChart(threadId = "default", column = null) {
+  const response = await fetch("/api/data/charts/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ thread_id: threadId, column }) });
+  if (!response.ok) throw new Error(await readError(response));
+  return response.json();
+}
+
+export async function getGeneratedCharts(threadId = "default") {
+  const response = await fetch(`/api/data/charts?thread_id=${encodeURIComponent(threadId)}`);
+  if (!response.ok) throw new Error(await readError(response));
+  return response.json();
+}
+
 export function getWorkbookDownloadUrl(threadId = "default") {
   return `/api/data/workbook/download?thread_id=${encodeURIComponent(threadId)}`;
 }
