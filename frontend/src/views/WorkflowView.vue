@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from "vue";
-import { getWorkbookDashboard, getWorkbookSchema } from "../api";
+import { streamWorkflow } from "../api";
 
 const running = ref(false);
 const completed = ref(false);
@@ -13,22 +13,21 @@ const stages = ref([
   { name: "Prepare response", detail: "Return an evidence-backed result", state: "ready" },
 ]);
 const status = computed(() => running.value ? "Agent is running" : completed.value ? "Workflow completed" : "Ready to run");
-const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 async function runWorkflow() {
   if (running.value) return;
   running.value = true; completed.value = false; output.value = null; error.value = "";
   stages.value.forEach((stage, index) => { stage.state = index === 0 ? "active" : "ready"; });
   try {
     const threadId = sessionStorage.getItem("datapilot-thread-id") || "default";
-    const schema = await getWorkbookSchema(threadId);
-    if (!schema.loaded) throw new Error("Upload a workbook in Data Studio before running this workflow.");
-    stages.value[0].state = "done"; stages.value[1].state = "active"; await wait(350);
-    stages.value[1].state = "done"; stages.value[2].state = "active";
-    const dashboard = await getWorkbookDashboard(threadId);
-    await wait(350); stages.value[2].state = "done"; stages.value[3].state = "active"; await wait(350);
-    output.value = { filename: schema.filename, rows: schema.total_rows, fields: schema.columns.length, charts: dashboard.charts.length, missing: dashboard.kpis.find((item) => item.label === "Missing values")?.value ?? 0 };
-    stages.value[3].state = "done"; completed.value = true;
+    await streamWorkflow({ threadId, onEvent(event) {
+      if (event.event === "stage") {
+        const map = { receive: 0, profile: 1, analysis: 2, response: 3 };
+        const index = map[event.stage];
+        if (index !== undefined) stages.value[index].state = event.state;
+      }
+      if (event.event === "result") { output.value = event.result; completed.value = true; }
+      if (event.event === "error") throw new Error(event.message || "Workflow execution failed.");
+    }});
   } catch (caught) { error.value = caught.message; const activeStage = stages.value.find((stage) => stage.state === "active"); if (activeStage) activeStage.state = "error"; }
   finally { running.value = false; }
 }

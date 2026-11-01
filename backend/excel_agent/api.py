@@ -1,5 +1,6 @@
 import json
 import html
+import asyncio
 import logging
 import time
 import re
@@ -202,6 +203,35 @@ async def get_chart(filename: str):
     if chart_path.suffix != ".svg" or not chart_path.is_file():
         raise HTTPException(status_code=404, detail="Chart artifact not found.")
     return FileResponse(chart_path, media_type="image/svg+xml", filename=safe_name)
+
+
+async def workflow_event_generator(thread_id: str):
+    context = agent.get_dataset_context(thread_id)
+    if context is None:
+        yield _sse({"event": "error", "message": "Upload a workbook in Data Studio before running this workflow."})
+        yield _sse("[DONE]")
+        return
+    yield _sse({"event": "stage", "stage": "receive", "state": "done", "message": "Workbook received."})
+    await asyncio.sleep(0.05)
+    yield _sse({"event": "stage", "stage": "profile", "state": "active", "message": "Profiling workbook columns."})
+    schema = context.schema
+    await asyncio.sleep(0.05)
+    yield _sse({"event": "stage", "stage": "profile", "state": "done", "message": "Workbook profile ready."})
+    yield _sse({"event": "stage", "stage": "analysis", "state": "active", "message": "Generating workbook metrics."})
+    numeric = context.data_frame.select_dtypes(include="number")
+    charts = [{"type": "line", "title": f"{column} trend", "labels": [str(index + 1) for index in range(len(numeric[column].dropna().head(20)))], "series": [{"name": str(column), "values": [_json_safe(value) for value in numeric[column].dropna().head(20).tolist()]}]} for column in list(numeric.columns)[:3]]
+    await asyncio.sleep(0.05)
+    yield _sse({"event": "stage", "stage": "analysis", "state": "done", "message": "Metrics generated."})
+    yield _sse({"event": "stage", "stage": "response", "state": "active", "message": "Preparing workflow output."})
+    result = {"filename": schema.get("filename"), "rows": schema.get("total_rows", 0), "fields": len(schema.get("columns", [])), "charts": len(charts), "missing": int(context.data_frame.isna().sum().sum())}
+    yield _sse({"event": "result", "result": result})
+    yield _sse({"event": "stage", "stage": "response", "state": "done", "message": "Workflow completed."})
+    yield _sse("[DONE]")
+
+
+@router.post("/api/workflows/run")
+async def run_workflow(thread_id: str = Query("default", min_length=1)):
+    return StreamingResponse(workflow_event_generator(thread_id), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 @router.post("/api/data/column/preview")

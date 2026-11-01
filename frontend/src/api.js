@@ -112,3 +112,26 @@ export async function streamAssistant({ message, threadId, mode = "data-agent", 
     if (done) return;
   }
 }
+
+export async function streamWorkflow({ threadId, onEvent }) {
+  const response = await fetch(`/api/workflows/run?thread_id=${encodeURIComponent(threadId)}`, { method: "POST" });
+  if (!response.ok || !response.body) throw new Error(await readError(response));
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+    buffer = buffer.replace(/\r\n/g, "\n");
+    const events = buffer.split("\n\n");
+    buffer = events.pop() || "";
+    for (const raw of events) {
+      const line = raw.split("\n").find((item) => item.startsWith("data: "));
+      if (!line) continue;
+      const payload = line.slice(6);
+      if (payload === "[DONE]") return;
+      try { onEvent(JSON.parse(payload)); } catch { /* Ignore malformed SSE frames. */ }
+    }
+    if (done) return;
+  }
+}
