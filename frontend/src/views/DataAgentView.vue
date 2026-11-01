@@ -5,6 +5,8 @@ import { deleteWorkbook, generateWorkbookChart, getWorkbookDashboard, getWorkboo
 const schema = ref(null);
 const file = ref(null);
 const uploadStatus = ref("");
+const consentGiven = ref(false);
+const refreshing = ref(false);
 const question = ref("");
 const sending = ref(false);
 const messages = ref([]);
@@ -34,6 +36,19 @@ function chartPoints(chart) {
   return values.map((value, index) => `${(index / Math.max(1, values.length - 1)) * 100},${96 - ((Number(value) - min) / range) * 82}`).join(" ");
 }
 
+function excelColumnLabel(index) {
+  let label = "";
+  let value = index + 1;
+  while (value) { const remainder = (value - 1) % 26; label = String.fromCharCode(65 + remainder) + label; value = Math.floor((value - 1) / 26); }
+  return label;
+}
+
+function confidencePercent(value) {
+  const score = Number(value);
+  if (!Number.isFinite(score)) return "n/a";
+  return `${Math.round((score <= 1 ? score : score / 100) * 100)}%`;
+}
+
 async function loadSchema() {
   try {
     schema.value = await getWorkbookSchema(threadId.value);
@@ -42,6 +57,12 @@ async function loadSchema() {
   } catch {
     schema.value = null;
   }
+}
+
+async function refreshWorkbook() {
+  refreshing.value = true;
+  try { await loadSchema(); uploadStatus.value = "Workbook view refreshed."; }
+  finally { refreshing.value = false; }
 }
 
 function selectFile(event) {
@@ -102,8 +123,10 @@ async function ask(text = question.value) {
         }
         if (event.event === "final_answer") current.text = event.text || current.text;
         if (event.event === "evaluation" || event.event === "metrics_evaluation") {
-          evaluation.value = event.payload?.evaluation_metrics || event.evaluation_metrics || event;
-          current.confidence = evaluation.value.confidence_score ?? evaluation.value.confidence;
+          const metrics = event.payload?.evaluation_metrics || event.payload?.metrics || event.evaluation_metrics || {};
+          const score = event.confidence_score ?? metrics.confidence_score ?? event.payload?.confidence_score ?? event.confidence;
+          evaluation.value = { ...metrics, confidence_score: score };
+          current.confidence = score;
         }
         if (event.event === "citation" || event.event === "citations") {
           const incoming = event.citations || event.payload?.citations || [];
@@ -132,6 +155,7 @@ async function ask(text = question.value) {
     }
     current.thinking = false;
     current.latencyMs = elapsedMs.value;
+    if (/(add|create|modify|update).*(column|workbook)/i.test(message)) await refreshWorkbook();
     sending.value = false;
     status.value = "";
   }
@@ -155,7 +179,8 @@ onMounted(loadSchema);
       <section class="panel workbook-panel">
         <h2>Workbook</h2>
         <input type="file" accept=".xlsx,.xlsm" @change="selectFile" />
-        <button class="primary-button" :disabled="!file" @click="ingestWorkbook">Upload workbook</button>
+        <label class="consent-row workbook-consent"><input v-model="consentGiven" type="checkbox" /> I consent to sending workbook content to the configured AI provider when I ask the agent to analyze it.</label>
+        <button class="primary-button" :disabled="!file || !consentGiven" @click="ingestWorkbook">Upload workbook</button>
         <p v-if="uploadStatus" class="helper">{{ uploadStatus }}</p>
         <div v-if="schema?.loaded" class="workbook-actions"><a class="secondary-button" :href="getWorkbookDownloadUrl(threadId)" download>Save Excel file</a><button class="danger-button" type="button" @click="removeWorkbook">Delete workbook</button></div>
         <div v-if="schema?.columns?.length" class="schema-list">
@@ -164,8 +189,8 @@ onMounted(loadSchema);
         </div>
         <p v-else class="helper">No workbook schema loaded yet.</p>
         <section v-if="preview?.loaded" class="workbook-preview">
-          <div class="panel-heading"><div><h2>Excel sheet</h2><p class="helper">Live read-only view of the active worksheet.</p></div><span class="preview-count">{{ preview.total_rows }} rows</span></div>
-          <div class="table-scroll excel-table"><table><thead><tr><th class="row-number">#</th><th v-for="column in preview.columns" :key="column">{{ column }}</th></tr></thead><tbody><tr v-for="(row, index) in preview.rows" :key="index"><td class="row-number">{{ index + 1 }}</td><td v-for="column in preview.columns" :key="column">{{ row[column] ?? "" }}</td></tr></tbody></table></div>
+          <div class="panel-heading"><div><h2>{{ schema.selected_sheet || "Excel sheet" }}</h2><p class="helper">{{ schema.filename }} · live workbook view</p></div><div class="sheet-actions"><span class="preview-count">{{ preview.total_rows }} rows</span><button class="refresh-button" type="button" :disabled="refreshing" @click="refreshWorkbook">↻ {{ refreshing ? "Refreshing" : "Refresh" }}</button></div></div>
+          <div class="table-scroll excel-table"><table><thead><tr class="column-letters"><th class="row-number"></th><th v-for="(column, columnIndex) in preview.columns" :key="column">{{ excelColumnLabel(columnIndex) }}</th></tr><tr><th class="row-number">#</th><th v-for="column in preview.columns" :key="column">{{ column }}</th></tr></thead><tbody><tr v-for="(row, index) in preview.rows" :key="index"><td class="row-number">{{ index + 1 }}</td><td v-for="column in preview.columns" :key="column">{{ row[column] ?? "" }}</td></tr></tbody></table></div>
         </section>
         <div v-if="dashboard?.loaded" class="workbook-kpis"><div v-for="kpi in dashboard.kpis" :key="kpi.label"><span>{{ kpi.label }}</span><b>{{ kpi.value }}</b></div></div>
       </section>
@@ -186,7 +211,7 @@ onMounted(loadSchema);
             <div v-if="message.role === 'assistant' && message.thinking" class="thinking"><span /><span /><span /> {{ status || 'Thinking through your workbook...' }}<b class="thinking-latency">{{ sending ? elapsedMs : 0 }} ms</b></div>
             <p v-if="message.text">{{ message.text }}</p>
             <div v-if="message.chart" class="chat-chart"><div class="chat-chart-title"><b>{{ message.chart.title }}</b><span>Generated from workbook data</span></div><svg viewBox="0 0 100 100" preserveAspectRatio="none"><polyline :points="chartPoints(message.chart)" /></svg></div>
-            <div v-if="message.role === 'assistant' && !message.thinking && message.latencyMs !== null" class="answer-meta"><span class="latency">Latency {{ message.latencyMs }} ms</span><span v-if="message.confidence !== null">Confidence {{ Math.round(Number(message.confidence) * 100) }}%</span><span v-if="message.citations?.length">{{ message.citations.length }} citation{{ message.citations.length === 1 ? '' : 's' }}</span></div>
+            <div v-if="message.role === 'assistant' && !message.thinking && message.latencyMs !== null" class="answer-meta"><span class="latency">Latency {{ message.latencyMs }} ms</span><span v-if="message.confidence !== null && message.confidence !== undefined">Confidence {{ confidencePercent(message.confidence) }}</span><span v-if="message.citations?.length">{{ message.citations.length }} citation{{ message.citations.length === 1 ? '' : 's' }}</span></div>
             <div v-if="message.citations?.length" class="citations"><span v-for="(citation, citeIndex) in message.citations" :key="citeIndex">{{ citation.title || citation.source || citation }}</span></div>
           </div>
         </div>
@@ -195,7 +220,7 @@ onMounted(loadSchema);
           <span v-if="sending" class="live-latency">{{ elapsedMs }} ms</span>
           <button class="primary-button" type="submit" :disabled="sending || !question.trim() || !assistantEnabled">Send</button>
         </form>
-        <div v-if="evaluation && !sending" class="evaluation-card"><strong>Answer quality</strong><span>Confidence: {{ Math.round(Number(evaluation.confidence_score ?? evaluation.confidence ?? 0) * 100) }}%</span><span v-if="citations.length">{{ citations.length }} citations</span></div>
+        <div v-if="evaluation && !sending && evaluation.confidence_score !== undefined" class="evaluation-card"><strong>Answer quality</strong><span>Confidence: {{ confidencePercent(evaluation.confidence_score) }}</span><span v-if="citations.length">{{ citations.length }} citations</span></div>
       </section>
     </div>
   </section>

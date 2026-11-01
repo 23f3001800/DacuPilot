@@ -185,6 +185,8 @@ h1 { margin: 0 0 12px; color: #101d47; font-size: clamp(32px, 5vw, 52px); letter
 .excel-table { max-height: 520px; overflow: auto; border-color: #cfdced; }
 .excel-table table { min-width: 720px; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 11px; }
 .excel-table th { position: sticky; top: 0; z-index: 1; background: #eaf1fb; color: #234578; white-space: normal; }
+.excel-table thead tr.column-letters th { top: 0; background: #dfe8f5; color: #637a9e; font-size: 10px; text-align: center; }
+.excel-table thead tr:not(.column-letters) th { top: 31px; }
 .excel-table td { max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
 .excel-table .row-number { width: 42px; min-width: 42px; background: #f3f6fb; color: #8a9bb9; text-align: center; }
 .workbook-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin-top: 12px; }
@@ -255,6 +257,8 @@ h1 { margin: 0 0 12px; color: #101d47; font-size: clamp(32px, 5vw, 52px); letter
 .workflow-output { padding: 13px; border: 1px solid #b8e9cf; border-radius: 12px; background: #f2fff7; color: #17366f; }
 .workflow-output > b { display: block; margin-bottom: 12px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workflow-output > div { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }.workflow-output span { display: grid; gap: 3px; color: #6b7fa0; font-size: 10px; }.workflow-output strong { color: #087443; font-size: 18px; }.workflow-output p { margin: 14px 0 0; font-size: 11px; }
+.workbook-consent { max-width: none; margin: 12px 0; padding: 10px; border: 1px solid #dbe5f6; border-radius: 9px; background: #f8faff; }
+.sheet-actions { display: flex; align-items: center; gap: 7px; }.refresh-button { padding: 6px 9px; border: 1px solid #b9cbed; border-radius: 7px; background: #f1f5ff; color: #315be4; font-size: 11px; font-weight: 800; }.refresh-button:disabled { opacity: .55; }
 @media (max-width: 1050px) { .studio-layout { grid-template-columns: 1fr; }.studio-layout .chat-panel { min-height: 0; } }
  .workbook-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
 .workbook-actions a { text-decoration: none; }
