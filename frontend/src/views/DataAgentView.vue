@@ -199,6 +199,10 @@ async function ask(text = question.value) {
     }
     current.thinking = false;
     current.latencyMs = elapsedMs.value;
+    try {
+      const savedAnalyses = JSON.parse(localStorage.getItem("insightpilot-analyses") || "[]");
+      localStorage.setItem("insightpilot-analyses", JSON.stringify([{ id: crypto.randomUUID(), question: message, answer: current.text, confidence: current.confidence, citations: current.citations, latencyMs: current.latencyMs, createdAt: new Date().toISOString(), filename: schema.value?.filename, chart: current.chart }, ...savedAnalyses].slice(0, 50)));
+    } catch { uploadStatus.value = "Could not save this analysis to browser history."; }
     if (/(add|create|modify|update).*(column|workbook)/i.test(message)) await refreshWorkbook();
     sending.value = false;
     status.value = "";
@@ -249,6 +253,7 @@ onMounted(loadSchema);
           <button class="assistant-toggle" :class="{ on: assistantEnabled }" type="button" @click="assistantEnabled = !assistantEnabled"><i /> {{ assistantEnabled ? 'Assistant on' : 'Assistant off' }}</button>
         </div>
         <label class="consent-row workbook-consent" :class="{ 'consent-accepted': consentGiven }"><input v-model="consentGiven" type="checkbox" /><span><strong>Allow workbook analysis</strong><small>Required before InsightPilot Analyst sends workbook content to the configured AI provider.</small></span><b>{{ consentGiven ? 'Allowed' : 'Consent required' }}</b></label>
+        <details class="analyst-plan"><summary>Analyst plan · inspect → calculate → verify → answer</summary><div><span>1</span>Read workbook columns and data types<span>2</span>Run requested calculations on the active workbook<span>3</span>Return findings with evidence and quality metadata when available</div></details>
         <div v-if="!assistantEnabled" class="assistant-offline">Assistant is paused. Turn the toggle on to ask questions.</div>
         <div class="prompt-row">
           <button v-for="prompt in prompts" :key="prompt" class="prompt-button" :disabled="!assistantEnabled" @click="ask(prompt)">{{ prompt }}</button>

@@ -8,8 +8,31 @@ const schema = ref(null);
 const charts = ref([]);
 const hiddenCharts = ref(JSON.parse(localStorage.getItem("insightpilot-hidden-dashboard-charts") || "[]"));
 const visibleCharts = ref([]);
+const chartFilter = ref("all");
+const chartOrder = ref(JSON.parse(localStorage.getItem("insightpilot-dashboard-order") || "[]"));
 
-function syncVisibility() { visibleCharts.value = charts.value.filter((chart) => !hiddenCharts.value.includes(chart.url)); }
+function syncVisibility() {
+  const ordered = [...charts.value].sort((left, right) => {
+    const leftIndex = chartOrder.value.indexOf(left.url);
+    const rightIndex = chartOrder.value.indexOf(right.url);
+    return (leftIndex < 0 ? Number.MAX_SAFE_INTEGER : leftIndex) - (rightIndex < 0 ? Number.MAX_SAFE_INTEGER : rightIndex);
+  });
+  visibleCharts.value = ordered.filter((chart) => !hiddenCharts.value.includes(chart.url) && (chartFilter.value === "all" || chart.column === chartFilter.value));
+}
+function moveChart(chart, direction) {
+  const order = [...charts.value].sort((left, right) => {
+    const leftIndex = chartOrder.value.indexOf(left.url);
+    const rightIndex = chartOrder.value.indexOf(right.url);
+    return (leftIndex < 0 ? Number.MAX_SAFE_INTEGER : leftIndex) - (rightIndex < 0 ? Number.MAX_SAFE_INTEGER : rightIndex);
+  });
+  const index = order.findIndex((item) => item.url === chart.url);
+  const target = index + direction;
+  if (target < 0 || target >= order.length) return;
+  [order[index], order[target]] = [order[target], order[index]];
+  chartOrder.value = order.map((item) => item.url);
+  localStorage.setItem("insightpilot-dashboard-order", JSON.stringify(chartOrder.value));
+  syncVisibility();
+}
 function toggleChart(chart) {
   hiddenCharts.value = hiddenCharts.value.includes(chart.url) ? hiddenCharts.value.filter((url) => url !== chart.url) : [...hiddenCharts.value, chart.url];
   localStorage.setItem("insightpilot-hidden-dashboard-charts", JSON.stringify(hiddenCharts.value));
@@ -60,10 +83,10 @@ onMounted(async () => {
         <article class="metric-card"><span>Rows analysed</span><strong>{{ schema.total_rows.toLocaleString() }}</strong><small>{{ schema.filename }}</small></article>
         <article class="metric-card"><span>Available fields</span><strong>{{ schema.columns.length }}</strong><small>Use Data workspace to modify columns</small></article>
       </div>
-      <section class="dashboard-controls panel"><strong>Dashboard charts</strong><label v-for="chart in charts" :key="chart.url"><input type="checkbox" :checked="!hiddenCharts.includes(chart.url)" @change="toggleChart(chart)" /> {{ chart.title }}</label></section>
+      <section class="dashboard-controls panel"><strong>Dashboard charts</strong><label>Filter by field<select v-model="chartFilter" @change="syncVisibility"><option value="all">All fields</option><option v-for="column in [...new Set(charts.map(chart => chart.column).filter(Boolean))]" :key="column" :value="column">{{ column }}</option></select></label><label v-for="chart in charts" :key="chart.url"><input type="checkbox" :checked="!hiddenCharts.includes(chart.url)" @change="toggleChart(chart)" /> {{ chart.title }}</label></section>
       <section class="dashboard-canvas">
         <article v-for="(chart, index) in visibleCharts" :key="`${chart.url}-${index}`" class="panel dashboard-widget">
-          <div class="chart-title"><div><h2>{{ chart.title }}</h2><small>{{ chart.column }} · verified workbook artifact</small></div><span>Chart {{ index + 1 }}</span></div>
+          <div class="chart-title"><div><h2>{{ chart.title }}</h2><small>{{ chart.column }} · verified workbook artifact</small></div><div class="widget-actions"><button :disabled="index === 0" @click="moveChart(chart, -1)" aria-label="Move chart earlier">↑</button><button :disabled="index === visibleCharts.length - 1" @click="moveChart(chart, 1)" aria-label="Move chart later">↓</button><span>Chart {{ index + 1 }}</span></div></div>
           <img class="saved-chart-image" :src="chart.url" :alt="chart.title" />
         </article>
       </section>
