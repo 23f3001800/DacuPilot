@@ -9,12 +9,12 @@ import WorkflowView from "./views/WorkflowView.vue";
 import SettingsView from "./views/SettingsView.vue";
 
 const routes = [
-  { id: "home", label: "Home", icon: "⌂", hint: "Workspace overview" },
-  { id: "documents", label: "Documents", icon: "▣", hint: "Upload and extract" },
-  { id: "data-agent", label: "Data Analysis", icon: "▤", hint: "Explore workbooks" },
-  { id: "analytics", label: "Analytics", icon: "◒", hint: "Visual insights" },
-  { id: "workflows", label: "Agent Workflows", icon: "✣", hint: "Automate tasks" },
-  { id: "settings", label: "Settings", icon: "⚙", hint: "Workspace controls" },
+  { id: "home", label: "Overview", icon: "⌂", hint: "Workspace overview" },
+  { id: "data-agent", label: "Data", icon: "▤", hint: "Explore workbooks" },
+  { id: "analytics", label: "Analysis", icon: "◒", hint: "Visual insights" },
+  { id: "analytics", label: "Dashboards", icon: "▦", hint: "Generated dashboards" },
+  { id: "documents", label: "DocuLens", icon: "▣", hint: "Upload and extract" },
+  { id: "workflows", label: "Reports", icon: "▤", hint: "Agent outputs" },
 ];
 const activeRoute = ref("home");
 const online = ref(false);
@@ -51,9 +51,9 @@ onMounted(async () => { try { await getHealth(); online.value = true; } catch { 
 <template>
   <div class="app-shell">
     <header class="topbar">
-      <div class="brand-lockup"><div class="brand-mark">▤</div><div class="brand-copy"><strong>DocuPilot</strong><span>Intelligent Document &amp; Data Processing</span></div></div>
+      <div class="brand-lockup"><div class="brand-mark">▥</div><div class="brand-copy"><strong>InsightPilot</strong><span>Analyze · Transform · Insight</span></div></div>
       <nav class="topnav" aria-label="Main navigation"><button v-for="route in routes" :key="route.id" :class="['topnav-item', { active: activeRoute === route.id }]" @click="activeRoute = route.id">{{ route.label }}</button></nav>
-      <div class="topbar-actions"><span :class="['status', { offline: !online }]"><span class="status-dot" />{{ online ? "System Online" : "System Offline" }}</span><span class="workspace-user"><b>D</b><span>DataPilot<br /><small>Workspace</small></span></span></div>
+      <div class="topbar-actions"><label class="global-search"><span>⌕</span><input aria-label="Global search" placeholder="Search..." /></label><span class="notification">♧</span><span class="workspace-user"><b>V</b></span></div>
     </header>
     <div class="workspace">
       <main class="content">
