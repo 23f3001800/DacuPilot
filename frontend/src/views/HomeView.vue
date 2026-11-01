@@ -3,7 +3,7 @@ const emit = defineEmits(["navigate"]);
 function go(id) { emit("navigate", id); }
 
 const capabilities = [
-  { id: "data-agent", title: "Data Agent", tone: "blue", icon: "#", description: "Ask questions about Excel files in natural language. Get insights, summaries, and answers.", checks: ["Ask questions about your data", "Get summaries and insights", "Explore trends and patterns"] },
+  { id: "data-agent", title: "Data Analysis Agent", tone: "blue", icon: "#", description: "Analyze uploaded Excel workbooks in natural language and produce evidence-backed insights.", checks: ["Ask questions about your data", "Generate workbook analysis", "Create charts from real rows"] },
   { id: "document-assistant", title: "Document Assistant", tone: "purple", icon: "[]", description: "Ask cited questions about the Nimbus Orchard Technologies Company Handbook.", checks: ["Explore handbook policies and company information", "Answers cite source pages and sections", "Pre-loaded knowledge base, no uploads needed"] },
   { id: "document-intelligence", title: "Document Intelligence", tone: "green", icon: "=", description: "Classify documents and extract structured data with field-level confidence and review flags.", checks: ["Document classification", "Extract key fields", "Review uncertain handwriting"] },
 ];

@@ -11,7 +11,7 @@ import SettingsView from "./views/SettingsView.vue";
 const routes = [
   { id: "home", label: "Home", icon: "⌂", hint: "Workspace overview" },
   { id: "documents", label: "Documents", icon: "▣", hint: "Upload and extract" },
-  { id: "data-agent", label: "Data Studio", icon: "▤", hint: "Explore workbooks" },
+  { id: "data-agent", label: "Data Analysis", icon: "▤", hint: "Explore workbooks" },
   { id: "analytics", label: "Analytics", icon: "◒", hint: "Visual insights" },
   { id: "workflows", label: "Agent Workflows", icon: "✣", hint: "Automate tasks" },
   { id: "settings", label: "Settings", icon: "⚙", hint: "Workspace controls" },
@@ -52,13 +52,10 @@ onMounted(async () => { try { await getHealth(); online.value = true; } catch { 
   <div class="app-shell">
     <header class="topbar">
       <div class="brand-lockup"><div class="brand-mark">▤</div><div class="brand-copy"><strong>DocuPilot</strong><span>Intelligent Document &amp; Data Processing</span></div></div>
+      <nav class="topnav" aria-label="Main navigation"><button v-for="route in routes" :key="route.id" :class="['topnav-item', { active: activeRoute === route.id }]" @click="activeRoute = route.id">{{ route.label }}</button></nav>
       <div class="topbar-actions"><span :class="['status', { offline: !online }]"><span class="status-dot" />{{ online ? "System Online" : "System Offline" }}</span><span class="workspace-user"><b>D</b><span>DataPilot<br /><small>Workspace</small></span></span></div>
     </header>
     <div class="workspace">
-      <nav class="sidebar" aria-label="Main navigation">
-        <div class="sidebar-section"><span class="sidebar-label">Workspace</span><button v-for="route in routes.slice(0, 5)" :key="route.id" :class="['nav-item', { active: activeRoute === route.id }]" @click="activeRoute = route.id"><span class="nav-icon">{{ route.icon }}</span><span><strong>{{ route.label }}</strong><small>{{ route.hint }}</small></span></button></div>
-        <div class="sidebar-section sidebar-bottom"><button v-for="route in routes.slice(5)" :key="route.id" :class="['nav-item', { active: activeRoute === route.id }]" @click="activeRoute = route.id"><span class="nav-icon">{{ route.icon }}</span><span><strong>{{ route.label }}</strong><small>{{ route.hint }}</small></span></button><div class="sidebar-note"><b>✦ AI-powered workspace</b><span>Analyze, transform, and understand your files in one place.</span></div></div>
-      </nav>
       <main class="content">
         <HomeView v-if="activeRoute === 'home'" @navigate="activeRoute = $event === 'document-intelligence' ? 'documents' : $event" />
         <DataAgentView v-else-if="activeRoute === 'data-agent'" />
@@ -68,7 +65,7 @@ onMounted(async () => { try { await getHealth(); online.value = true; } catch { 
         <SettingsView v-else-if="activeRoute === 'settings'" />
       </main>
     </div>
-    <button class="assistant-fab" :class="{ active: assistantOpen }" aria-label="Toggle Document Assistant" @click="assistantOpen = !assistantOpen">✦<span>Document Assistant</span></button>
+    <button class="assistant-fab" :class="{ active: assistantOpen }" aria-label="Open Document Assistant" title="Open Document Assistant" @click="assistantOpen = !assistantOpen">✦</button>
     <aside v-if="assistantOpen" class="assistant-drawer"><div class="drawer-head"><div><b>✦ Document Assistant</b><small><i /> General answers · Online</small></div><button @click="assistantOpen = false">×</button></div><div class="drawer-messages" aria-live="polite"><p v-if="!assistantMessages.length" class="drawer-empty">Ask general questions about documents, policies, and how to use this workspace.</p><div v-for="(message, index) in assistantMessages" :key="index" :class="['drawer-message', message.role]"><b>{{ message.role === 'user' ? 'You' : 'Document Assistant' }}</b><span v-if="message.thinking" class="thinking"><i /><i /><i /> {{ assistantStatus }}</span><p v-else>{{ message.text }}</p></div></div><form class="drawer-form" @submit.prevent="askAssistant"><input v-model="assistantQuestion" placeholder="Ask a general question..." :disabled="assistantSending" /><button type="submit" :disabled="assistantSending || !assistantQuestion.trim()">→</button></form></aside>
   </div>
 </template>

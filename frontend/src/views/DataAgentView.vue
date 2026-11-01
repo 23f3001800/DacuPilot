@@ -96,6 +96,10 @@ async function removeWorkbook() {
 async function ask(text = question.value) {
   const message = text.trim();
   if (!message || sending.value || !assistantEnabled.value) return;
+  if (!consentGiven.value) {
+    messages.value.push({ role: "assistant", text: "Please confirm the workbook-processing consent above before asking the Data Analysis Agent to analyze this file." });
+    return;
+  }
   question.value = "";
   messages.value.push({ role: "user", text: message });
   const wantsChart = /chart|graph|plot|visual|trend/i.test(message);
@@ -169,7 +173,7 @@ onMounted(loadSchema);
     <div class="view-heading">
       <div>
         <p class="eyebrow">Workbook analysis</p>
-        <h1>Data Agent</h1>
+        <h1>Data Analysis Agent</h1>
         <p>Upload a workbook, inspect its schema, and ask questions with streamed responses.</p>
       </div>
       <span v-if="status" class="status-pill">{{ status }}</span>
@@ -180,7 +184,7 @@ onMounted(loadSchema);
         <h2>Workbook</h2>
         <input type="file" accept=".xlsx,.xlsm" @change="selectFile" />
         <label class="consent-row workbook-consent"><input v-model="consentGiven" type="checkbox" /> I consent to sending workbook content to the configured AI provider when I ask the agent to analyze it.</label>
-        <button class="primary-button" :disabled="!file || !consentGiven" @click="ingestWorkbook">Upload workbook</button>
+        <button class="primary-button" :disabled="!file" @click="ingestWorkbook">Upload workbook</button>
         <p v-if="uploadStatus" class="helper">{{ uploadStatus }}</p>
         <div v-if="schema?.loaded" class="workbook-actions"><a class="secondary-button" :href="getWorkbookDownloadUrl(threadId)" download>Save Excel file</a><button class="danger-button" type="button" @click="removeWorkbook">Delete workbook</button></div>
         <div v-if="schema?.columns?.length" class="schema-list">
