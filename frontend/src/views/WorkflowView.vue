@@ -25,7 +25,12 @@ async function runWorkflow() {
         const index = map[event.stage];
         if (index !== undefined) stages.value[index].state = event.state;
       }
-      if (event.event === "result") { output.value = event.result; completed.value = true; }
+      if (event.event === "result") {
+        output.value = event.result;
+        completed.value = true;
+        const runs = JSON.parse(localStorage.getItem("insightpilot-workflow-runs") || "[]");
+        localStorage.setItem("insightpilot-workflow-runs", JSON.stringify([{ ...event.result, id: crypto.randomUUID(), createdAt: new Date().toISOString() }, ...runs].slice(0, 30)));
+      }
       if (event.event === "error") throw new Error(event.message || "Workflow execution failed.");
     }});
   } catch (caught) { error.value = caught.message; const activeStage = stages.value.find((stage) => stage.state === "active"); if (activeStage) activeStage.state = "error"; }

@@ -5,14 +5,16 @@ import DataAgentView from "./views/DataAgentView.vue";
 import DocumentIntelligenceView from "./views/DocumentIntelligenceView.vue";
 import HomeView from "./views/HomeView.vue";
 import AnalyticsView from "./views/AnalyticsView.vue";
+import DashboardView from "./views/DashboardView.vue";
 import WorkflowView from "./views/WorkflowView.vue";
 import SettingsView from "./views/SettingsView.vue";
+import ReportsView from "./views/ReportsView.vue";
 
 const routes = [
   { id: "home", label: "Overview", icon: "⌂", hint: "Workspace overview" },
   { id: "data-agent", label: "Data", icon: "▤", hint: "Explore workbooks" },
   { id: "analytics", label: "Analysis", icon: "◒", hint: "Visual insights" },
-  { id: "analytics", label: "Dashboards", icon: "▦", hint: "Generated dashboards" },
+  { id: "dashboards", label: "Dashboards", icon: "▦", hint: "Generated dashboards" },
   { id: "documents", label: "DocuLens", icon: "▣", hint: "Upload and extract" },
   { id: "workflows", label: "Reports", icon: "▤", hint: "Agent outputs" },
 ];
@@ -58,11 +60,12 @@ onMounted(async () => { try { await getHealth(); online.value = true; } catch { 
     <div class="workspace">
       <main class="content">
         <HomeView v-if="activeRoute === 'home'" @navigate="activeRoute = $event === 'document-intelligence' ? 'documents' : $event" />
-        <DataAgentView v-else-if="activeRoute === 'data-agent'" />
-        <DocumentIntelligenceView v-else-if="activeRoute === 'documents'" />
-        <AnalyticsView v-else-if="activeRoute === 'analytics'" />
-        <WorkflowView v-else-if="activeRoute === 'workflows'" />
-        <SettingsView v-else-if="activeRoute === 'settings'" />
+        <DataAgentView v-show="activeRoute === 'data-agent'" />
+        <DocumentIntelligenceView v-if="activeRoute === 'documents'" />
+        <AnalyticsView v-if="activeRoute === 'analytics'" />
+        <DashboardView v-if="activeRoute === 'dashboards'" />
+        <ReportsView v-if="activeRoute === 'workflows'" />
+        <SettingsView v-if="activeRoute === 'settings'" />
       </main>
     </div>
     <button class="assistant-fab" :class="{ active: assistantOpen }" aria-label="Open Document Assistant" title="Open Document Assistant" @click="assistantOpen = !assistantOpen">✦</button>

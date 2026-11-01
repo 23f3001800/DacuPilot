@@ -36,6 +36,18 @@ class ChartRequest(BaseModel):
     column: str | None = None
 
 
+class CleaningRequest(BaseModel):
+    thread_id: str = Field(min_length=1)
+    operation: str = Field(pattern="^(remove_duplicates|drop_missing_rows)$")
+
+
+class ApplyCleaningRequest(CleaningRequest):
+    operation_id: str = Field(min_length=1)
+
+
+_pending_cleaning: dict[str, tuple[str, str, Any]] = {}
+
+
 def _sse(payload: dict[str, Any] | str) -> str:
     if isinstance(payload, str):
         return f"data: {payload}\n\n"
@@ -249,6 +261,39 @@ async def preview_column_operation(payload: ColumnOperationRequest):
         )
     except (SyntaxError, ValueError) as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@router.post("/api/data/cleaning/preview")
+async def preview_cleaning(payload: CleaningRequest):
+    context = agent.get_dataset_context(payload.thread_id)
+    if context is None:
+        raise HTTPException(status_code=404, detail="No workbook is loaded for this session.")
+    frame = context.data_frame.copy()
+    if payload.operation == "remove_duplicates":
+        updated = frame.drop_duplicates()
+        label = "Remove duplicate rows"
+    else:
+        updated = frame.dropna()
+        label = "Remove rows with missing values"
+    operation_id = uuid4().hex
+    _pending_cleaning[operation_id] = (payload.thread_id, payload.operation, updated)
+    return {"operation_id": operation_id, "operation": payload.operation, "label": label,
+            "rows_before": len(frame), "rows_after": len(updated), "rows_removed": len(frame) - len(updated),
+            "preview": updated.head(5).where(updated.head(5).notna(), None).to_dict(orient="records")}
+
+
+@router.post("/api/data/cleaning/apply")
+async def apply_cleaning(payload: ApplyCleaningRequest):
+    pending = _pending_cleaning.pop(payload.operation_id, None)
+    if pending is None or pending[0] != payload.thread_id or pending[1] != payload.operation:
+        raise HTTPException(status_code=404, detail="Cleaning preview expired. Preview the operation again.")
+    _, operation, updated = pending
+    version_path = UPLOAD_DIRECTORY / f"{uuid4().hex}.xlsx"
+    version_path.parent.mkdir(parents=True, exist_ok=True)
+    await run_in_threadpool(updated.to_excel, version_path, index=False)
+    schema = await run_in_threadpool(agent.set_dataset, str(version_path), version_path.name, payload.thread_id)
+    return {"versioned": True, "operation": operation, "filename": version_path.name,
+            "total_rows": schema["total_rows"], "columns": schema["columns"]}
 
 
 class ApplyColumnOperationRequest(BaseModel):

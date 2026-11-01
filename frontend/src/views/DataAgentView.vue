@@ -20,6 +20,45 @@ const status = ref("");
 const threadId = ref(sessionStorage.getItem("datapilot-thread-id") || crypto.randomUUID());
 const preview = ref(null);
 const dashboard = ref(null);
+const workbookTab = ref("data");
+const cleaningPreview = ref(null);
+const cleaningBusy = ref(false);
+const workbookHistory = ref([]);
+
+async function previewCleaning(operation) {
+  cleaningBusy.value = true;
+  try {
+    const response = await fetch("/api/data/cleaning/preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ thread_id: threadId.value, operation }) });
+    if (!response.ok) throw new Error((await response.json()).detail || "Could not preview cleaning operation.");
+    cleaningPreview.value = await response.json();
+  } catch (error) { uploadStatus.value = error.message; }
+  finally { cleaningBusy.value = false; }
+}
+
+async function applyCleaning() {
+  if (!cleaningPreview.value) return;
+  cleaningBusy.value = true;
+  try {
+    const operation = cleaningPreview.value.operation;
+    const response = await fetch("/api/data/cleaning/apply", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ thread_id: threadId.value, operation, operation_id: cleaningPreview.value.operation_id }) });
+    if (!response.ok) throw new Error((await response.json()).detail || "Could not apply cleaning operation.");
+    const result = await response.json();
+    workbookHistory.value = [{ ...result, createdAt: new Date().toISOString(), operation }, ...workbookHistory.value];
+    localStorage.setItem("insightpilot-workbook-history", JSON.stringify(workbookHistory.value));
+    cleaningPreview.value = null;
+    uploadStatus.value = `Applied cleaning. Saved new workbook version ${result.filename}.`;
+    await loadSchema();
+  } catch (error) { uploadStatus.value = error.message; }
+  finally { cleaningBusy.value = false; }
+}
+
+function missingFor(column) {
+  return preview.value?.rows?.filter((row) => row[column] === null || row[column] === undefined || row[column] === "").length ?? 0;
+}
+
+function uniqueFor(column) {
+  return new Set((preview.value?.rows || []).map((row) => String(row[column] ?? ""))).size;
+}
 
 const prompts = [
   "Summarize the uploaded workbook.",
@@ -54,6 +93,7 @@ async function loadSchema() {
     schema.value = await getWorkbookSchema(threadId.value);
     preview.value = await getWorkbookPreview(threadId.value);
     dashboard.value = await getWorkbookDashboard(threadId.value);
+    try { workbookHistory.value = JSON.parse(localStorage.getItem("insightpilot-workbook-history") || "[]"); } catch { workbookHistory.value = []; }
   } catch {
     schema.value = null;
   }
@@ -183,7 +223,6 @@ onMounted(loadSchema);
       <section class="panel workbook-panel">
         <h2>Workbook</h2>
         <input type="file" accept=".xlsx,.xlsm" @change="selectFile" />
-        <label class="consent-row workbook-consent"><input v-model="consentGiven" type="checkbox" /> I consent to sending workbook content to the configured AI provider when I ask the agent to analyze it.</label>
         <button class="primary-button" :disabled="!file" @click="ingestWorkbook">Upload workbook</button>
         <p v-if="uploadStatus" class="helper">{{ uploadStatus }}</p>
         <div v-if="schema?.loaded" class="workbook-actions"><a class="secondary-button" :href="getWorkbookDownloadUrl(threadId)" download>Save Excel file</a><button class="danger-button" type="button" @click="removeWorkbook">Delete workbook</button></div>
@@ -194,7 +233,12 @@ onMounted(loadSchema);
         <p v-else class="helper">No workbook schema loaded yet.</p>
         <section v-if="preview?.loaded" class="workbook-preview">
           <div class="panel-heading"><div><h2>{{ schema.selected_sheet || "Excel sheet" }}</h2><p class="helper">{{ schema.filename }} · live workbook view</p></div><div class="sheet-actions"><span class="preview-count">{{ preview.total_rows }} rows</span><button class="refresh-button" type="button" :disabled="refreshing" @click="refreshWorkbook">↻ {{ refreshing ? "Refreshing" : "Refresh" }}</button></div></div>
-          <div class="table-scroll excel-table"><table><thead><tr class="column-letters"><th class="row-number"></th><th v-for="(column, columnIndex) in preview.columns" :key="column">{{ excelColumnLabel(columnIndex) }}</th></tr><tr><th class="row-number">#</th><th v-for="column in preview.columns" :key="column">{{ column }}</th></tr></thead><tbody><tr v-for="(row, index) in preview.rows" :key="index"><td class="row-number">{{ index + 1 }}</td><td v-for="column in preview.columns" :key="column">{{ row[column] ?? "" }}</td></tr></tbody></table></div>
+          <nav class="workbook-tabs" aria-label="Workbook views"><button v-for="tab in ['data','profile','cleaning','schema','history']" :key="tab" :class="{ active: workbookTab === tab }" @click="workbookTab = tab">{{ tab }}</button></nav>
+          <div v-if="workbookTab === 'data'" class="table-scroll excel-table"><table><thead><tr class="column-letters"><th class="row-number"></th><th v-for="(column, columnIndex) in preview.columns" :key="column">{{ excelColumnLabel(columnIndex) }}</th></tr><tr><th class="row-number">#</th><th v-for="column in preview.columns" :key="column">{{ column }}</th></tr></thead><tbody><tr v-for="(row, index) in preview.rows" :key="index"><td class="row-number">{{ index + 1 }}</td><td v-for="column in preview.columns" :key="column">{{ row[column] ?? "" }}</td></tr></tbody></table></div>
+          <div v-else-if="workbookTab === 'profile'" class="profile-table-wrap"><table class="profile-table"><thead><tr><th>Field</th><th>Type</th><th>Preview rows</th><th>Unique</th><th>Missing</th></tr></thead><tbody><tr v-for="column in preview.columns" :key="column"><td>{{ column }}</td><td>{{ schema.data_types?.[column] || 'unknown' }}</td><td>{{ preview.rows.length }}</td><td>{{ uniqueFor(column) }}</td><td>{{ missingFor(column) }}</td></tr></tbody></table><p class="helper">Profile counts reflect the rows currently loaded in the preview ({{ preview.rows.length }} rows).</p></div>
+          <div v-else-if="workbookTab === 'cleaning'" class="cleaning-workspace"><h3>Safe cleaning actions</h3><p class="helper">Preview the impact before applying. Applying saves a new workbook version.</p><div class="cleaning-buttons"><button class="secondary-button" :disabled="cleaningBusy" @click="previewCleaning('remove_duplicates')">Preview duplicate removal</button><button class="secondary-button" :disabled="cleaningBusy" @click="previewCleaning('drop_missing_rows')">Preview missing-row removal</button></div><div v-if="cleaningPreview" class="cleaning-preview"><b>{{ cleaningPreview.label }}</b><p>{{ cleaningPreview.rows_removed }} of {{ cleaningPreview.rows_before }} rows will be removed · {{ cleaningPreview.rows_after }} rows remain.</p><button class="primary-button" :disabled="cleaningBusy" @click="applyCleaning">{{ cleaningBusy ? 'Applying…' : 'Apply and save new version' }}</button></div></div>
+          <div v-else-if="workbookTab === 'schema'" class="schema-detail"><div v-for="column in preview.columns" :key="column"><b>{{ column }}</b><span>{{ schema.data_types?.[column] || 'unknown' }}</span><small>{{ uniqueFor(column) }} unique preview values · {{ missingFor(column) }} missing in preview</small></div></div>
+          <div v-else class="history-list"><div v-for="(version, index) in workbookHistory" :key="version.filename"><span>{{ index === 0 ? 'Current version' : 'Saved version' }}</span><b>{{ version.filename }}</b><small>{{ version.operation }} · {{ new Date(version.createdAt).toLocaleString() }}</small></div><p v-if="!workbookHistory.length" class="helper">No cleaning versions created in this browser session yet.</p></div>
         </section>
         <div v-if="dashboard?.loaded" class="workbook-kpis"><div v-for="kpi in dashboard.kpis" :key="kpi.label"><span>{{ kpi.label }}</span><b>{{ kpi.value }}</b></div></div>
       </section>
@@ -204,6 +248,7 @@ onMounted(loadSchema);
           <div class="assistant-title"><span class="assistant-orb">✦</span><div><h2>DataPilot Assistant</h2><span class="assistant-online"><i /> {{ assistantEnabled ? 'Online' : 'Paused' }}</span></div></div>
           <button class="assistant-toggle" :class="{ on: assistantEnabled }" type="button" @click="assistantEnabled = !assistantEnabled"><i /> {{ assistantEnabled ? 'Assistant on' : 'Assistant off' }}</button>
         </div>
+        <label class="consent-row workbook-consent" :class="{ 'consent-accepted': consentGiven }"><input v-model="consentGiven" type="checkbox" /><span><strong>Allow workbook analysis</strong><small>Required before InsightPilot Analyst sends workbook content to the configured AI provider.</small></span><b>{{ consentGiven ? 'Allowed' : 'Consent required' }}</b></label>
         <div v-if="!assistantEnabled" class="assistant-offline">Assistant is paused. Turn the toggle on to ask questions.</div>
         <div class="prompt-row">
           <button v-for="prompt in prompts" :key="prompt" class="prompt-button" :disabled="!assistantEnabled" @click="ask(prompt)">{{ prompt }}</button>
