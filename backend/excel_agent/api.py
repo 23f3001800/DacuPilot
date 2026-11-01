@@ -21,6 +21,7 @@ router = APIRouter(tags=["data agent"])
 MAX_EXCEL_BYTES = 20 * 1024 * 1024
 UPLOAD_DIRECTORY = Path(__file__).resolve().parents[1] / "data" / "uploads"
 CHART_DIRECTORY = UPLOAD_DIRECTORY / "charts"
+CHART_INDEX = CHART_DIRECTORY / "index.json"
 _chart_artifacts: dict[str, list[dict[str, Any]]] = {}
 
 
@@ -88,6 +89,20 @@ def _chart_svg(title: str, values: list[float]) -> str:
             f'<rect width="100%" height="100%" fill="#f8faff"/><text x="{pad}" y="28" fill="#17366f" font-family="Arial" font-size="18">{safe_title}</text>'
             f'<polyline points="{" ".join(points)}" fill="none" stroke="#2c67ee" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>'
             f'<line x1="{pad}" y1="{height-pad}" x2="{width-pad}" y2="{height-pad}" stroke="#cdd9ed"/></svg>')
+
+
+def _load_chart_index() -> dict[str, list[dict[str, Any]]]:
+    if not CHART_INDEX.is_file():
+        return {}
+    try:
+        return json.loads(CHART_INDEX.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _save_chart_index(index: dict[str, list[dict[str, Any]]]) -> None:
+    CHART_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    CHART_INDEX.write_text(json.dumps(index, ensure_ascii=False), encoding="utf-8")
 
 
 def _column_intent(message: str) -> tuple[str, str] | None:
@@ -166,6 +181,7 @@ async def generate_chart(payload: ChartRequest):
     artifact = {"artifact_id": artifact_id, "title": title, "column": column, "labels": [str(index + 1) for index in range(len(values))], "values": values, "url": f"/api/data/charts/{artifact_id}.svg"}
     _chart_artifacts.setdefault(payload.thread_id, []).append(artifact)
     _chart_artifacts[payload.thread_id] = _chart_artifacts[payload.thread_id][-20:]
+    _save_chart_index(_chart_artifacts)
     return artifact
 
 
@@ -174,6 +190,8 @@ async def list_charts(thread_id: str = Query("default", min_length=1)):
     context = agent.get_dataset_context(thread_id)
     if context is None:
         return {"charts": []}
+    if not _chart_artifacts:
+        _chart_artifacts.update(_load_chart_index())
     return {"charts": _chart_artifacts.get(thread_id, [])}
 
 
