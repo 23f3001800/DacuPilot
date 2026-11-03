@@ -382,8 +382,11 @@ def _write_workbook_version(context: Any, frame: Any) -> Path:
     if sheet.max_row >= data_start:
         sheet.delete_rows(data_start, sheet.max_row - data_start + 1)
 
+    original_columns = list(context.schema.get("columns", [])) if context else []
     for column_index, column_name in enumerate(frame.columns, start=1):
         sheet.cell(row=header_row, column=column_index, value=str(column_name))
+    for column_index in range(len(frame.columns) + 1, len(original_columns) + 1):
+        sheet.cell(row=header_row, column=column_index).value = None
     for row_index, values in enumerate(frame.itertuples(index=False, name=None), start=data_start):
         for column_index, value in enumerate(values, start=1):
             if value is not None:
@@ -414,15 +417,30 @@ def _workbook_revision(context: Any) -> str:
     return f"{file_path}::{context.schema.get('selected_sheet') or ''}"
 
 
-def _column_intent(message: str) -> tuple[str, str] | None:
-    match = re.search(
-        r"(?:add|create)\s+(?:a\s+)?(?:new\s+)?column\s+['\"]?([^'\"=\n]+?)['\"]?\s+(?:with|using|formula|=)\s*(.+)$",
+def _column_intent(message: str) -> tuple[str, str, str | None] | None:
+    match = re.match(
+        r"\s*(?P<verb>add|create|insert|modify|update|change|edit|delete|remove)"
+        r"\s+(?:(?:a|an|the|new|existing)\s+)*(?:calculated\s+)?column\b(?P<rest>.*)$",
         message,
         re.IGNORECASE | re.DOTALL,
     )
     if not match:
         return None
-    return match.group(1).strip(), match.group(2).strip().rstrip(".")
+    remainder = match.group("rest").strip()
+    separator = re.search(r"\s+(?:using|with|formula|to|as)\s+|\s*[:=]\s*", remainder, re.IGNORECASE)
+    if separator:
+        column_name = remainder[:separator.start()].strip().strip("\"'")
+        formula = remainder[separator.end():].strip().rstrip(".") or None
+    else:
+        column_name = remainder.strip().strip("\"'")
+        formula = None
+    if not column_name:
+        return None
+    verb = match.group("verb").casefold()
+    operation = "add" if verb in {"add", "create", "insert"} else "delete" if verb in {"delete", "remove"} else "update"
+    if operation != "delete" and not formula:
+        return None
+    return operation, column_name, formula
 
 
 def _is_unparsed_column_change(message: str) -> bool:
@@ -583,6 +601,7 @@ async def preview_column_operation(payload: ColumnOperationRequest):
             payload.column_name,
             payload.formula,
             _workbook_revision(context),
+            payload.operation,
         )
     except (SyntaxError, ValueError) as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
@@ -635,7 +654,13 @@ async def apply_cleaning(payload: ApplyCleaningRequest):
         })
     version_path = await run_in_threadpool(_write_workbook_version, previous_context, updated)
     version_filename = previous_context.schema.get("filename", version_path.name) if previous_context else version_path.name
-    schema = await run_in_threadpool(agent.set_dataset, str(version_path), version_filename, payload.thread_id)
+    schema = await run_in_threadpool(
+        agent.set_dataset,
+        str(version_path),
+        version_filename,
+        payload.thread_id,
+        previous_context.schema.get("selected_sheet"),
+    )
     _save_workbook_history()
     return {"versioned": True, "operation": operation, "filename": version_filename,
             "total_rows": schema["total_rows"], "columns": schema["columns"]}
@@ -682,7 +707,7 @@ async def apply_column_operation(payload: ApplyColumnOperationRequest):
     if previous_context is None:
         raise HTTPException(status_code=404, detail="The workbook session ended before this change was applied.")
     try:
-        column_name, updated, formula = await run_in_threadpool(
+        column_name, updated, formula, operation = await run_in_threadpool(
             apply_operation, payload.operation_id, payload.thread_id, _workbook_revision(previous_context)
         )
     except ValueError as error:
@@ -691,7 +716,11 @@ async def apply_column_operation(payload: ApplyColumnOperationRequest):
     version_path = await run_in_threadpool(_write_workbook_version, previous_context, updated)
     version_filename = previous_context.schema.get("filename", version_path.name) if previous_context else version_path.name
     schema = await run_in_threadpool(
-        agent.set_dataset, str(version_path), version_filename, payload.thread_id
+        agent.set_dataset,
+        str(version_path),
+        version_filename,
+        payload.thread_id,
+        previous_context.schema.get("selected_sheet"),
     )
     if previous_context and previous_context.file_path and Path(previous_context.file_path).is_file():
         _ensure_workbook_history_loaded()
@@ -699,11 +728,11 @@ async def apply_column_operation(payload: ApplyColumnOperationRequest):
             "file_path": previous_context.file_path,
             "filename": previous_context.schema.get("filename", Path(previous_context.file_path).name),
             "sheet_name": previous_context.schema.get("selected_sheet"),
-            "operation": f"Add column: {column_name}",
+            "operation": f"{operation.title()} column: {column_name}",
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
         _save_workbook_history()
-    return {"versioned": True, "filename": version_filename, "column_name": column_name,
+    return {"versioned": True, "operation": operation, "filename": version_filename, "column_name": column_name,
             "formula": formula, "total_rows": schema["total_rows"], "columns": schema["columns"]}
 
 
@@ -922,15 +951,24 @@ async def sse_event_generator(user_message: str, thread_id: str):
 
     intent = _column_intent(user_message)
     if intent:
-        column_name, formula = intent
+        operation, column_name, formula = intent
         context = agent.get_dataset_context(thread_id)
         yield _sse({"event": "status", "text": f"Preparing column {column_name}..."})
         yield _sse({"event": "tool_start", "tool": "safe_column_operation"})
         try:
-            preview = await run_in_threadpool(preview_operation, thread_id, context.data_frame, column_name, formula)
+            preview = await run_in_threadpool(
+                preview_operation,
+                thread_id,
+                context.data_frame,
+                column_name,
+                formula,
+                _workbook_revision(context),
+                operation,
+            )
             yield _sse({"event": "change_preview", "preview": preview})
             yield _sse({"event": "status", "text": "Preview ready · waiting for your approval"})
-            yield _sse({"event": "token", "text": f"I prepared a preview for `{column_name}` using `{formula}`. Review the sample rows, then choose Apply to save a new workbook version. The current workbook is unchanged until you approve it."})
+            formula_text = f" using `{formula}`" if formula else ""
+            yield _sse({"event": "token", "text": f"I prepared a preview to {operation} column `{column_name}`{formula_text}. Review the before and after values, then apply it to save a new workbook version. The current workbook is unchanged until you approve it."})
             validation = preview.get("validation", {})
             yield _sse({
                 "event": "evaluation",

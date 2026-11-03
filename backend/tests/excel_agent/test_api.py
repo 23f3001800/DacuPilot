@@ -347,8 +347,16 @@ class ExcelApiTests(unittest.TestCase):
         )
         intent = api._column_intent(message)
         self.assertIsNotNone(intent)
-        self.assertEqual(intent[0], "Stock Variance")
-        self.assertIn("Hand-In-\nStock", intent[1])
+        self.assertEqual(intent[0], "add")
+        self.assertEqual(intent[1], "Stock Variance")
+        self.assertIn("Hand-In-\nStock", intent[2])
+
+    def test_existing_column_update_and_delete_intents_are_parsed(self):
+        update = api._column_intent("Update existing column Profit using df['Revenue'] - df['Cost']")
+        delete = api._column_intent("Delete column Legacy Margin")
+
+        self.assertEqual(update, ("update", "Profit", "df['Revenue'] - df['Cost']"))
+        self.assertEqual(delete, ("delete", "Legacy Margin", None))
 
     def test_unparsed_dataframe_assignment_is_stopped_without_local_code(self):
         message = "df['Stock_Variance'] = df['Computed'] - df['Actual']"

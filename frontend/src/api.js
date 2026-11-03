@@ -13,13 +13,23 @@ export async function getHealth() {
   return response.json();
 }
 
-export async function getWorkbookSchema(threadId = "default") {
+export async function getWorkbookSchema(threadId) {
   const response = await fetch(`/api/data/schema?thread_id=${encodeURIComponent(threadId)}`);
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
 }
 
-export async function uploadWorkbook(file, threadId = "default") {
+export async function selectWorkbookSheet(threadId, sheetName) {
+  const response = await fetch("/api/data/sheets/select", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ thread_id: threadId, sheet_name: sheetName }),
+  });
+  if (!response.ok) throw new Error(await readError(response));
+  return response.json();
+}
+
+export async function uploadWorkbook(file, threadId) {
   const body = new FormData();
   body.set("file", file);
   body.set("thread_id", threadId);
@@ -28,45 +38,45 @@ export async function uploadWorkbook(file, threadId = "default") {
   return response.json();
 }
 
-export async function getWorkbookPreview(threadId = "default") {
-  const response = await fetch(`/api/data/preview?thread_id=${encodeURIComponent(threadId)}`);
+export async function getWorkbookPreview(threadId, offset = 0, limit = 50) {
+  const response = await fetch(`/api/data/preview?thread_id=${encodeURIComponent(threadId)}&offset=${offset}&limit=${limit}`);
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
 }
 
-export async function getWorkbookDashboard(threadId = "default") {
+export async function getWorkbookDashboard(threadId) {
   const response = await fetch(`/api/data/dashboard?thread_id=${encodeURIComponent(threadId)}`);
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
 }
 
-export async function generateWorkbookChart(threadId = "default", column = null) {
-  const response = await fetch("/api/data/charts/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ thread_id: threadId, column }) });
+export async function generateWorkbookChart(threadId, column = null, categoryColumn = null) {
+  const response = await fetch("/api/data/charts/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ thread_id: threadId, column, category_column: categoryColumn }) });
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
 }
 
-export async function getGeneratedCharts(threadId = "default") {
+export async function getGeneratedCharts(threadId) {
   const response = await fetch(`/api/data/charts?thread_id=${encodeURIComponent(threadId)}`);
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
 }
 
-export function getWorkbookDownloadUrl(threadId = "default") {
+export function getWorkbookDownloadUrl(threadId) {
   return `/api/data/workbook/download?thread_id=${encodeURIComponent(threadId)}`;
 }
 
-export async function deleteWorkbook(threadId = "default") {
+export async function deleteWorkbook(threadId) {
   const response = await fetch(`/api/data/workbook?thread_id=${encodeURIComponent(threadId)}`, { method: "DELETE" });
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
 }
 
-export async function previewColumnOperation({ threadId, columnName, formula }) {
+export async function previewColumnOperation({ threadId, columnName, formula, operation = "add" }) {
   const response = await fetch("/api/data/column/preview", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ thread_id: threadId, column_name: columnName, formula }),
+    body: JSON.stringify({ thread_id: threadId, column_name: columnName, formula, operation }),
   });
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
@@ -82,14 +92,16 @@ export async function applyColumnOperation({ threadId, operationId }) {
   return response.json();
 }
 
-export async function streamAssistant({ message, threadId, mode = "data-agent", onEvent }) {
+export async function streamAssistant({ message, threadId, mode = "data-agent", processingConsent = false, onEvent }) {
   const endpoint = mode === "document-assistant"
     ? "/api/document-assistant/chat/stream"
     : "/api/chat/stream";
+  const body = { message, thread_id: threadId };
+  if (mode !== "document-assistant") body.processing_consent = processingConsent === true;
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, thread_id: threadId }),
+    body: JSON.stringify(body),
   });
   if (!response.ok || !response.body) throw new Error(await readError(response));
 
@@ -107,7 +119,9 @@ export async function streamAssistant({ message, threadId, mode = "data-agent", 
       if (!line) continue;
       const payload = line.slice(6);
       if (payload === "[DONE]") return;
-      try { onEvent(JSON.parse(payload)); } catch { /* Ignore malformed SSE frames. */ }
+      let event;
+      try { event = JSON.parse(payload); } catch { continue; }
+      onEvent(event);
     }
     if (done) return;
   }
@@ -130,7 +144,9 @@ export async function streamWorkflow({ threadId, onEvent }) {
       if (!line) continue;
       const payload = line.slice(6);
       if (payload === "[DONE]") return;
-      try { onEvent(JSON.parse(payload)); } catch { /* Ignore malformed SSE frames. */ }
+      let event;
+      try { event = JSON.parse(payload); } catch { continue; }
+      onEvent(event);
     }
     if (done) return;
   }
