@@ -34,6 +34,16 @@ class SandboxTests(unittest.TestCase):
             output = self.repl.execute_code(snippet)
             self.assertIn("blocked by sandbox safety policies", output)
 
+    def test_blocks_dunder_and_file_export_access(self):
+        for snippet in ("print(df.__class__)", "df.to_csv('/tmp/leak.csv')"):
+            output = self.repl.execute_code(snippet)
+            self.assertIn("blocked by sandbox safety policies", output)
+
+    def test_does_not_mutate_the_source_dataframe(self):
+        self.repl.execute_code("df['quantity'] = 0")
+
+        self.assertEqual(self.repl.data_frame["quantity"].tolist(), [2, 5])
+
 
 if __name__ == "__main__":
     unittest.main()
