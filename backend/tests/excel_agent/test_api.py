@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
-from langchain_core.messages import AIMessageChunk, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, ToolMessage
 from openpyxl import Workbook
 
 from excel_agent import agent, api
@@ -339,6 +339,66 @@ class ExcelApiTests(unittest.TestCase):
         self.assertIn("timed out", payload.assistant_message.casefold())
         self.assertIn("workbook is unchanged", payload.assistant_message.casefold())
         self.assertIsNone(payload.evaluation_metrics.confidence_score)
+
+    def test_successful_workbook_evidence_gets_a_nonzero_heuristic_score(self):
+        tool_message = ToolMessage(
+            content="7",
+            tool_call_id="call-result",
+            name="execute_pandas_code",
+            additional_kwargs={
+                "rows_available": 2,
+                "columns_referenced": 1,
+                "columns_available": 2,
+                "referenced_columns": ["quantity"],
+                "result_validated": False,
+                "non_empty_result": True,
+            },
+        )
+        result = asyncio.run(
+            agent.data_evaluation_node(
+                {
+                    "messages": [
+                        HumanMessage(content="What is the quantity total?"),
+                        tool_message,
+                        AIMessage(content="The total is 7."),
+                    ],
+                    "thread_id": TEST_THREAD_ID,
+                    "tool_rounds": 1,
+                }
+            )
+        )
+
+        metrics = result["structured_response"].evaluation_metrics
+        self.assertGreater(metrics.confidence_score, 0)
+        self.assertLessEqual(metrics.confidence_score, 0.99)
+        self.assertGreater(metrics.data_coverage_percentage, 0)
+        self.assertIn("not a calibrated probability", metrics.evaluation_rationale)
+
+    def test_empty_tool_output_is_not_given_a_confidence_score(self):
+        tool_message = ToolMessage(
+            content="Code executed successfully with no print output.",
+            tool_call_id="call-empty",
+            name="execute_pandas_code",
+            additional_kwargs={
+                "rows_available": 2,
+                "columns_referenced": 1,
+                "columns_available": 2,
+                "non_empty_result": False,
+            },
+        )
+        result = asyncio.run(
+            agent.data_evaluation_node(
+                {
+                    "messages": [HumanMessage(content="Summarize this workbook"), tool_message],
+                    "thread_id": TEST_THREAD_ID,
+                    "tool_rounds": 1,
+                }
+            )
+        )
+
+        payload = result["structured_response"]
+        self.assertIsNone(payload.evaluation_metrics.confidence_score)
+        self.assertIn("no printable result", payload.assistant_message)
 
     def test_multiline_column_formula_is_parsed_for_preview(self):
         message = (

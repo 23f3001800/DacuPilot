@@ -324,7 +324,11 @@ async def tool_execution_node(state: AgentGraphState):
                         code = CodeExecutionInput(**raw_args).code
                         output = await asyncio.to_thread(context.sandbox.execute_code, code)
                         evidence = _code_evidence(code, context)
-                        evidence["non_empty_result"] = bool(output.strip()) and not output.startswith("ERROR")
+                        evidence["non_empty_result"] = (
+                            bool(output.strip())
+                            and output.strip() != "Code executed successfully with no print output."
+                            and not output.lstrip().casefold().startswith(("error:", "error "))
+                        )
             elif tool_name == "web_search_lookup":
                 evidence = {"evidence_type": "web"}
                 search_response = await asyncio.to_thread(
@@ -446,13 +450,23 @@ async def data_evaluation_node(state: AgentGraphState):
     elif "execute_pandas_code" in tool_names:
         pandas_items = [item for item in evidence_items if item.get("rows_available") is not None]
         evidence = pandas_items[-1] if pandas_items else {}
-        row_factor = min(1.0, evidence.get("rows_available", 0) / 100.0)
-        column_factor = min(1.0, evidence.get("columns_referenced", 0) / max(1, evidence.get("columns_available", 1)))
-        result_factor = 1.0 if evidence.get("non_empty_result") else 0.0
-        validation_factor = 1.0 if evidence.get("result_validated") else 0.0
-        conf = round(min(0.99, 0.35 + (0.25 * row_factor) + (0.20 * column_factor) + (0.15 * result_factor) + (0.05 * validation_factor)), 2)
-        cov = round(100 * ((0.6 * row_factor) + (0.4 * column_factor)), 1)
-        rationale = "Heuristic confidence from successful workbook execution, non-empty output, referenced-column coverage, and explicit assertions; it is not a calibrated probability."
+        if not evidence.get("non_empty_result"):
+            assistant_message = (
+                "The calculation ran but returned no printable result, so I cannot "
+                "give a verified answer. Ask for a specific summary or field value."
+            )
+            content_str = assistant_message
+            conf = None
+            cov = 0.0
+            rationale = "Not scored because workbook execution returned no printable result."
+        else:
+            row_factor = min(1.0, evidence.get("rows_available", 0) / 100.0)
+            column_factor = min(1.0, evidence.get("columns_referenced", 0) / max(1, evidence.get("columns_available", 1)))
+            result_factor = 1.0
+            validation_factor = 1.0 if evidence.get("result_validated") else 0.0
+            conf = round(min(0.99, 0.35 + (0.25 * row_factor) + (0.20 * column_factor) + (0.15 * result_factor) + (0.05 * validation_factor)), 2)
+            cov = round(100 * ((0.6 * row_factor) + (0.4 * column_factor)), 1)
+            rationale = "Heuristic confidence from successful workbook execution, non-empty output, referenced-column coverage, and explicit assertions; it is not a calibrated probability."
     elif "web_search_lookup" in tool_names:
         conf = 0.60
         cov = 0.0
