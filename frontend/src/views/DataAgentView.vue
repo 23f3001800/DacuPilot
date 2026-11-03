@@ -328,7 +328,9 @@ async function ask(text = question.value) {
     }
     if (wantsChart && current.chart) {
       current.text = current.text.replace(/```[\s\S]*?```/g, "").replace(/I couldn’t render an image[\s\S]*?locally\./gi, "").trim();
-      if (!current.text || /ready-to-run code|matplotlib|plot locally/i.test(current.text)) {
+      if (/I couldn’t complete that workbook operation|I couldn't complete that workbook operation/i.test(current.text)) {
+        current.text = "The written calculation did not complete, so I can’t verify its totals. This chart was generated directly from the active workbook.";
+      } else if (!current.text || /ready-to-run code|matplotlib|plot locally/i.test(current.text)) {
         current.text = "Generated this chart from the active workbook. It is also saved in Dashboards.";
       }
       let existing = [];

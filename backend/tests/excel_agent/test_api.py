@@ -336,9 +336,9 @@ class ExcelApiTests(unittest.TestCase):
             )
         )
         payload = result["structured_response"]
-        self.assertIn("timed out", payload.assistant_message.casefold())
-        self.assertIn("workbook is unchanged", payload.assistant_message.casefold())
-        self.assertIsNone(payload.evaluation_metrics.confidence_score)
+        self.assertIn("timed out", payload["assistant_message"].casefold())
+        self.assertIn("workbook is unchanged", payload["assistant_message"].casefold())
+        self.assertIsNone(payload["evaluation_metrics"]["confidence_score"])
 
     def test_successful_workbook_evidence_gets_a_nonzero_heuristic_score(self):
         tool_message = ToolMessage(
@@ -368,11 +368,11 @@ class ExcelApiTests(unittest.TestCase):
             )
         )
 
-        metrics = result["structured_response"].evaluation_metrics
-        self.assertGreater(metrics.confidence_score, 0)
-        self.assertLessEqual(metrics.confidence_score, 0.99)
-        self.assertGreater(metrics.data_coverage_percentage, 0)
-        self.assertIn("not a calibrated probability", metrics.evaluation_rationale)
+        metrics = result["structured_response"]["evaluation_metrics"]
+        self.assertGreater(metrics["confidence_score"], 0)
+        self.assertLessEqual(metrics["confidence_score"], 0.99)
+        self.assertGreater(metrics["data_coverage_percentage"], 0)
+        self.assertIn("not a calibrated probability", metrics["evaluation_rationale"])
 
     def test_empty_tool_output_is_not_given_a_confidence_score(self):
         tool_message = ToolMessage(
@@ -397,8 +397,8 @@ class ExcelApiTests(unittest.TestCase):
         )
 
         payload = result["structured_response"]
-        self.assertIsNone(payload.evaluation_metrics.confidence_score)
-        self.assertIn("no printable result", payload.assistant_message)
+        self.assertIsNone(payload["evaluation_metrics"]["confidence_score"])
+        self.assertIn("no printable result", payload["assistant_message"])
 
     def test_multiline_column_formula_is_parsed_for_preview(self):
         message = (
