@@ -48,6 +48,71 @@ class ApplicationKnowledgeBaseTests(unittest.TestCase):
                 f"Missing required policy in PDF: {policy}",
             )
 
+    def test_runtime_knowledge_uses_one_privacy_source_and_keeps_document_guidance(self):
+        sections = document.KNOWLEDGE_SECTIONS
+        self.assertFalse(
+            any(
+                Path(section.source).name == "application_knowledge_base.pdf"
+                and section.section.casefold().startswith("privacy policy")
+                for section in sections
+            )
+        )
+        self.assertTrue(any(Path(section.source).name == "privacy_policy.pdf" for section in sections))
+        self.assertTrue(
+            any(
+                Path(section.source).name == "application_knowledge_base.pdf"
+                and "confidence" in section.section.casefold()
+                for section in sections
+            )
+        )
+
+    def test_workbook_questions_are_handed_to_data_agent_before_llm_call(self):
+        for question in (
+            "Add a new column Profit Margin using profit divided by revenue",
+            "Create a chart from my data",
+            "df['Stock_Variance'] = df['Computed'] - df['Actual']",
+        ):
+            with self.subTest(question=question):
+                result = document.document_assistant_node(
+                    {
+                        "messages": [HumanMessage(content=question)],
+                        "session_id": "document-scope-test",
+                    }
+                )
+                self.assertEqual(result["last_evaluation"]["scope"], "handoff")
+                self.assertIsNone(result["last_evaluation"]["confidence_score"])
+                self.assertIn("Data Analysis Agent", result["messages"][0].content)
+
+    def test_general_and_company_help_questions_are_not_misrouted(self):
+        self.assertFalse(document._is_data_analysis_request("What is 2 + 2?"))
+        self.assertFalse(document._is_data_analysis_request("What is the company leave policy?"))
+        self.assertFalse(document._requires_document_evidence("What is the capital of Japan?"))
+        self.assertTrue(document._requires_document_evidence("What happens when confidence is low?"))
+
+    def test_general_answer_ignores_accidental_handbook_matches(self):
+        class MockGeneralLLM:
+            messages = None
+
+            def invoke(self, messages):
+                self.messages = messages
+                return AIMessage(content="Tokyo is the capital of Japan.")
+
+        model = MockGeneralLLM()
+        with patch.object(document, "get_llm", return_value=model):
+            result = document.document_assistant_node(
+                {
+                    "messages": [HumanMessage(content="What is the capital of Japan?")],
+                    "session_id": "general-question-test",
+                }
+            )
+
+        self.assertEqual(result["last_scope"], "general")
+        self.assertEqual(result["current_topic"], "General assistance")
+        self.assertEqual(result["last_evaluation"]["scope"], "general")
+        self.assertIsNone(result["last_evaluation"]["confidence_score"])
+        self.assertNotIn("nimbus_orchard_handbook.pdf", model.messages[1].content)
+        self.assertIn("Tokyo is the capital", result["messages"][-1].content)
+
     def test_chroma_semantic_retrieval_and_metadata_for_low_confidence_query(self):
         """Verify query 'What happens when confidence is low?' retrieves confidence/review policies via ChromaDB."""
         sections = load_knowledge_base(KNOWLEDGE_BASE_DIR)

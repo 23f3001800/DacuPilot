@@ -3,17 +3,32 @@
 The feature router is mounted by the root application at
 `/api/document-assistant`.
 
+## Assistant identity and scope
+
+This assistant is the company Document and Help Assistant. It can answer
+ordinary general questions and provide evidence-grounded help from the company
+handbook, approved company policies, and the document-processing guide.
+Workbook analysis, charts, dashboards, and workbook edits belong to the Data
+Analysis Agent. The assistant hands those requests off and never presents
+document-processing guidance as instructions for workbook analytics or claims
+that it changed a workbook.
+
 ## Knowledge boundaries
 
 - Application knowledge sources are loaded at startup from
   `document_assistance/knowledge_base/`. Add approved PDF, DOCX, and UTF-8 TXT
   files there; citations use their relative path and section/page.
+- `knowledge_base/README.md` records the source roles and update rules. Markdown
+  files are documentation only and are not indexed by the loader.
+- The standalone `privacy_policy.pdf` is the canonical privacy source. The
+  duplicate privacy section in `application_knowledge_base.pdf` remains in the
+  source PDF for provenance but is excluded from runtime retrieval.
 - User uploads are indexed only in process memory and only under the supplied
   conversation UUID. They are never added to the application knowledge source.
-- Application questions retrieve application sections only. Questions about a
-  user's file retrieve only that session's uploads. Explicit comparisons may
-  retrieve both; application knowledge is marked authoritative and takes
-  precedence over uploaded evidence.
+- Company and document-processing questions retrieve approved application
+  sections only. Questions about a user's file retrieve only that session's
+  uploads. Explicit comparisons may retrieve both; company knowledge is marked
+  authoritative and takes precedence over uploaded evidence.
 - Uploaded text is treated as untrusted evidence, never as instructions.
 - Answers are limited to retrieved evidence. Citation IDs from the model are
   checked and converted to citations with the source filename and section/page.

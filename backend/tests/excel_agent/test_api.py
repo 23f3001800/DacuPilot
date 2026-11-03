@@ -7,12 +7,16 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
-from langchain_core.messages import AIMessageChunk
+from langchain_core.messages import AIMessageChunk, HumanMessage, ToolMessage
 from openpyxl import Workbook
 
 from excel_agent import agent, api
+from excel_agent.agent import DatasetContext
 from excel_agent.agent import get_llm
+from excel_agent.engine import PythonSandboxREPL
 from main import app
+
+TEST_THREAD_ID = "00000000-0000-4000-8000-000000000001"
 
 
 class FakeGraph:
@@ -43,11 +47,8 @@ class FakeGraph:
 
 class ExcelApiTests(unittest.TestCase):
     def setUp(self):
-        self._orig_df = agent.df
-        self._orig_schema = agent.schema_context
-        self._orig_repl = agent.sandbox_repl
+        self._orig_context = agent._datasets.get(TEST_THREAD_ID)
         import pandas as pd
-        from excel_agent.engine import PythonSandboxREPL
         self.dummy_df = pd.DataFrame({"item": ["pen"], "quantity": [10]})
         self.dummy_schema = {
             "filename": "sample.xlsx",
@@ -56,27 +57,47 @@ class ExcelApiTests(unittest.TestCase):
             "data_types": {"item": "str", "quantity": "int64"},
             "summary": {},
         }
-        agent.df = self.dummy_df
-        agent.schema_context = self.dummy_schema
-        agent.sandbox_repl = PythonSandboxREPL(self.dummy_df)
+        agent._datasets[TEST_THREAD_ID] = DatasetContext(
+            self.dummy_df, self.dummy_schema, PythonSandboxREPL(self.dummy_df)
+        )
 
     def tearDown(self):
-        agent.df = self._orig_df
-        agent.schema_context = self._orig_schema
-        agent.sandbox_repl = self._orig_repl
+        agent._datasets.pop(TEST_THREAD_ID, None)
+        if self._orig_context is not None:
+            agent._datasets[TEST_THREAD_ID] = self._orig_context
 
     def test_stream_triggers_guardrail_when_no_workbook_is_loaded(self):
-        agent.df = None
-        agent.schema_context = None
-        agent.sandbox_repl = None
+        agent._datasets.pop(TEST_THREAD_ID, None)
         response = TestClient(app).post(
             "/api/chat/stream",
-            json={"message": "How much stock?", "thread_id": "test-session"},
+            json={"message": "How much stock?", "thread_id": TEST_THREAD_ID},
         )
         self.assertEqual(response.status_code, 200)
         self.assertIn("Workbook Required", response.text)
         self.assertIn("No Excel workbook has been uploaded yet", response.text)
         self.assertTrue(response.text.endswith("data: [DONE]\n\n"))
+
+    def test_dataset_contexts_are_isolated_by_workspace_id(self):
+        import pandas as pd
+        other_id = "00000000-0000-4000-8000-000000000002"
+        other_frame = pd.DataFrame({"secret": ["other workspace"]})
+        agent._datasets[other_id] = DatasetContext(
+            other_frame, {"columns": ["secret"]}, PythonSandboxREPL(other_frame)
+        )
+        try:
+            self.assertEqual(agent.get_dataset_context(TEST_THREAD_ID).schema["filename"], "sample.xlsx")
+            self.assertEqual(agent.get_dataset_context(other_id).data_frame.iloc[0, 0], "other workspace")
+        finally:
+            agent._datasets.pop(other_id, None)
+
+    def test_upload_rejects_the_shared_default_session(self):
+        response = TestClient(app).post(
+            "/api/data/upload",
+            data={"thread_id": "default"},
+            files={"file": ("sample.xlsx", b"not a workbook", "application/octet-stream")},
+        )
+
+        self.assertEqual(response.status_code, 422)
 
     def test_homepage_serves_inventory_chat_ui(self):
         response = TestClient(app).get("/")
@@ -107,7 +128,7 @@ class ExcelApiTests(unittest.TestCase):
         with patch.object(api.agent, "compiled_graph", graph):
             response = TestClient(app).post(
                 "/api/chat/stream",
-                json={"message": "How much stock?", "thread_id": "test-session"},
+                json={"message": "How much stock?", "thread_id": TEST_THREAD_ID},
             )
 
         self.assertEqual(response.status_code, 200)
@@ -123,7 +144,7 @@ class ExcelApiTests(unittest.TestCase):
         self.assertIn('"text": "Inventory answer"', events)
         self.assertIn('"event": "metrics_evaluation"', events)
         self.assertTrue(events.endswith("data: [DONE]\n\n"))
-        self.assertEqual(graph.config["configurable"]["thread_id"], "test-session")
+        self.assertEqual(graph.config["configurable"]["thread_id"], TEST_THREAD_ID)
         self.assertEqual(graph.version, "v2")
 
     def test_reasoning_node_aggregates_explicit_model_stream(self):
@@ -137,7 +158,7 @@ class ExcelApiTests(unittest.TestCase):
                 return StreamingRunnable()
 
         with patch.object(agent, "get_llm", return_value=FakeLLM()):
-            result = asyncio.run(agent.analyst_reasoning_node({"messages": []}))
+            result = asyncio.run(agent.analyst_reasoning_node({"messages": [], "thread_id": TEST_THREAD_ID}))
 
         self.assertEqual(result["messages"][0].content, "Live answer")
 
@@ -150,7 +171,7 @@ class ExcelApiTests(unittest.TestCase):
         with patch.object(api.agent, "compiled_graph", FailingGraph()):
             response = TestClient(app).post(
                 "/api/chat/stream",
-                json={"message": "How much stock?", "thread_id": "test-session"},
+                    json={"message": "How much stock?", "thread_id": TEST_THREAD_ID},
             )
 
         self.assertEqual(response.status_code, 200)
@@ -216,6 +237,7 @@ class ExcelApiTests(unittest.TestCase):
             ):
                 response = TestClient(app).post(
                     "/api/data/upload",
+                    data={"thread_id": TEST_THREAD_ID},
                     files={
                         "file": (
                             "products.xlsx",
@@ -238,7 +260,7 @@ class ExcelApiTests(unittest.TestCase):
         sheet.append(["CUSTOM_FILE_SENT", 37])
         content = BytesIO()
         workbook.save(content)
-        original_dataset = agent.df, agent.schema_context, agent.sandbox_repl
+        original_context = agent._datasets.get(TEST_THREAD_ID)
 
         try:
             with tempfile.TemporaryDirectory() as temporary_directory:
@@ -249,6 +271,7 @@ class ExcelApiTests(unittest.TestCase):
                 ):
                     response = TestClient(app).post(
                         "/api/data/upload",
+                        data={"thread_id": TEST_THREAD_ID},
                         files={
                             "file": (
                                 "custom-workbook.xlsx",
@@ -257,7 +280,7 @@ class ExcelApiTests(unittest.TestCase):
                             )
                         },
                     )
-                    schema_response = TestClient(app).get("/api/data/schema")
+                    schema_response = TestClient(app).get(f"/api/data/schema?thread_id={TEST_THREAD_ID}")
 
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json()["columns"], ["UploadedProduct", "Units"])
@@ -268,13 +291,15 @@ class ExcelApiTests(unittest.TestCase):
                 [{"UploadedProduct": "CUSTOM_FILE_SENT", "Units": 37}],
             )
             self.assertEqual(
-                agent.sandbox_repl.execute_code(
+                agent.get_dataset_context(TEST_THREAD_ID).sandbox.execute_code(
                     "print(df['UploadedProduct'].iloc[0])"
                 ).strip(),
                 "CUSTOM_FILE_SENT",
             )
         finally:
-            agent.df, agent.schema_context, agent.sandbox_repl = original_dataset
+            agent._datasets.pop(TEST_THREAD_ID, None)
+            if original_context is not None:
+                agent._datasets[TEST_THREAD_ID] = original_context
 
     def test_excel_upload_rejects_non_excel_file(self):
         response = TestClient(app).post(
@@ -284,6 +309,60 @@ class ExcelApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("Excel workbook", response.json()["detail"])
+
+    def test_failed_tool_call_is_not_retried_or_scored_as_success(self):
+        tool_message = ToolMessage(
+            content="ERROR: Execution timed out after 10 seconds.",
+            tool_call_id="call-timeout",
+            name="execute_pandas_code",
+        )
+        self.assertTrue(agent._tool_execution_failed(tool_message.content))
+        self.assertEqual(
+            agent.route_after_tool_execution(
+                {"messages": [HumanMessage(content="Add a computed column"), tool_message]}
+            ),
+            "run_evaluation",
+        )
+
+        result = asyncio.run(
+            agent.data_evaluation_node(
+                {
+                    "messages": [
+                        HumanMessage(content="Add a computed column"),
+                        tool_message,
+                    ],
+                    "thread_id": TEST_THREAD_ID,
+                }
+            )
+        )
+        payload = result["structured_response"]
+        self.assertIn("timed out", payload.assistant_message.casefold())
+        self.assertIn("workbook is unchanged", payload.assistant_message.casefold())
+        self.assertIsNone(payload.evaluation_metrics.confidence_score)
+
+    def test_multiline_column_formula_is_parsed_for_preview(self):
+        message = (
+            "Add column Stock Variance using df['Computed_Closing_Stock'] - "
+            "df['Hand-In-\nStock']"
+        )
+        intent = api._column_intent(message)
+        self.assertIsNotNone(intent)
+        self.assertEqual(intent[0], "Stock Variance")
+        self.assertIn("Hand-In-\nStock", intent[1])
+
+    def test_unparsed_dataframe_assignment_is_stopped_without_local_code(self):
+        message = "df['Stock_Variance'] = df['Computed'] - df['Actual']"
+
+        async def collect_events():
+            return "".join(
+                [event async for event in api.sse_event_generator(message, TEST_THREAD_ID)]
+            )
+
+        response = asyncio.run(collect_events())
+        self.assertIn("The workbook is unchanged", response)
+        self.assertIn("preview", response)
+        self.assertIn("local Python", response)
+        self.assertTrue(response.endswith("data: [DONE]\n\n"))
 
     def test_missing_gemini_key_fails_with_actionable_error(self):
         with patch.dict(
