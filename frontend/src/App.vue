@@ -25,6 +25,7 @@ const activeRoute = ref("home");
 const dataAgentQuestion = ref("");
 const globalQuery = ref("");
 const online = ref(false);
+const healthChecked = ref(false);
 const assistantOpen = ref(false);
 const assistantQuestion = ref("");
 const assistantSending = ref(false);
@@ -114,7 +115,9 @@ async function askAssistant() {
 
 onMounted(async () => {
   loadPreferences();
-  try { await getHealth(); online.value = true; } catch { online.value = false; }
+  try { await getHealth(); online.value = true; }
+  catch { online.value = false; }
+  finally { healthChecked.value = true; }
 });
 </script>
 
@@ -123,7 +126,7 @@ onMounted(async () => {
     <header class="topbar">
       <div class="brand-lockup"><div class="brand-mark">▥</div><div class="brand-copy"><strong>InsightPilot</strong><span>Analyze · Transform · Insight</span></div></div>
       <nav class="topnav" aria-label="Main navigation"><button v-for="route in routes" :key="route.id" :class="['topnav-item', { active: activeRoute === route.id }]" :aria-current="activeRoute === route.id ? 'page' : undefined" @click="activeRoute = route.id">{{ route.label }}</button></nav>
-      <div class="topbar-actions"><form class="global-search" role="search" @submit.prevent="searchWorkspace"><span>⌕</span><input v-model="globalQuery" aria-label="Search pages or data" placeholder="Search pages or ask about data..." /><button type="submit" aria-label="Search">↵</button></form><span class="notification" aria-label="Notifications">♧</span><span class="workspace-user" aria-label="Current workspace"><b>V</b></span></div>
+      <div class="topbar-actions"><form class="global-search" role="search" @submit.prevent="searchWorkspace"><span>⌕</span><input v-model="globalQuery" aria-label="Search pages or data" placeholder="Search pages or ask about data..." /><button type="submit" aria-label="Search">↵</button></form><span class="agent-status" :class="{ online, offline: healthChecked && !online }" role="status" :aria-label="!healthChecked ? 'Checking backend status' : online ? 'Live agent active' : 'Backend offline'"><i aria-hidden="true" /><span>{{ !healthChecked ? 'Connecting…' : online ? 'Live Agent Active' : 'Backend Offline' }}</span></span><span class="notification" aria-label="Notifications">♧</span><span class="workspace-user" aria-label="Current workspace"><b>V</b></span></div>
     </header>
     <div class="workspace">
       <main class="content">
