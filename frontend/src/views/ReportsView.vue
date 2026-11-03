@@ -1,12 +1,14 @@
 <script setup>
 import { ref } from "vue";
+import { getWorkbookThreadId, getWorkspaceStorageKey } from "../workbookSession.js";
 
 const reports = ref([]);
+const threadId = getWorkbookThreadId();
 try {
   const jobs = JSON.parse(localStorage.getItem("insightpilot-document-jobs") || "[]");
-  const workflows = JSON.parse(localStorage.getItem("insightpilot-workflow-runs") || "[]");
-  const charts = JSON.parse(sessionStorage.getItem("datapilot-generated-charts") || "[]");
-  const analyses = JSON.parse(localStorage.getItem("insightpilot-analyses") || "[]");
+  const workflows = JSON.parse(localStorage.getItem(getWorkspaceStorageKey("insightpilot-workflow-runs", threadId)) || "[]");
+  const charts = JSON.parse(localStorage.getItem(getWorkspaceStorageKey("datapilot-generated-charts", threadId)) || "[]");
+  const analyses = JSON.parse(localStorage.getItem(getWorkspaceStorageKey("insightpilot-analyses", threadId)) || "[]");
   reports.value = [
     ...jobs.map((job) => ({ id: job.job_id, title: `Document extraction · ${job.document_count} file(s)`, type: "Document extraction", date: job.createdAt, detail: `${job.page_count} pages · ${job.review_report?.flagged_fields?.length ?? 0} review flags`, url: job.outputs?.documents_json })),
     ...workflows.map((run) => ({ id: run.id, title: `Workbook analysis · ${run.filename || "active workbook"}`, type: "Analysis", date: run.createdAt, detail: `${run.rows} rows · ${run.fields} fields` })),

@@ -1,15 +1,18 @@
 <script setup>
 import { onMounted, ref } from "vue";
 import { getGeneratedCharts, getWorkbookSchema } from "../api";
+import { getWorkbookThreadId, getWorkspaceStorageKey } from "../workbookSession.js";
 
-const threadId = sessionStorage.getItem("datapilot-thread-id") || "default";
+const threadId = getWorkbookThreadId();
 const loading = ref(true);
+const error = ref("");
 const schema = ref(null);
 const charts = ref([]);
-const hiddenCharts = ref(JSON.parse(localStorage.getItem("insightpilot-hidden-dashboard-charts") || "[]"));
+function readArray(key) { try { const value = JSON.parse(localStorage.getItem(key) || "[]"); return Array.isArray(value) ? value : []; } catch { return []; } }
+const hiddenCharts = ref(readArray(getWorkspaceStorageKey("insightpilot-hidden-dashboard-charts", threadId)));
 const visibleCharts = ref([]);
 const chartFilter = ref("all");
-const chartOrder = ref(JSON.parse(localStorage.getItem("insightpilot-dashboard-order") || "[]"));
+const chartOrder = ref(readArray(getWorkspaceStorageKey("insightpilot-dashboard-order", threadId)));
 
 function syncVisibility() {
   const ordered = [...charts.value].sort((left, right) => {
@@ -30,12 +33,12 @@ function moveChart(chart, direction) {
   if (target < 0 || target >= order.length) return;
   [order[index], order[target]] = [order[target], order[index]];
   chartOrder.value = order.map((item) => item.url);
-  localStorage.setItem("insightpilot-dashboard-order", JSON.stringify(chartOrder.value));
+  localStorage.setItem(getWorkspaceStorageKey("insightpilot-dashboard-order", threadId), JSON.stringify(chartOrder.value));
   syncVisibility();
 }
 function toggleChart(chart) {
   hiddenCharts.value = hiddenCharts.value.includes(chart.url) ? hiddenCharts.value.filter((url) => url !== chart.url) : [...hiddenCharts.value, chart.url];
-  localStorage.setItem("insightpilot-hidden-dashboard-charts", JSON.stringify(hiddenCharts.value));
+  localStorage.setItem(getWorkspaceStorageKey("insightpilot-hidden-dashboard-charts", threadId), JSON.stringify(hiddenCharts.value));
   syncVisibility();
 }
 function exportDashboard() {
@@ -51,6 +54,8 @@ onMounted(async () => {
       getGeneratedCharts(threadId),
     ]);
     syncVisibility();
+  } catch (caught) {
+    error.value = caught.message;
   } finally {
     loading.value = false;
   }
@@ -69,6 +74,7 @@ onMounted(async () => {
     </div>
 
     <div v-if="loading" class="loading-card">Loading generated dashboard artifacts…</div>
+    <div v-else-if="error" class="workflow-error" role="alert">{{ error }}</div>
     <div v-else-if="!schema?.loaded" class="empty-product">
       <span>▦</span><h2>No workbook connected</h2>
       <p>Upload a workbook in Data before creating an analysis dashboard.</p>
@@ -86,7 +92,7 @@ onMounted(async () => {
       <section class="dashboard-controls panel"><strong>Dashboard charts</strong><label>Filter by field<select v-model="chartFilter" @change="syncVisibility"><option value="all">All fields</option><option v-for="column in [...new Set(charts.map(chart => chart.column).filter(Boolean))]" :key="column" :value="column">{{ column }}</option></select></label><label v-for="chart in charts" :key="chart.url"><input type="checkbox" :checked="!hiddenCharts.includes(chart.url)" @change="toggleChart(chart)" /> {{ chart.title }}</label></section>
       <section class="dashboard-canvas">
         <article v-for="(chart, index) in visibleCharts" :key="`${chart.url}-${index}`" class="panel dashboard-widget">
-          <div class="chart-title"><div><h2>{{ chart.title }}</h2><small>{{ chart.column }} · verified workbook artifact</small></div><div class="widget-actions"><button :disabled="index === 0" @click="moveChart(chart, -1)" aria-label="Move chart earlier">↑</button><button :disabled="index === visibleCharts.length - 1" @click="moveChart(chart, 1)" aria-label="Move chart later">↓</button><span>Chart {{ index + 1 }}</span></div></div>
+          <div class="chart-title"><div><h2>{{ chart.title }}</h2><small>{{ chart.category_column ? `${chart.column} grouped by ${chart.category_column}` : chart.column }} · generated from workbook</small></div><div class="widget-actions"><button :disabled="index === 0" @click="moveChart(chart, -1)" aria-label="Move chart earlier">↑</button><button :disabled="index === visibleCharts.length - 1" @click="moveChart(chart, 1)" aria-label="Move chart later">↓</button><span>Chart {{ index + 1 }}</span></div></div>
           <img class="saved-chart-image" :src="chart.url" :alt="chart.title" />
         </article>
       </section>
