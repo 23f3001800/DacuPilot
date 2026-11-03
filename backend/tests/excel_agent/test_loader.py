@@ -16,6 +16,22 @@ WORKBOOK = (
 
 
 class ExcelLoaderTests(unittest.TestCase):
+    def test_loads_a_streaming_worksheet_without_merged_cell_metadata(self):
+        with TemporaryDirectory() as temporary_directory:
+            workbook_path = Path(temporary_directory) / "small.xlsx"
+            workbook = Workbook()
+            sheet = workbook.active
+            sheet.append(["Region", "Revenue"])
+            sheet.append(["North", 120])
+            sheet.append(["South", 85])
+            workbook.save(workbook_path)
+
+            dataframe, schema = load_real_world_excel(str(workbook_path))
+
+        self.assertEqual(list(dataframe.columns), ["Region", "Revenue"])
+        self.assertEqual(len(dataframe), 2)
+        self.assertFalse(schema["merged_headers"])
+
     def test_finds_table_beneath_title_rows(self):
         dataframe, schema = load_real_world_excel(str(WORKBOOK))
 

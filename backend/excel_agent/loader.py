@@ -23,9 +23,9 @@ def _stable_column_names(columns):
     return names
 
 
-def _header_values(sheet, header_row: int, column_count: int) -> list[object]:
+def _header_values(sheet, header_row: int, column_count: int, merged_ranges=()) -> list[object]:
     values = [sheet.cell(row=header_row, column=index).value for index in range(1, column_count + 1)]
-    for merged in sheet.merged_cells.ranges:
+    for merged in merged_ranges:
         if merged.min_row <= header_row <= merged.max_row:
             title = sheet.cell(row=merged.min_row, column=merged.min_col).value
             start = max(1, merged.min_col)
@@ -90,7 +90,11 @@ def load_real_world_excel(file_path, sheet_name=None):
                 f"Worksheet '{selected_sheet}' exceeds the {MAX_WORKBOOK_COLUMNS}-column analysis limit. "
                 "Remove unused columns and upload the relevant data."
             )
-        source_headers = _header_values(sheet, header_row, column_count)
+        # pandas opens XLSX sheets in read-only mode for bounded streaming; its
+        # ReadOnlyWorksheet has no merged_cells collection. Preserve merged
+        # header support when available and safely use the raw header otherwise.
+        merged_ranges = getattr(getattr(sheet, "merged_cells", None), "ranges", ())
+        source_headers = _header_values(sheet, header_row, column_count, merged_ranges)
         row_limit = min(
             MAX_WORKBOOK_ROWS,
             max(1, MAX_WORKBOOK_CELLS // max(column_count, 1)),
@@ -147,7 +151,7 @@ def load_real_world_excel(file_path, sheet_name=None):
             "hidden_sheets": hidden_sheets,
             "selected_sheet": selected_sheet,
             "header_row": header_row,
-            "merged_headers": any(merged.min_row <= header_row <= merged.max_row for merged in sheet.merged_cells.ranges),
+            "merged_headers": any(merged.min_row <= header_row <= merged.max_row for merged in merged_ranges),
             "row_limit": MAX_WORKBOOK_ROWS,
             "column_limit": MAX_WORKBOOK_COLUMNS,
             "cell_limit": MAX_WORKBOOK_CELLS,
