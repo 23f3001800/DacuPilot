@@ -5,11 +5,13 @@ import ast
 import hashlib
 import time
 import asyncio
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict, Annotated, Sequence, Literal
+from urllib.parse import urlparse
 from uuid import UUID, uuid4
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, HttpUrl
 
 from langchain_core.messages import (
     AIMessage,
@@ -268,6 +270,14 @@ class CodeExecutionInput(BaseModel):
 class WebSearchInput(BaseModel):
     query: str = Field(description="The search query for Tavily.")
 
+class WebEvidenceSource(BaseModel):
+    title: str = Field(min_length=1)
+    url: HttpUrl
+    source: str = Field(min_length=1)
+    retrieved_at: str = Field(min_length=1)
+    excerpt: str = Field(min_length=1)
+    relevance_score: float | None = None
+
 class AgentMetrics(BaseModel):
     confidence_score: float | None
     data_coverage_percentage: float
@@ -362,18 +372,37 @@ async def tool_execution_node(state: AgentGraphState):
                             and not output.lstrip().casefold().startswith(("error:", "error "))
                         )
             elif tool_name == "web_search_lookup":
-                evidence = {"evidence_type": "web"}
                 search_response = await asyncio.to_thread(
                     get_tavily_client().search,
                     query=WebSearchInput(**raw_args).query,
                     max_results=2,
                 )
-                search_res = search_response.get("results", [])
-                output = "\n".join(
-                    str(result.get("content", ""))
-                    for result in search_res
-                    if result.get("content")
-                ) or "No data."
+                retrieved_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+                sources = []
+                for result in search_response.get("results", []):
+                    url = str(result.get("url", "")).strip()
+                    title = str(result.get("title", "")).strip()
+                    excerpt = str(result.get("content", "")).strip()[:1200]
+                    source = urlparse(url).hostname or ""
+                    if not title or not url or not excerpt or not source:
+                        continue
+                    try:
+                        item = WebEvidenceSource(
+                            title=title,
+                            url=url,
+                            source=source,
+                            retrieved_at=retrieved_at,
+                            excerpt=excerpt,
+                            relevance_score=result.get("score"),
+                        )
+                    except ValueError:
+                        continue
+                    sources.append(item.model_dump(mode="json"))
+                evidence = {"evidence_type": "web", "sources": sources}
+                output = "\n\n".join(
+                    f"Title: {item['title']}\nURL: {item['url']}\nExcerpt: {item['excerpt']}"
+                    for item in sources
+                ) or "No web evidence returned."
             else:
                 evidence = {}
                 output = "Invalid tool."

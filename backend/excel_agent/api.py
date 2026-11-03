@@ -1045,6 +1045,20 @@ async def sse_event_generator(user_message: str, thread_id: str):
                 citations = []
                 for tool_message in tool_messages:
                     evidence = getattr(tool_message, "additional_kwargs", {}) or {}
+                    if evidence.get("evidence_type") == "web":
+                        citations.extend(
+                            {
+                                "title": source.get("title"),
+                                "source": source.get("source"),
+                                "url": source.get("url"),
+                                "detail": source.get("excerpt"),
+                                "retrieved_at": source.get("retrieved_at"),
+                                "relevance_score": source.get("relevance_score"),
+                            }
+                            for source in evidence.get("sources", [])
+                            if source.get("url")
+                        )
+                        continue
                     if evidence.get("rows_available") is None:
                         continue
                     columns = evidence.get("referenced_columns", [])
