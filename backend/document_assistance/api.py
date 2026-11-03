@@ -269,9 +269,19 @@ async def sse_document_chat_generator(user_message: str, thread_id: str):
         return
 
     config = {"configurable": {"thread_id": thread_id}}
+    requires_document_evidence = _requires_document_evidence(user_message)
 
     try:
-        yield _sse({"event": "status", "text": "Searching handbook and company knowledge..."})
+        yield _sse(
+            {
+                "event": "status",
+                "text": (
+                    "Searching approved company and document-processing sources..."
+                    if requires_document_evidence
+                    else "Preparing a general answer..."
+                ),
+            }
+        )
 
         state = compiled_agent.get_state(config)
         values = state.values if state else {}
@@ -337,7 +347,6 @@ async def sse_document_chat_generator(user_message: str, thread_id: str):
             USER_DOCUMENTS,
         )
 
-        requires_document_evidence = _requires_document_evidence(user_message)
         if not retrieved and requires_document_evidence:
             no_evidence = (
                 "I don't have enough evidence in the permitted knowledge "
@@ -382,7 +391,11 @@ async def sse_document_chat_generator(user_message: str, thread_id: str):
         yield _sse(
             {
                 "event": "status",
-                "text": f"Found reference sections ({scope}). Synthesizing answer...",
+                "text": (
+                    f"Found relevant reference sections ({scope}). Synthesizing answer..."
+                    if requires_document_evidence
+                    else "Generating a general answer..."
+                ),
             }
         )
 
