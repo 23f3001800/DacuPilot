@@ -4,7 +4,7 @@ import logging
 import math
 import time
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
@@ -103,7 +103,7 @@ def _clear_pending_work(thread_id: str) -> None:
 def _sse(payload: dict[str, Any] | str) -> str:
     if isinstance(payload, str):
         return f"data: {payload}\n\n"
-    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+    return f"data: {json.dumps(_json_safe(payload), ensure_ascii=False, allow_nan=False)}\n\n"
 
 
 def _chunk_text(chunk: Any) -> str:
@@ -133,11 +133,44 @@ def _tool_calls(chunk: Any) -> list[dict[str, Any]]:
 
 
 def _json_safe(value: Any) -> Any:
-    if hasattr(value, "item"):
-        value = value.item()
-    if isinstance(value, float) and value != value:
+    if value is None:
         return None
-    return value
+    if isinstance(value, dict):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, Path):
+        return str(value)
+    if pd.api.types.is_scalar(value):
+        try:
+            if pd.isna(value):
+                return None
+        except (TypeError, ValueError):
+            pass
+        if isinstance(value, (date, datetime)):
+            return value.isoformat()
+        if hasattr(value, "item"):
+            try:
+                scalar = value.item()
+                if scalar is not value:
+                    return _json_safe(scalar)
+            except (TypeError, ValueError):
+                pass
+        if isinstance(value, float):
+            return value if math.isfinite(value) else None
+        if isinstance(value, (str, int, bool)):
+            return value
+        return str(value)
+    if isinstance(value, pd.DataFrame):
+        return _json_safe(value.to_dict(orient="records"))
+    if isinstance(value, pd.Series):
+        return _json_safe(value.tolist())
+    if hasattr(value, "tolist"):
+        try:
+            return _json_safe(value.tolist())
+        except (TypeError, ValueError):
+            pass
+    return str(value)
 
 
 def _chart_svg(title: str, labels: list[str], values: list[float], chart_type: str) -> str:
@@ -203,7 +236,7 @@ def _write_json_atomic(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f"{path.stem}-{uuid4().hex}.tmp")
     try:
-        temporary.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+        temporary.write_text(json.dumps(_json_safe(payload), ensure_ascii=False, allow_nan=False), encoding="utf-8")
         temporary.replace(path)
     finally:
         temporary.unlink(missing_ok=True)
@@ -499,7 +532,7 @@ async def data_dashboard(thread_id: str = Depends(require_thread_id)):
     # A dashboard contains only generated chart artifacts. Never fabricate a
     # row-number line chart and label it a trend.
     charts = _chart_artifacts.get(thread_id, [])
-    return {"loaded": True, "kpis": kpis, "charts": charts}
+    return _json_safe({"loaded": True, "kpis": kpis, "charts": charts})
 
 
 @router.post("/api/data/charts/generate")
@@ -508,7 +541,7 @@ async def generate_chart(payload: ChartRequest):
     if context is None:
         raise HTTPException(status_code=404, detail="No workbook is loaded for this session.")
     try:
-        return await run_in_threadpool(
+        artifact = await run_in_threadpool(
             _register_chart,
             payload.thread_id,
             context.data_frame,
@@ -516,6 +549,7 @@ async def generate_chart(payload: ChartRequest):
             context.schema.get("semantic_types"),
             payload.category_column,
         )
+        return _json_safe(artifact)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
@@ -526,7 +560,7 @@ async def list_charts(thread_id: str = Depends(require_thread_id)):
     if context is None:
         return {"charts": []}
     _ensure_chart_index_loaded()
-    return {"charts": _chart_artifacts.get(thread_id, [])}
+    return _json_safe({"charts": _chart_artifacts.get(thread_id, [])})
 
 
 @router.get("/api/data/charts/{filename}")
@@ -594,7 +628,7 @@ async def preview_column_operation(payload: ColumnOperationRequest):
     if context is None:
         raise HTTPException(status_code=404, detail="No workbook is loaded for this session.")
     try:
-        return await run_in_threadpool(
+        preview = await run_in_threadpool(
             preview_operation,
             payload.thread_id,
             context.data_frame,
@@ -603,6 +637,7 @@ async def preview_column_operation(payload: ColumnOperationRequest):
             _workbook_revision(context),
             payload.operation,
         )
+        return _json_safe(preview)
     except (SyntaxError, ValueError) as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
@@ -626,9 +661,9 @@ async def preview_cleaning(payload: CleaningRequest):
     _pending_cleaning[operation_id] = (
         payload.thread_id, payload.operation, _workbook_revision(context), updated, time.monotonic() + 600
     )
-    return {"operation_id": operation_id, "operation": payload.operation, "label": label,
+    return _json_safe({"operation_id": operation_id, "operation": payload.operation, "label": label,
             "rows_before": len(frame), "rows_after": len(updated), "rows_removed": len(frame) - len(updated),
-            "preview": updated.head(5).where(updated.head(5).notna(), None).to_dict(orient="records")}
+            "preview": updated.head(5).where(updated.head(5).notna(), None).to_dict(orient="records")})
 
 
 @router.post("/api/data/cleaning/apply")
@@ -748,7 +783,7 @@ async def data_schema(thread_id: str = Depends(require_thread_id)):
             "data_types": {},
             "summary": {},
         }
-    return {"loaded": True, **context.schema}
+    return _json_safe({"loaded": True, **context.schema})
 
 
 @router.post("/api/data/sheets/select")
@@ -766,7 +801,7 @@ async def select_workbook_sheet(payload: SheetSelectionRequest):
         )
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
-    return {"loaded": True, **schema}
+    return _json_safe({"loaded": True, **schema})
 
 
 @router.post("/api/data/upload")
@@ -836,13 +871,13 @@ async def upload_excel(
         schema["total_rows"],
         len(schema["columns"]),
     )
-    return {
+    return _json_safe({
         "filename": Path(file.filename).name,
         "total_rows": schema["total_rows"],
         "columns": schema["columns"],
         "data_types": schema["data_types"],
         "latency_ms": elapsed_ms,
-    }
+    })
 
 
 @router.get("/api/data/workbook/download")
@@ -1065,7 +1100,7 @@ async def sse_event_generator(user_message: str, thread_id: str):
                     citations.append({
                         "title": "Uploaded workbook",
                         "source": f"{agent.get_dataset_context(thread_id).schema.get('filename', 'Workbook')} · {', '.join(columns) if columns else 'worksheet rows'}",
-                        "detail": f"{evidence['rows_available']:,} rows scanned · {len(columns)} column(s) referenced",
+                        "detail": f"{evidence.get('rows_examined', evidence['rows_available']):,} of {evidence['rows_available']:,} rows estimated from code · {len(columns)} column(s) referenced",
                     })
                 if citations:
                     yield _sse({"event": "citations", "citations": citations})

@@ -70,7 +70,7 @@ class ExcelApiTests(unittest.TestCase):
         agent._datasets.pop(TEST_THREAD_ID, None)
         response = TestClient(app).post(
             "/api/chat/stream",
-            json={"message": "How much stock?", "thread_id": TEST_THREAD_ID},
+            json={"message": "How much stock?", "thread_id": TEST_THREAD_ID, "processing_consent": True},
         )
         self.assertEqual(response.status_code, 200)
         self.assertIn("Workbook Required", response.text)
@@ -98,6 +98,23 @@ class ExcelApiTests(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 422)
+
+    def test_schema_endpoint_converts_nested_non_finite_values_to_json_null(self):
+        self.dummy_schema["summary"] = {
+            "average": float("nan"),
+            "maximum": float("inf"),
+            "nested": [float("-inf")],
+        }
+
+        response = TestClient(app).get(
+            "/api/data/schema", params={"thread_id": TEST_THREAD_ID}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["summary"],
+            {"average": None, "maximum": None, "nested": [None]},
+        )
 
     def test_homepage_serves_inventory_chat_ui(self):
         response = TestClient(app).get("/")
@@ -128,7 +145,7 @@ class ExcelApiTests(unittest.TestCase):
         with patch.object(api.agent, "compiled_graph", graph):
             response = TestClient(app).post(
                 "/api/chat/stream",
-                json={"message": "How much stock?", "thread_id": TEST_THREAD_ID},
+                json={"message": "How much stock?", "thread_id": TEST_THREAD_ID, "processing_consent": True},
             )
 
         self.assertEqual(response.status_code, 200)
@@ -171,7 +188,7 @@ class ExcelApiTests(unittest.TestCase):
         with patch.object(api.agent, "compiled_graph", FailingGraph()):
             response = TestClient(app).post(
                 "/api/chat/stream",
-                    json={"message": "How much stock?", "thread_id": TEST_THREAD_ID},
+                    json={"message": "How much stock?", "thread_id": TEST_THREAD_ID, "processing_consent": True},
             )
 
         self.assertEqual(response.status_code, 200)
@@ -304,6 +321,7 @@ class ExcelApiTests(unittest.TestCase):
     def test_excel_upload_rejects_non_excel_file(self):
         response = TestClient(app).post(
             "/api/data/upload",
+            data={"thread_id": TEST_THREAD_ID},
             files={"file": ("notes.txt", b"not excel", "text/plain")},
         )
 
@@ -370,8 +388,9 @@ class ExcelApiTests(unittest.TestCase):
 
         metrics = result["structured_response"]["evaluation_metrics"]
         self.assertGreater(metrics["confidence_score"], 0)
-        self.assertLessEqual(metrics["confidence_score"], 0.99)
+        self.assertLessEqual(metrics["confidence_score"], 0.85)
         self.assertGreater(metrics["data_coverage_percentage"], 0)
+        self.assertEqual(metrics["data_coverage_percentage"], 80.0)
         self.assertIn("not a calibrated probability", metrics["evaluation_rationale"])
 
     def test_empty_tool_output_is_not_given_a_confidence_score(self):
@@ -427,7 +446,7 @@ class ExcelApiTests(unittest.TestCase):
             )
 
         response = asyncio.run(collect_events())
-        self.assertIn("The workbook is unchanged", response)
+        self.assertIn("the workbook is unchanged", response)
         self.assertIn("preview", response)
         self.assertIn("local Python", response)
         self.assertTrue(response.endswith("data: [DONE]\n\n"))
@@ -463,6 +482,8 @@ class ExcelApiTests(unittest.TestCase):
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
             temperature=0.1,
             streaming=True,
+            timeout=90,
+            max_retries=1,
         )
 
 

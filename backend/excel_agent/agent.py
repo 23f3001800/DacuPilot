@@ -5,6 +5,8 @@ import ast
 import hashlib
 import time
 import asyncio
+import math
+import re
 from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
@@ -208,6 +210,7 @@ def get_tavily_client() -> TavilyClient:
 def _code_evidence(code: str, context: DatasetContext) -> dict:
     columns = set()
     validated = False
+    row_samples = []
 
     def literal_columns(node):
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
@@ -247,13 +250,45 @@ def _code_evidence(code: str, context: DatasetContext) -> dict:
                     if keyword.arg == "by"
                     for column in literal_columns(keyword.value)
                 )
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                if node.func.attr in {"head", "tail", "sample"} and is_dataframe_expression(node.func.value):
+                    row_count = next(
+                        (keyword.value for keyword in node.keywords if keyword.arg == "n"),
+                        node.args[0] if node.args else None,
+                    )
+                    if isinstance(row_count, ast.Constant) and isinstance(row_count.value, (int, float)):
+                        row_samples.append(max(0, math.ceil(row_count.value)))
+                    elif node.func.attr in {"head", "tail"}:
+                        row_samples.append(5)
+                    else:
+                        row_samples.append(1)
+            if (
+                isinstance(node, ast.Subscript)
+                and isinstance(node.value, ast.Attribute)
+                and node.value.attr == "iloc"
+                and is_dataframe_expression(node.value.value)
+            ):
+                row_index = node.slice.elts[0] if isinstance(node.slice, ast.Tuple) and node.slice.elts else node.slice
+                if isinstance(row_index, ast.Slice) and isinstance(row_index.upper, ast.Constant) and isinstance(row_index.upper.value, int):
+                    lower = row_index.lower.value if isinstance(row_index.lower, ast.Constant) and isinstance(row_index.lower.value, int) else 0
+                    row_samples.append(max(0, row_index.upper.value - lower))
+                elif isinstance(row_index, ast.Constant) and isinstance(row_index.value, int):
+                    row_samples.append(1)
     except SyntaxError:
         pass
+    rows_available = len(context.data_frame)
+    rows_examined = min(rows_available, min(row_samples)) if row_samples else rows_available
+    valid_columns = sorted(column for column in columns if column in context.data_frame.columns)
+    missing_value_count = sum(int(context.data_frame[column].isna().sum()) for column in valid_columns)
+    referenced_cell_count = rows_available * len(valid_columns)
     return {
-        "rows_available": len(context.data_frame),
-        "columns_referenced": len(columns),
-        "referenced_columns": sorted(columns),
+        "rows_available": rows_available,
+        "rows_examined": rows_examined,
+        "columns_referenced": len(valid_columns),
+        "referenced_columns": valid_columns,
         "columns_available": len(context.schema.get("columns", [])),
+        "missing_value_count": missing_value_count,
+        "missing_value_ratio": missing_value_count / referenced_cell_count if referenced_cell_count else None,
         "result_validated": validated,
     }
 
@@ -521,17 +556,53 @@ async def data_evaluation_node(state: AgentGraphState):
             cov = 0.0
             rationale = "Not scored because workbook execution returned no printable result."
         else:
-            row_factor = min(1.0, evidence.get("rows_available", 0) / 100.0)
+            row_factor = min(1.0, evidence.get("rows_examined", evidence.get("rows_available", 0)) / max(1, evidence.get("rows_available", 0)))
             column_factor = min(1.0, evidence.get("columns_referenced", 0) / max(1, evidence.get("columns_available", 1)))
-            result_factor = 1.0
+            missing_ratio = evidence.get("missing_value_ratio")
+            data_quality_factor = 1.0 - min(1.0, max(0.0, missing_ratio)) if isinstance(missing_ratio, (int, float)) else 0.5
+            normalized_question = " ".join(re.sub(r"[^a-z0-9]+", " ", content_str.casefold()).split())
+            referenced_columns = evidence.get("referenced_columns", [])
+            matched_columns = sum(
+                1 for column in referenced_columns
+                if " ".join(re.sub(r"[^a-z0-9]+", " ", column.casefold()).split()) in normalized_question
+            )
+            specificity_factor = matched_columns / len(referenced_columns) if referenced_columns else 0.5
             validation_factor = 1.0 if evidence.get("result_validated") else 0.0
-            conf = round(min(0.99, 0.35 + (0.25 * row_factor) + (0.20 * column_factor) + (0.15 * result_factor) + (0.05 * validation_factor)), 2)
+            # No independently implemented verifier exists yet, so heuristic confidence stays capped.
+            conf = round(min(0.85, 0.10 + (0.25 * row_factor) + (0.20 * column_factor) + (0.15 * data_quality_factor) + (0.15 * specificity_factor) + 0.10 + (0.05 * validation_factor)), 2)
             cov = round(100 * ((0.6 * row_factor) + (0.4 * column_factor)), 1)
-            rationale = "Heuristic confidence from successful workbook execution, non-empty output, referenced-column coverage, and explicit assertions; it is not a calibrated probability."
+            missing_text = f"{missing_ratio:.1%} missing values in referenced cells" if isinstance(missing_ratio, (int, float)) else "missingness unavailable"
+            rationale = (
+                f"Heuristic from successful execution, {row_factor:.1%} estimated row coverage, "
+                f"{column_factor:.1%} referenced-column coverage, {missing_text}, "
+                f"{specificity_factor:.1%} explicit field-name matching, and "
+                f"{'an' if validation_factor else 'no'} assertion check. It is not a calibrated probability, "
+                "and no independent result check was run."
+            )
     elif "web_search_lookup" in tool_names:
-        conf = 0.60
+        web_sources = [
+            source
+            for item in evidence_items if item.get("evidence_type") == "web"
+            for source in item.get("sources", [])
+        ]
         cov = 0.0
-        rationale = "The answer used web evidence; workbook coverage is not established."
+        relevance_scores = [
+            float(source["relevance_score"])
+            for source in web_sources
+            if isinstance(source.get("relevance_score"), (int, float))
+            and math.isfinite(float(source["relevance_score"]))
+        ]
+        if web_sources:
+            source_factor = min(1.0, len(web_sources) / 2.0)
+            relevance_factor = sum(relevance_scores) / len(relevance_scores) if relevance_scores else 0.5
+            conf = round(min(0.85, 0.25 + (0.20 * source_factor) + (0.35 * relevance_factor)), 2)
+            rationale = (
+                f"Heuristic from {len(web_sources)} retrieved source(s) and provider relevance "
+                f"({relevance_factor:.1%}); sources were not independently verified and the score is not calibrated."
+            )
+        else:
+            conf = None
+            rationale = "Not scored because the web search returned no valid cited sources."
     else:
         conf = None
         cov = 0.0
