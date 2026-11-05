@@ -1,31 +1,27 @@
-# Document Assistant knowledge package
+# Company document and help knowledge package
 
-This folder contains approved reference material for company document and help
-assistance. It is not the knowledge source for DataPilot workbook analysis,
-charts, dashboards, or spreadsheet changes.
+The Document Assistant uses this folder for company handbook and policy answers.
+It also answers ordinary general questions and questions about session uploads.
+Company-specific answers require evidence from the approved company sources.
 
-## Sources and ownership
-
-| File | Approved use |
+| Source | Role |
 | --- | --- |
-| `nimbus_orchard_handbook.pdf` | Company overview, handbook topics, people operations, expenses, security, and support contacts. |
+| `nimbus_orchard_handbook.pdf` | Company overview, people operations, expenses, security, products, and support contacts. |
 | `privacy_policy.pdf` | Canonical company privacy, consent, retention, and data-handling guidance. |
-| `application_knowledge_base.pdf` | Document-processing product guidance: document types, verification, extraction confidence, and human review. |
 
-The privacy section repeated inside `application_knowledge_base.pdf` is kept in
-the original source for provenance, but runtime retrieval excludes that section
-so the dedicated privacy policy remains the single source of truth.
+The former application-processing guide is preserved in `../archived_sources/`
+and is excluded from runtime retrieval. Its extraction thresholds, verification
+rules, and application instructions do not define company help or DataPilot
+behavior.
 
 ## Update rules
 
-- Add only approved company or document-processing reference sources.
-- Record the owner, review date, and intended scope when replacing or adding a
-  source; avoid adding overlapping copies of an existing policy.
-- Keep company policy separate from product instructions and user-uploaded
-  documents. User uploads are session-scoped evidence and never become package
-  sources.
-- Do not add DataPilot workbook, spreadsheet UI, analytics, charting, or agent
-  workflow instructions here. Those belong to the Data Analysis Agent and its
-  application documentation.
-- The loader indexes PDF, DOCX, and UTF-8 TXT files. This README is package
-  documentation and is not indexed as assistant evidence.
+- Add approved company reference documents only; record their owner, review
+  date, and intended scope when adding or replacing a source.
+- Keep one canonical source for each policy and resolve conflicting policy text
+  before indexing it.
+- Keep DataPilot feature documentation, workbook instructions, analytics,
+  dashboards, and agent execution policies outside this package.
+- User uploads remain session evidence and never become company policy sources.
+- The loader indexes PDF, DOCX, and UTF-8 TXT files. Markdown files describe the
+  package and are not retrieved as answer evidence.
