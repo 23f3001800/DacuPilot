@@ -42,7 +42,7 @@ class StageGateEvaluator:
         ref, hyp = (reference or "").strip().lower(), (hypothesis or "").strip().lower()
         if not ref and not hyp: return 0.0
         if not ref: return 1.0
-        return min(1.0, StageGateEvaluator._distance(ref, hyp) / len(ref))
+        return StageGateEvaluator._distance(ref, hyp) / len(ref)
 
     def evaluate_classification_step(self, predicted_type: str, ground_truth_type: str, ai_confidence: float) -> StepMetrics:
         """STAGE 1: Validates if the document classifier accurately matched target classes."""
@@ -63,7 +63,7 @@ class StageGateEvaluator:
 
         # Determine global structural text mismatch via CER
         layout_cer = self.calculate_cer(ground_truth_text, raw_ocr_text)
-        text_accuracy = 1.0 - layout_cer
+        text_accuracy = max(0.0, 1.0 - layout_cer)
         passed = text_accuracy >= 0.75  # OCR layout quality gate threshold
 
         return StepMetrics(

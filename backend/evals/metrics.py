@@ -8,8 +8,32 @@ Confidence summaries alone do not measure accuracy or calibration.
 from __future__ import annotations
 
 import math
-import re
 from typing import Any, Sequence
+
+
+def field_metrics(fields: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    """Compare named, single-value fields to reference annotations."""
+    from document_intelligence.utils.evaluator import StageGateEvaluator
+
+    true_positive = false_positive = false_negative = 0
+    character_errors = reference_characters = 0
+    for field in fields:
+        expected_value, actual_value = field.get("expected"), field.get("actual")
+        expected = " ".join(str(expected_value if expected_value is not None else "").casefold().split())
+        actual = " ".join(str(actual_value if actual_value is not None else "").casefold().split())
+        match = bool(expected) and expected == actual
+        true_positive += match
+        false_positive += bool(actual) and not match
+        false_negative += bool(expected) and not match
+        character_errors += StageGateEvaluator._distance(expected, actual)
+        reference_characters += len(expected)
+    precision = true_positive / (true_positive + false_positive) if true_positive + false_positive else 0.0
+    recall = true_positive / (true_positive + false_negative) if true_positive + false_negative else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+    return {"tp": true_positive, "fp": false_positive, "fn": false_negative,
+            "precision": precision, "recall": recall, "f1": f1,
+            "character_errors": character_errors, "reference_characters": reference_characters,
+            "cer": character_errors / reference_characters if reference_characters else None}
 
 
 # ── Matrix 1: Pipeline Quality ───────────────────────────────────────────────
@@ -139,126 +163,4 @@ def routing_matrix(
         "total_flags": len(flagged),
         "flags_by_reason": reason_counts,
         "human_review_required": review_report.get("human_review_required", False),
-    }
-
-
-# ── Matrix 4: Retrieval Evaluation (Document Assistance) ──────────────────────
-
-def retrieval_evaluation_matrix(
-    cases: Sequence[dict[str, Any]],
-    k: int = 5,
-) -> dict[str, Any]:
-    """Measure ranked retrieval quality against supplied relevant IDs.
-
-    Each case in *cases* should provide:
-    - ``retrieved_ids``: sequence of retrieved chunk or section IDs
-    - ``relevant_ids``: set or list of expected ground-truth IDs
-    - ``top_score`` (optional): score of the highest-ranked chunk
-    - ``latency_ms`` (optional): query retrieval latency in milliseconds
-    """
-    if not cases:
-        return {"error": "No cases to evaluate"}
-
-    hit_rates = []
-    reciprocal_ranks = []
-    recalls = []
-    precisions = []
-    top_scores = []
-    latencies = []
-
-    for case in cases:
-        retrieved = list(dict.fromkeys(case.get("retrieved_ids", [])[:k]))
-        relevant = set(case.get("relevant_ids", []))
-        if not relevant:
-            continue
-
-        hits = [doc_id in relevant for doc_id in retrieved]
-        has_hit = any(hits)
-        hit_rates.append(1.0 if has_hit else 0.0)
-
-        # Reciprocal rank (1 / first hit rank)
-        rr = 0.0
-        for rank, is_hit in enumerate(hits, start=1):
-            if is_hit:
-                rr = 1.0 / rank
-                break
-        reciprocal_ranks.append(rr)
-
-        # Recall@k and Precision@k
-        num_hits = sum(hits)
-        recalls.append(num_hits / len(relevant) if relevant else 0.0)
-        precisions.append(num_hits / len(retrieved) if retrieved else 0.0)
-
-        if "top_score" in case:
-            top_scores.append(float(case["top_score"]))
-        if "latency_ms" in case:
-            latencies.append(float(case["latency_ms"]))
-
-    n = len(hit_rates) or 1
-    return {
-        "case_count": len(cases),
-        "hit_rate": round(sum(hit_rates) / n, 4),
-        "mrr": round(sum(reciprocal_ranks) / n, 4),
-        "recall_at_k": round(sum(recalls) / n, 4),
-        "precision_at_k": round(sum(precisions) / n, 4),
-        "avg_top_score": round(sum(top_scores) / len(top_scores), 4) if top_scores else None,
-        "avg_latency_ms": round(sum(latencies) / len(latencies), 2) if latencies else None,
-    }
-
-
-# ── Matrix 5: Answer Grounding (Document Assistance) ─────────────────────────
-
-def answer_grounding_matrix(
-    records: Sequence[dict[str, Any]],
-) -> dict[str, Any]:
-    """Measure answer correctness, keyword grounding, and citation validity.
-
-    Each record in *records* should provide:
-    - ``answer``: generated response text
-    - ``ground_truth``: reference answer string
-    - ``sources``: sequence of cited source strings
-    """
-    if not records:
-        return {"error": "No records to evaluate"}
-
-    stop_words = {
-        "a", "an", "and", "are", "at", "be", "can", "do", "for", "from",
-        "in", "is", "it", "of", "on", "or", "the", "to", "under", "within", "you",
-    }
-
-    keyword_coverages = []
-    citation_coverages = []
-    answer_successes = []
-
-    for item in records:
-        answer = str(item.get("answer", "")).strip()
-        gt = str(item.get("ground_truth", "")).strip()
-        sources = list(item.get("sources", []))
-
-        # 1. Answer presence
-        has_answer = bool(answer) and not answer.startswith("I don't have enough evidence")
-        answer_successes.append(1.0 if has_answer else 0.0)
-
-        # 2. Citation coverage
-        has_sources = len(sources) > 0 or ("Source:" in answer)
-        citation_coverages.append(1.0 if has_sources else 0.0)
-
-        # 3. Keyword grounding coverage
-        expected = {
-            w for w in re.findall(r"[a-z0-9]+", gt.lower())
-            if len(w) > 2 and w not in stop_words
-        }
-        if expected:
-            actual = set(re.findall(r"[a-z0-9]+", answer.lower()))
-            cov = len(expected & actual) / len(expected)
-            keyword_coverages.append(cov)
-        else:
-            keyword_coverages.append(1.0 if answer else 0.0)
-
-    n = len(records)
-    return {
-        "record_count": n,
-        "answer_rate": round(sum(answer_successes) / n, 4),
-        "citation_coverage": round(sum(citation_coverages) / n, 4),
-        "keyword_coverage": round(sum(keyword_coverages) / n, 4),
     }

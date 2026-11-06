@@ -1,15 +1,38 @@
 import unittest
 
 from evals.run_all_evaluations import has_number
+from evals.analyst_experiments import calculation_matches, answer_matches
 
 from evals.metrics import (
     pipeline_quality_matrix,
+    field_metrics,
     routing_matrix,
     throughput_matrix,
 )
 
 
 class EvaluationMatricesTests(unittest.TestCase):
+    def test_execution_scoring_rejects_partial_and_wrong_numeric_results(self):
+        self.assertTrue(calculation_matches("500.0", 500))
+        self.assertFalse(calculation_matches("500.2", 500))
+        self.assertFalse(calculation_matches("North 200", {"North": 200, "South": 80}))
+        self.assertFalse(calculation_matches("North 200\nSouth 80\nCentral 10", {"North": 200, "South": 80}))
+        self.assertTrue(calculation_matches("North 200\nSouth 80\nName: Revenue, dtype: int64", {"North": 200, "South": 80}))
+        self.assertFalse(answer_matches("North 80\nSouth 200", {"North": 200, "South": 80}))
+
+    def test_zero_is_a_field_value(self):
+        self.assertEqual(field_metrics([{"expected": 0, "actual": 0}])["tp"], 1)
+
+    def test_incorrect_field_counts_as_false_positive_and_false_negative(self):
+        metrics = field_metrics([
+            {"expected": "Correct", "actual": "Correct"},
+            {"expected": "Expected", "actual": "Wrong"},
+            {"expected": "Missing", "actual": None},
+        ])
+        self.assertEqual((metrics["tp"], metrics["fp"], metrics["fn"]), (1, 1, 2))
+        self.assertEqual(metrics["precision"], 0.5)
+        self.assertEqual(metrics["recall"], 1 / 3)
+
     def test_numeric_answer_checks_allow_sentence_punctuation(self):
         self.assertTrue(has_number("Revenue is 500.", 500))
         self.assertTrue(has_number("Mean is 100.0.", 100))

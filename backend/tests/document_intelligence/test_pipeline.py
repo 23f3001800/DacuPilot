@@ -25,6 +25,7 @@ class DocumentIntelligenceTests(unittest.TestCase):
         self.assertEqual(StageGateEvaluator.calculate_cer("kitten", "sitting"), 0.5)
         self.assertEqual(StageGateEvaluator.calculate_cer("", ""), 0.0)
         self.assertEqual(StageGateEvaluator.calculate_cer("", "extra"), 1.0)
+        self.assertEqual(StageGateEvaluator.calculate_cer("a", "aaaa"), 3.0)
 
     def test_pan_schema_uses_pan_data_and_produces_structured_flags(self):
         payload = MasterDocumentIntelligencePayload(
