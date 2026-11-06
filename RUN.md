@@ -42,7 +42,9 @@ AZURE_OPENAI_MODEL=gpt-4o
 
 ### Enterprise OCR Secrets (Optional for Document Intelligence)
 
-If configured, the system uses Azure DI as primary OCR with automatic failover to Google Document AI:
+Document extraction starts with multimodal image classification and fields.
+An uncertain or failed image result receives one OCR-assisted retry. Within that
+retry, OCR tries Azure Document Intelligence, Google Document AI, then vision OCR.
 
 ```dotenv
 # Primary OCR: Azure Document Intelligence
@@ -114,5 +116,7 @@ npm run build
 ### Step 5: Run Multi-Module Evaluation Benchmarks
 ```bash
 cd backend
-../.venv/bin/python3 evals/run_all_evaluations.py
+../.venv/bin/python -m evals.run_all_evaluations
+../.venv/bin/python -m evals.run_all_evaluations --live
+../.venv/bin/python -m evals.analyst_experiments --live --repetitions 2
 ```

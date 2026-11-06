@@ -1,50 +1,45 @@
 # InsightPilot
 
 A document and data workspace built with Vue 3, FastAPI, and LangGraph.
-Inspect an Excel workbook beside an AI analyst, approve changes before saving,
-ask questions about company documents, and review OCR-extracted fields.
+Inspect Excel beside an AI analyst, approve workbook changes, generate charts,
+and review structured document extractions.
 
-![InsightPilot workspace with an uploaded workbook and a generated chart](docs/images/workspace.png)
+![InsightPilot workspace](docs/images/workspace.png)
 
-*Captured from the running frontend using a synthetic five-row workbook. The
-chart and answer were generated from that workbook.*
+*Captured from the running frontend in its initial workbook-upload state.*
 
 ## Capabilities
 
-- Inspect and manage saved Excel workbooks in an Excel-style grid.
-- Analyze data, generate charts, and approve column changes with the agent.
-- Browse saved answers, charts, and profile runs in Results.
-- Ask general or company-document questions through Company Help.
-- Extract document fields using multimodal images and a gated OCR retry.
+- Inspect saved Excel workbooks with sheet tabs, cell coordinates, and a formula bar.
+- Ask the Data Analysis Agent for calculations, summaries, and workbook-derived charts.
+- Preview and approve column changes, then save, refresh, or restore workbook versions.
+- Browse actual answers, charts, and profile runs in Results.
+- Extract document fields with multimodal images and an uncertainty-triggered OCR retry.
 
 ## Architecture and pipelines
 
 ![Implemented platform architecture](docs/images/platform-architecture.svg)
 
-The Vue frontend sends HTTP requests and consumes server-sent events from one
-FastAPI application. Data analysis, company assistance, and document extraction
-have separate APIs and processing paths. OpenAI-compatible model clients use
-the configured provider order.
+The Vue frontend uses HTTP for files and server-sent events for answers and
+processing progress. FastAPI exposes separate analysis and extraction APIs.
+Shared model clients follow the configured provider order.
 
-- Workbook analysis uses a restricted expression evaluator in an isolated child
-  process. Column changes follow a separate preview, approval, revision-check,
-  and workbook-version flow. Charts are rendered on the server from real data.
-- Company retrieval combines token-count cosine similarity with Chroma vector
-  scores when Chroma is available. The active sources are the Nimbus Orchard
-  handbook and privacy policy. General answers use a separate source-free path.
-- Document extraction sends the image directly to the multimodal model for
-  classification and fields. A failed or uncertain result gets one OCR-assisted
-  retry, using Azure Document Intelligence, Google Document AI, then vision OCR.
-  Schema validation, handwriting adjustments, and confidence thresholds determine
-  review flags. Conflicting attempts require human review.
+Workbook analysis uses LangGraph and a restricted expression interpreter in a
+child process. Mutations follow preview, approval, revision checking, and saved
+versions. Charts are rendered on the server from the uploaded workbook.
+
+Document extraction first sends page images to a multimodal model for classification
+and fields. A failed or uncertain result gets one OCR-assisted retry. OCR tries
+Azure Document Intelligence, Google Document AI, then vision OCR. Schema checks,
+confidence thresholds, and conflicting attempts determine human-review flags.
 
 [Workbook pipeline](docs/images/spreadsheet-agent.svg) ·
 [Document pipeline](docs/images/document-processing.svg)
 
 ## Run locally
 
-Use Python 3.12 and Node.js 18 or newer. Run these commands from the repository
-root in Linux or WSL.
+Use Python 3.12 and Node.js 18 or newer. From the repository root in Linux or WSL,
+create the environment and configure a model provider.
 
 ```bash
 python3.12 -m venv .venv
@@ -53,10 +48,9 @@ pip install -r backend/requirements.txt
 cp .env.example .env
 ```
 
-Set the credentials and model ID for at least one provider in `.env`. The
-available provider names are `openai`, `azure`, and `gemini`. Dedicated OCR
-credentials are optional when the configured model supports image input.
-Tavily credentials enable the analyst's external definition lookup.
+Set credentials and a model ID in `.env`. Provider names are `openai`, `azure`,
+and `gemini`. Image-capable models support document extraction and vision OCR.
+Dedicated OCR credentials and Tavily definition lookup are optional.
 
 Start the backend in one terminal.
 
@@ -74,91 +68,86 @@ npm ci
 npm run dev -- --host 0.0.0.0 --port 5173
 ```
 
-Open [the workspace](http://localhost:5173). The backend also serves the built
-frontend at [port 8000](http://localhost:8000) after `npm run build` in
-`frontend`. API documentation is available at [Swagger UI](http://localhost:8000/docs).
-
-[Provider setup](RUN.md) · [Frontend development](frontend/README.md)
+Open [the workspace](http://localhost:5173). After `npm run build` in `frontend`,
+FastAPI also serves the frontend at [port 8000](http://localhost:8000).
+[API documentation](http://localhost:8000/docs) · [Provider setup](RUN.md) ·
+[Frontend development](frontend/README.md)
 
 ## Evaluation
 
-Measured on 6 November 2026, the module smoke checks and parameter study use synthetic data and
-the checked-in company handbook. The retrieval study uses **8 development
-questions and 6 held-out questions**. Baseline and selected answers are generated
-twice per held-out question. The selected configuration is chosen using
-development retrieval F1 before held-out scoring.
+Measured on 6 November 2026 using synthetic fixtures and configured live APIs.
+Every table identifies its cohort. **A-dev** selects analyst temperature using
+three tasks, each repeated twice, on one five-row workbook. **A-test** changes
+Revenue values and repeats those tasks twice. Its values are held out from
+selection, while its schema and task templates match development. **A-flow**
+checks the HTTP/SSE application workflow on the development workbook. **X-test**
+contains two printed PDF pages with eight labeled fields across two document types.
+Extraction settings are fixed before X-test scoring.
 
-[Module results](backend/evals/evaluation_results.json) ·
-[Parameter results and claim traces](backend/evals/parameter_study_results.json) ·
-[Metric definitions and reproduction](docs/EVALUATION.md)
+[Application results and SSE traces](backend/evals/evaluation_results.json) ·
+[Analyst experiments and tool traces](backend/evals/analyst_experiment_results.json) ·
+[Definitions, cohorts, and reproduction](docs/EVALUATION.md)
 
-### 1. Groundedness
+### 1. Analyst correctness and evidence
 
-Faithfulness is judge-assisted entailment of fixed answer sentences against
-retrieved evidence. The grader uses the configured model provider family, with
-stable sentence/source IDs and literal supporting-quotation checks. Coverage and
-support are scored separately. These are benchmark scores with small samples.
+The execution metric compares tool output with fixed numeric references. Final-answer
+scoring checks the requested facts and their region labels. Citation coverage checks
+workbook-source event presence. These measures cover the specified facts and sources.
+[Execution-result evaluation reference](https://github.com/taoyds/spider/blob/master/evaluation.py)
 
-| Metric | Baseline k=5 | F1 candidate k=1 | Definition |
+| Metric | Cohort | Measured result | Scoring rule |
 | --- | --- | --- | --- |
-| Citation coverage | 44.0% (11/25) | 25.0% (8/32) | Attributed factual sentences / factual sentences |
-| Faithfulness | 44.0% (11/25) | 28.1% (9/32) | Evidence-supported factual sentences / factual sentences |
-| Citation precision | 100.0% (11/11) | 87.5% (7/8) | Supported attributed sentences / attributed sentences |
-| Reference-fact recall | 71.4% (10/14) | 42.9% (6/14) | Correctly conveyed reference facts / expected facts |
-| Valid answer grades | 12/12 | 12/12 | Invalid judge output is reported separately |
+| Execution accuracy | A-test | 6/6 | Correct scalar or complete region-to-total mapping |
+| Requested-fact correctness | A-test | 6/6 | Expected number, or each region paired with its total |
+| Task success | A-test | 6/6 | Correct execution and answer facts, with no tool failure |
+| Workbook citation coverage | A-flow calculation questions | 3/3 | Workbook citation event present after each answer |
+| Application checks | A-flow | 6/6 | Consent gate, three answers, approved saved column, chart download |
 
-### 2. Module metrics
+A-test had zero tool failures and a 7.13-second median latency across six requests.
+The scoring does not grade every free-form claim for entailment. Full-answer
+faithfulness and calibrated confidence remain unmeasured. Repeated requests on
+one workbook are a small smoke sample.
 
-Precision, recall, and F1 are shown in that order. Retrieval scores use unique
-source sections among returned chunks. Extraction scores use required schema
-fields matched to labeled printed fixtures.
+### 2. Document extraction quality
 
-| Evaluation | Result | Evidence and scope |
-| --- | --- | --- |
-| Held-out retrieval P / R / F1 | Baseline 31.8% / 100.0% / 48.3%; selected 83.3% / 71.4% / 76.9% | 6 held-out questions and 7 relevant source sections |
-| Data Analysis Agent | 6/6 application checks; 4/4 direct calculations; 5/5 restricted operations rejected | Five-row workbook, exact numeric references, approval flow, and SVG download |
-| Company assistance | 7/7 behavior checks | Handbook facts, general answers, workbook handoff, injection rejection, unsupported policy |
-| Document extraction | P/R/F1 100% / 100% / 100%; field CER 0.000; classification 2/2; exports 4/4 | Eight fields on two clear printed pages; multimodal-first processing |
-| Regression tests | 151 backend tests + 3 subtests; 10 frontend tests | Separate code-contract and regression coverage |
+Field scores compare normalized named values with annotations. A wrong nonempty
+value contributes both a false positive and a false negative. CER uses character
+edit distance divided by reference characters and can exceed 1 with insertions.
+[Field metrics](https://docs.cloud.google.com/document-ai/docs/evaluate) ·
+[CER definition](https://github.com/huggingface/evaluate/blob/main/metrics/cer/cer.py)
 
-The 7/7 assistance result covers the earlier, narrower behavior cases. The new
-held-out questions exposed company-source routing gaps, including Sprout pricing
-and non-profit discounts. Some answers took the general-answer path despite
-relevant handbook evidence being available. These responses remain in the
-groundedness scores and explain part of the reduced reference-fact recall.
-
-### 3. One-factor parameter experiments
-
-Each alternative changes one factor from k=5, chunk=1200 characters,
-overlap=180 characters, and score=0.15. Values and development F1 scores align
-left to right. The final row records the selected configuration and the trial
-that combined individual winners.
-
-| Factor | Values tested | Development F1 | Choice in this study |
+| Metric | Cohort | Measured result | Denominator and scope |
 | --- | --- | --- | --- |
-| Top-k chunks | 5, 1, 3 | 0.500, 0.824, 0.692 | 1 |
-| Chunk characters | 1200, 800, 1600 | 0.500, 0.529, 0.383 | 800 |
-| Overlap characters | 180, 90, 270 | 0.500, 0.500, 0.462 | 180 |
-| Minimum score | 0.15, 0.35, 0.55 | 0.500, 0.500, 0.500 | 0.15 |
-| Best tested retrieval configuration | k=1, chunk=1200, overlap=180, score=0.15 | 0.824; combined trial 0.824 | Earlier baseline settings break exact ties |
+| Classification accuracy | X-test | 2/2 | PAN card and benefit illustration |
+| Field micro precision / recall / F1 | X-test | 100% / 100% / 100% | TP=8, FP=0, FN=0 across eight labeled fields |
+| Whole-document exact match | X-test | 2/2 | Correct type and all four expected fields |
+| Normalized CER | X-test fields / separate OCR page | Fields 0/93 = 0.000, page 0.000 | Field edit errors/reference characters and full-page vision OCR CER |
+| Export availability | X-test job | 4/4 HTTP 200 | Documents JSON, review JSON, evaluation JSON, XLSX |
 
-The combined trial used k=1 and chunk=800, with overlap=180 and score=0.15. It
-tied the development F1 of k=1 with chunk=1200, so the earlier configuration won.
-The k=1 candidate improves retrieval F1 but loses held-out evidence recall and
-answer reference-fact recall. **Production remains at k=5**. This is
-the best tested retrieval-F1 configuration for this split. No overall model or
-production-wide optimum is claimed.
+The two-page extraction took 14.00 seconds and completed through the primary
+multimodal path. A separate OCR request exercised provider fallback. Azure DNS
+resolution failed and Google Document AI billing was disabled. Vision OCR completed.
+Handwriting, degraded scans, and the other supported document types need labeled
+validation before broader accuracy claims.
 
-Other controls remain fixed. Analyst temperature is 0.1, assistance temperature
-is 0.0, field review threshold is 0.85, and handwriting penalty is 0.20. The
-multimodal model uses provider-default sampling and one OCR-assisted retry.
-No temperature sweep, weight fine-tuning, or confidence calibration was run.
+### 3. Parameter experiments and choices
 
-The live extraction run correctly skipped OCR on both validated image results.
-In the separate OCR check, Azure DNS resolution failed and Google Document AI
-billing was disabled. Vision OCR fallback completed. Handwriting and degraded
-scan accuracy remain unmeasured. Sentence grading uses a model judge, with its
-own entailment and factual-sentence selection limitations.
+Temperature is changed one factor at a time with the same provider configuration,
+questions, and workbook. Experiments run sequentially in baseline-first order.
+The OCR threshold replay uses saved scores from X-test and is descriptive.
+
+| Setting | Cohort | Measured result | Decision |
+| --- | --- | --- | --- |
+| Analyst temperature 0.1 | A-dev, 6 requests | 6/6 successful, median 5.54 s | Retained baseline after accuracy tie |
+| Analyst temperature 0.0 | A-dev, 6 requests | 6/6 successful, median 5.85 s | No accuracy gain observed |
+| Analyst temperature 0.2 | A-dev, 6 requests | 6/6 successful, median 5.57 s | No accuracy gain observed |
+| Field threshold 0.75 / 0.85 / 0.95 | X-test score replay | 8/8 accepted at every threshold | Retain 0.85, sample cannot distinguish settings |
+| Handwriting penalty / OCR retry budget | Fixed policy | 0.20 / one logical retry | Safety choices, sensitivity unmeasured |
+
+All tested analyst temperatures tied on task success, so the predefined tie rule
+retained 0.1. A-test confirmed 6/6 at that setting. Latency differences have no
+statistical significance established by this sample. Model sampling for image
+extraction remains provider-default. No model-weight fine-tuning was performed.
 
 ## Reproduce the checks
 
@@ -169,16 +158,15 @@ cd backend
 pytest -q
 python -m evals.run_all_evaluations
 python -m evals.run_all_evaluations --live
-python -m evals.parameter_study --live --repetitions 2
+python -m evals.analyst_experiments --live --repetitions 2
 ```
 
-The default evaluation runs local sandbox and retrieval checks. `--live` also
-requires the backend on port 8000 and sends generated fixtures and reference
-questions to configured services. Live tests use new session UUIDs and remove
-their workbook sessions afterward. OCR output jobs remain available for inspection.
-Chroma may download its default embedding model on first use.
+The default evaluation runs local sandbox checks. Live runs send generated fixtures
+to configured services. The HTTP runner needs the backend on port 8000 and removes
+its temporary workbook session afterward. Document job outputs remain inspectable.
+The temperature experiment uses temporary files and process-local datasets.
 
-Run the frontend checks from a separate terminal at the repository root.
+Run frontend checks from the repository root.
 
 ```bash
 cd frontend
@@ -186,34 +174,31 @@ npm test
 npm run build
 ```
 
-The final regression run passed **151 backend tests and 3 subtests**. The
-frontend suite passed **10 tests**, and the production build succeeded.
+The final regression run passed 110 backend tests and 9 frontend tests.
+The frontend production build succeeded.
 
 ## Storage and current limits
 
-Workbook files, versions, chart metadata, and OCR job outputs are local to the
-backend. Workbook and answer state also use browser storage scoped to a session.
-Conversation checkpoints, pending previews, and the company evidence index are
-process-local. A backend restart invalidates pending approvals.
+Workbook files, versions, chart metadata, and document jobs are stored locally.
+Browser storage holds workspace selection and answer history. Conversation
+checkpoints and pending previews are process-local. Restarting the backend
+invalidates pending approvals.
 
-The application currently uses session UUIDs without authenticated user or
-tenant accounts. The expression interpreter restricts supported operations and
-uses a child process, while sharing the backend host's operating-system context.
-The current evaluation covers clear synthetic inputs and selected adversarial
-requests. Larger held-out datasets, noisy scans, handwriting, concurrency, and
-confidence calibration need separate validation.
+Session UUIDs currently identify workspaces. Authentication, tenant isolation,
+production concurrency testing, and broader labeled evaluation remain future work.
+The restricted interpreter shares its backend host's operating-system context.
+Runtime confidence is heuristic and requires separate calibration.
 
 ## Repository layout
 
 ```text
 backend/
   main.py                    FastAPI application and frontend serving
-  excel_agent/               Workbook analysis, restricted execution, mutations
-  document_assistance/       Company knowledge retrieval and general assistance
-  document_intelligence/     OCR, extraction, validation, and exports
-  datapilot/                 Shared providers, configuration, guardrails, latency
-  evals/                     Reproducible runner and measured results
+  excel_agent/               Analysis, restricted execution, workbook changes
+  document_intelligence/     Multimodal extraction, OCR retry, review, exports
+  datapilot/                 Providers, configuration, guardrails, latency
+  evals/                     Reproducible evaluation and measured traces
   tests/                     Backend regression tests
-frontend/src/                Vue screens, components, API client, design tokens
+frontend/src/                Vue screens, API client, design tokens
 docs/                        Architecture, pipelines, evaluation methods
 ```

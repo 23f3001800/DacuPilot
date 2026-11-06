@@ -1,157 +1,148 @@
 # Evaluation methods
 
-The README contains the three result tables. Machine-readable cases, responses,
-source quotations, and scores are retained in
-`backend/evals/parameter_study_results.json`. Earlier application smoke checks
-are in `backend/evals/evaluation_results.json`.
+The README contains three summary tables. Machine-readable reports retain the
+individual checks, answers, tool calls, outputs, timings, and pipeline trace events.
+These experiments measure small synthetic workloads on the configured services.
 
-## Data and split
+## Cohorts and selection
 
-The retrieval study uses the checked-in Nimbus Orchard handbook. Eight
-development questions cover single-section questions, two multi-section
-questions, and one unsupported topic. Six held-out questions ask about different
-facts on the same source pages. This is a question-level split within one
-handbook. It does not estimate transfer to unseen companies or document sets.
+**A-dev** is one five-row workbook. Columns are Region, Revenue, Cost, and Units.
+Regions are North, South, North, West, East. Revenue values are 150, 80, 50, 120,
+100. One Cost value is missing. Reference Revenue total is 500, mean is 100, and
+regional totals are North 200, South 80, West 120, East 100.
 
-Relevant source sections and expected answer facts are specified in the runner
-before scoring. The held-out references cover eight-day annual-leave carryover,
-20-week primary-caregiver leave, USD 49 Sprout pricing, the 30-percent non-profit
-discount, access removal within two hours, and a two-section question about
-six-week secondary-caregiver leave plus USD 9 additional Grove users.
+Three analyst tasks request the Revenue total, mean, and regional totals. Each
+is issued twice in a fresh conversation at each temperature, giving six requests
+per setting. Temperatures run sequentially as 0.1, 0.0, 0.2. Other application
+settings and provider configuration remain fixed. Highest development task-success
+count wins. Exact ties retain the baseline, 0.1.
 
-Baseline and selected configurations each generate two responses to every
-held-out question. These 24 responses receive separate model-judge calls.
-The production company-answer node and citation validator generate the answers
-using frozen retrieval results. This study controls retrieval inputs within the
-answer node. The separate smoke suite exercises the HTTP APIs.
+**A-test** is a value-held-out workbook with the same schema and regions. Revenue
+values are 210, 140, 90, 60, 100. References are total 600, mean 120, and regional
+totals North 300, South 140, West 60, East 100. It is scored only after selection.
+It tests new values with the same question templates. It does not measure
+generalization to unseen task families, schemas, or real-world datasets.
 
-## Groundedness definitions
+When the selected setting equals baseline, both names refer to the same six
+held-out requests. They are not counted as twelve independent requests. The
+repetitions measure run-to-run behavior on a shared workbook.
 
-- **Citation coverage** is attributed factual sentences divided by all judged
-  factual sentences. An attribution must resolve to a source label present in both
-  the returned answer and the retrieved evidence.
-- **Faithfulness** is evidence-supported factual sentences divided by all judged
-  factual sentences. A supported sentence can be uncited. A separate support-source ID
-  allows this score to remain independent of citation coverage.
-- **Citation precision** is supported attributed sentences with a matching
-  supporting-source citation divided by attributed sentences. This is a
-  sentence-level attribution metric. A correct source label alone does not
-  establish support.
-- **Reference-fact recall** is correctly conveyed target facts divided by the
-  expected facts. It measures answer completeness against the small labeled set.
-- **Valid answer grades** reports usable grades against attempted answers.
-  Parse failures, missing sentence judgments, invalid IDs, and malformed fact
-  lists are retained as grading errors and excluded from sentence denominators.
+**A-flow** uses the A-dev workbook through the running HTTP/SSE application. Its
+six checks cover consent rejection, three calculations, approved column persistence,
+and a workbook-derived chart. The column test confirms Profit is absent before
+approval and equals 60, 30, 20, null, 40 afterward. The chart check downloads SVG
+from the server. The temporary workbook session is deleted afterward.
 
-Code splits the answer into fixed sentence units and assigns stable IDs. A
-citation-only segment is attached to the immediately preceding sentence. The
-judge labels which units assert facts and whether their complete factual content
-is entailed by retrieved text. Source IDs identify individual chunks, including
-multiple chunks with the same public citation label. Supporting quotations must
-occur literally in that chunk after case and whitespace normalization.
-Fabricated quotations cannot count as support. Four regression tests cover
-retrieval denominators, faithful-but-uncited content, fabricated quotations,
-and correct handling of repeated citation labels.
+**X-test** is a generated two-page printed PDF with fixed annotations. One page
+is a synthetic PAN card containing four fields. The other is a benefit illustration
+with four fields. All identifiers and names are fabricated. Every schema field on
+these two pages has a reference value. No threshold or model choice is selected
+using this cohort. Its fixtures are available in `ocr_fixture()`.
 
-The judge uses the same configured provider family as answer generation.
-Factual-sentence selection and entailment remain model-assisted judgments.
-Compound sentences are coarser units than atomic claims. The checks do not
-constitute independent human labeling or confidence calibration. Answers with no
-factual units still contribute to reference-fact recall. The raw sentence records
-allow individual scores to be reviewed.
+## Analyst scoring
 
-These are conservative, quote-verified support proxies. A factual label on a
-statement about missing evidence can reduce the support score because an absence
-has no positive source quotation. Such cases can be inspected in the retained
-sentence records. The score is not a measured hallucination rate.
+Execution accuracy is the number of requests with a correct calculation tool
+result divided by requests. Scalars must parse as numbers and match their reference
+within numerical tolerance. Regional results must contain the complete expected
+label-to-value mapping. Failed, partial, malformed, or missing tool outputs fail.
+The evaluator retains the actual generated tool arguments and outputs.
 
-The initial free-text grader produced malformed source labels and copied claim
-spans that did not match answers. Its scores were rejected. The same generated
-answers were regraded with stable sentence and source IDs. Initial grading
-records remain under `initial_grader_result` for audit. No answer was regenerated
-for this correction, and held-out labels did not select configurations.
+This adapts the principle of comparing executed results with gold results used
+by Spider. The workload here uses restricted Pandas and synthetic Excel, with
+its own oracles. [Spider evaluator](https://github.com/taoyds/spider/blob/master/evaluation.py)
 
-## Retrieval precision, recall, and F1
+Requested-fact correctness checks the final answer for the exact scalar, or each
+region associated with its expected total. Numeric matching rejects a larger
+number that merely contains the reference digits. Task success requires both
+correct execution and correct requested facts, with no tool failure.
 
-The evaluation unit is a unique source section among the top-k returned chunks.
-Duplicate chunks from one section count once. A relevant returned section is a
-true positive, an irrelevant returned section is a false positive, and a missed
-relevant section is a false negative. Unsupported-topic cases contribute false
-positives when retrieval returns evidence.
+The answer checker is deliberately narrow. Additional prose can contain claims
+outside its scoring scope. Full-response faithfulness would require separately
+annotated claims and supporting execution evidence. It is currently unmeasured.
 
-Micro precision is TP / (TP + FP), micro recall is TP / (TP + FN), and F1 is the
-harmonic mean of those values. Counts are summed across questions before ratios
-are calculated. MRR is also recorded in the JSON. The report lists TP, FP, FN,
-returned source sections, and labeled sections for each configuration.
+Workbook citation coverage is reported separately on A-flow calculation answers.
+It requires a workbook citation event in each response. This checks source-event
+availability. It does not establish claim-level entailment or citation precision.
 
-## One-factor experiments and selection
+Report latency as median and range over the six requests. No significance test
+or population confidence interval is supported by this sample size. Runtime
+heuristic confidence is not used as a correctness label.
 
-The baseline is k=5, chunk size 1,200 characters, overlap 180 characters, and
-minimum score 0.15. The eight alternatives vary one factor at a time.
+## Extraction scoring
 
-- Top-k changes to 1 or 3.
-- Chunk size changes to 800 or 1,600 characters with overlap fixed at 180.
-- Overlap changes to 90 or 270 characters with chunk size fixed at 1,200.
-- Minimum score changes to 0.35 or 0.55.
+Classification accuracy divides correct document types by the two reference pages.
+The two observed types cannot establish accuracy over all supported types.
 
-Individual development-F1 winners are also combined in a tenth trial. The best
-of these measured configurations is selected using development micro-F1 alone.
-Exact ties keep the earlier baseline settings. Held-out answers and labels do
-not select hyperparameters. Each chunk geometry has an isolated in-memory
-Chroma collection so indexes cannot reuse stale text across chunk settings.
-Retrieval scores and source text are recorded before answer generation.
+Named field values are normalized by case folding and collapsing whitespace.
+Correct nonempty values count as TP. Wrong nonempty values count as FP and FN.
+Missing expected values count as FN. Unexpected nonempty predictions count as FP.
+Micro precision is TP/(TP+FP), recall is TP/(TP+FN), and F1 is their harmonic mean.
+Zero denominators return zero in the field helper. The fixture has eight populated
+reference fields. [Document AI evaluation](https://docs.cloud.google.com/document-ai/docs/evaluate)
 
-Top-k also controls the retriever's existing three-times-k vector candidate
-request. The embedding function and source corpus are fixed. Production settings
-are preserved because the best-F1 candidate loses held-out source recall.
-This experiment searches a bounded neighborhood and does not establish a global
-or production-wide optimum.
+Whole-document exact match requires correct classification and every expected
+field. The field corpus CER sums character edit distances across normalized
+fields and divides by the total reference characters. Empty-reference corpus
+CER is undefined and stored as null. A separate raw OCR check compares normalized
+full-page text with all printed lines on the first page.
 
-The held-out answer traces exposed a separate company-source routing weakness.
-Some Sprout pricing and non-profit discount questions used the general-answer
-path even when the retrieved handbook contained the reference facts. Those
-responses were retained. This explains why high retrieval recall does not ensure
-high answer reference-fact recall. No routing fix was applied during this
-evaluation-focused change.
+CER permits values greater than 1 when insertions exceed the reference length.
+The runtime text-quality gate clamps its derived 1-CER confidence at zero, while
+preserving the actual CER. [CER implementation and definition](https://github.com/huggingface/evaluate/blob/main/metrics/cer/cer.py)
 
-Analyst temperature 0.1, assistance temperature 0.0, field review threshold 0.85,
-handwriting penalty 0.20, worker limits, and the one-OCR-retry policy remain
-fixed. They are documented engineering choices. No temperature sweep,
-model-weight fine-tuning, or held-out confidence calibration was performed.
+The local CER helper uses 0 for two empty strings and 1 for an empty reference
+with nonempty output. The populated-reference corpus is used for reported scores.
+Export checks require successful HTTP responses and record payload sizes. They
+check availability and can be supplemented with downstream schema checks.
 
-## Other module scores
+## Parameters and observed behavior
 
-The application smoke suite uses a generated five-row workbook with total
-Revenue 500 and one missing Cost. It checks three numeric answers, consent,
-approved Profit values, and a downloadable chart. Number-presence checks plus
-tool success and citations do not exhaustively verify every generated sentence.
+All three analyst temperatures scored six successful A-dev requests. The tie rule
+retained 0.1, which scored six successful A-test requests. Their latency differences
+are descriptive because request order and service load were not randomized.
 
-Document extraction uses a generated two-page PDF containing eight required
-printed fields. A nonempty field equal to its reference after case and whitespace
-normalization is a true positive. An incorrect nonempty value is a false positive
-and a missed reference, while an empty required field is a missed reference.
-The current sample has eight correct fields with no false positives or misses.
-Character error rate is character edit distance divided by reference length,
-averaged over fields and capped at one by the application evaluator.
+Threshold replay applies 0.75, 0.85, and 0.95 to the same saved field scores,
+requiring nonempty values and passing format checks. All eight fields pass every
+threshold. This provides no basis for an optimal threshold. Production retains
+0.85, a handwriting penalty of 0.20, provider-default image sampling, and one logical
+OCR-assisted retry. The handwriting penalty has no measured sensitivity study.
 
-Both live pages passed direct multimodal extraction and skipped OCR. The separate
-raw-OCR check reached vision OCR after Azure DNS resolution and Google billing
-failures. Retry control uses 13 controlled regressions covering low scores,
-missing fields, invalid formats, handwriting adjustment, provider failures,
-disagreements, and continuation-page review flags. Live handwriting quality
-remains unmeasured.
+Primary image extraction completed both X-test pages without an OCR retry. In the
+separate OCR check, Azure failed DNS resolution, Google Document AI returned
+billing-disabled, and vision OCR recovered the reference text. Fallback failures
+are operational findings and should not be interpreted as provider accuracy scores.
 
-## Reproduce
+Controlled regression tests exercise low confidence, missing fields, conflicts,
+provider errors, and retry limits. Those deterministic tests validate behavior.
+They are separate from live labeled quality measurements. Larger held-out samples,
+noisy scans, handwriting, optional/absent fields, and all remaining document types
+need dedicated annotations. No model-weight fine-tuning or score calibration was run.
 
-From `backend` with the repository virtual environment activated, run
-`python -m evals.parameter_study` for local retrieval experiments. Add
-`--live --repetitions 2` for the 24 answer-generation and 24 judging requests.
-The live flag uses configured external services and writes the report after
-each completed answer configuration. Fresh session IDs isolate answer state.
+## Reproduction and traces
 
-Run `python -m evals.run_all_evaluations --live` against the backend on port 8000
-to reproduce the separate module smoke results. `pytest -q` and the frontend's
-`npm test` cover code regressions separately from model-quality scores.
+From the repository root, activate `.venv` and install `backend/requirements-dev.txt`.
+Run from `backend`.
 
-`python -m evals.parameter_study --regrade` applies the current grader to saved
-answers without generating new answers. The report records the grading revision.
+```bash
+../.venv/bin/pytest -q
+../.venv/bin/python -m evals.run_all_evaluations
+../.venv/bin/python -m evals.run_all_evaluations --live
+../.venv/bin/python -m evals.analyst_experiments --live --repetitions 2
+```
+
+Live pipeline checks require the backend at port 8000. The analyst experiment
+invokes the normal graph in its own process, creates temporary workbooks, and
+keeps dataset registrations in memory. It restores its model factory and clears
+conversation checkpoints after each case. It does not write the shared workbook
+registry. Each case has a 240-second bound, and partial experiment results are
+saved after each development setting.
+
+[Application results](../backend/evals/evaluation_results.json) retain SSE stages,
+answers, checks, export responses, and document payloads.
+[Analyst results](../backend/evals/analyst_experiment_results.json) retain the
+cohort, temperature, repetition, oracle, answer, generated tool calls, actual
+outputs, and latency. Both reports record source revision and runner checksum.
+
+Reports may record an uncommitted source state because evaluation precedes the
+final documentation commit. Scores can change on later live runs as models and
+services change. Raw results are the source for the README summaries.
