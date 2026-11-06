@@ -154,15 +154,18 @@ function saveAnalysis(answer) {
     createdAt: answer.createdAt,
     filename: schema.value?.filename,
     chart: answer.chart,
-    status: answer.error
-      ? "failed"
-      : answer.changePreview
-        ? "awaiting_approval"
-        : answer.changeCanceled
-          ? "canceled"
-          : answer.stopped
-            ? "stopped"
-            : "complete",
+    status:
+      answer.error || answer.calculationFailed
+        ? answer.chart
+          ? "partial"
+          : "failed"
+        : answer.changePreview
+          ? "awaiting_approval"
+          : answer.changeCanceled
+            ? "canceled"
+            : answer.stopped
+              ? "stopped"
+              : "complete",
     change: answer.changeAppliedText || null,
   };
   try {

@@ -42,6 +42,7 @@ const filteredCharts = computed(() =>
 const statusLabel = (status) =>
   ({
     failed: "Failed",
+    partial: "Chart available · analysis incomplete",
     awaiting_approval: "Preview prepared",
     canceled: "Canceled",
     stopped: "Stopped",
@@ -206,7 +207,9 @@ onMounted(() => {
             <span
               class="status-tag"
               :class="{
-                warning: analysis.status === 'awaiting_approval',
+                warning: ['awaiting_approval', 'partial'].includes(
+                  analysis.status,
+                ),
                 error: analysis.status === 'failed',
                 neutral: ['canceled', 'stopped'].includes(analysis.status),
               }"

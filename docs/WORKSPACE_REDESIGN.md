@@ -60,6 +60,11 @@ Verified on November 6, 2026.
   Streamed tool outcomes now distinguish failed calculations from chart output.
 - Company Help answered a general spreadsheet question through its separate API.
 - The deletion confirmation opened and canceled without changing the workbook.
+- Refreshing the browser restored the saved workbook, chat, charts, and consent.
+- The profile workflow completed all four stages in 76 ms. Its output reported
+  five rows, five fields, two missing cells, and three generated charts.
+- Results labels a successful chart with a failed calculation as a partial
+  outcome. This preserves the calculation failure alongside the usable chart.
 - Desktop 1280 by 800 and narrow 390 by 844 layouts were visually reviewed.
 - The backend returned HTTP 200 for the Vue entry page, favicon, and modified
   workbook download.
