@@ -88,7 +88,11 @@ pip install -r backend/requirements.txt
 
 ### Step 3: Run the Application
 ```bash
-PYTHONPATH=backend uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+cd frontend
+npm ci
+npm run build
+cd ../backend
+../.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 Access the application in your browser:
@@ -100,10 +104,15 @@ Access the application in your browser:
 
 ### Step 4: Run the Complete Test Suite
 ```bash
-python -m unittest discover -s tests -t .
+cd backend
+../.venv/bin/pytest -q
+cd ../frontend
+npm test
+npm run build
 ```
 
 ### Step 5: Run Multi-Module Evaluation Benchmarks
 ```bash
-python evals/run_all_evaluations.py
+cd backend
+../.venv/bin/python3 evals/run_all_evaluations.py
 ```
