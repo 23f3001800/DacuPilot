@@ -1,0 +1,772 @@
+{
+  "timestamp": "2026-11-06T07:28:21.875938+00:00",
+  "source_revision": "4d6826cf6875377cfb7c39c232e29adf78745813",
+  "uncommitted_source": true,
+  "runner_sha256": "a3558f89fbd36ad309b2007f9082c236dc8fea0b54b75b635b1c944521c12385",
+  "scope": "Three tasks on each of two five-row synthetic workbooks; repeated requests are not independent datasets",
+  "selection_rule": "Highest A-dev task-success count; ties retain baseline temperature 0.1",
+  "development": [
+    {
+      "cohort": "A-dev",
+      "temperature": 0.1,
+      "cases": [
+        {
+          "id": "total",
+          "repetition": 1,
+          "expected": 500,
+          "execution_correct": true,
+          "answer_facts_correct": true,
+          "task_success": true,
+          "tool_failure": false,
+          "tools": [
+            {
+              "name": "execute_pandas_code",
+              "output": "500\n"
+            }
+          ],
+          "answer": "Total Revenue is 500.",
+          "tool_calls": [
+            {
+              "name": "execute_pandas_code",
+              "args": {
+                "code": "print(df[\"Revenue\"].sum())"
+              },
+              "id": "call_53Qzgtd34K5O76uz4j1dOvWV",
+              "type": "tool_call"
+            }
+          ],
+          "latency_ms": 5443.12
+        },
+        {
+          "id": "mean",
+          "repetition": 1,
+          "expected": 100.0,
+          "execution_correct": true,
+          "answer_facts_correct": true,
+          "task_success": true,
+          "tool_failure": false,
+          "tools": [
+            {
+              "name": "execute_pandas_code",
+              "output": "100.0\n"
+            }
+          ],
+          "answer": "Mean Revenue per row: 100.0",
+          "tool_calls": [
+            {
+              "name": "execute_pandas_code",
+              "args": {
+                "code": "print(df[\"Revenue\"].mean())"
+              },
+              "id": "call_FNyu7XhFx1ugyYtvA8EKYzuh",
+              "type": "tool_call"
+            }
+          ],
+          "latency_ms": 5838.73
+        },
+        {
+          "id": "regions",
+          "repetition": 1,
+          "expected": {
+            "South": 80,
+            "East": 100,
+            "West": 120,
+            "North": 200
+          },
+          "execution_correct": true,
+          "answer_facts_correct": true,
+          "task_success": true,
+          "tool_failure": false,
+          "tools": [
+            {
+              "name": "execute_pandas_code",
+              "output": "Region\nEast     100\nNorth    200\nSouth     80\nWest     120\n"
+            }
+          ],
+          "answer": "Here are the total Revenue values by Region (printed directly from the workbook):\n\nRegion\nEast     100\nNorth    200\nSouth     80\nWest     120\n\nWould you like this shown as a chart or exported?",
+          "tool_calls": [
+            {
+              "name": "execute_pandas_code",
+              "args": {
+                "code": "print(df.groupby(\"Region\")[\"Revenue\"].sum())"
+              },
+              "id": "call_9k0G9gOJdhb5lg963LWfJpA3",
+              "type": "tool_call"
+            }
+          ],
+          "latency_ms": 5434.99
+        },
+        {
+          "id": "total",
+          "repetition": 2,
+          "expected": 500,
+          "execution_correct": true,
+          "answer_facts_correct": true,
+          "task_success": true,
+          "tool_failure": false,
+          "tools": [
+            {
+              "name": "execute_pandas_code",
+              "output": "500\n"
+            }
+          ],
+          "answer": "Total Revenue is 500.",
+          "tool_calls": [
+            {
+              "name": "execute_pandas_code",
+              "args": {
+                "code": "print(df[\"Revenue\"].sum())"
+              },
+              "id": "call_RUzsonrKOIrXe3h7FTrpG97H",
+              "type": "tool_call"
+            }
+          ],
+          "latency_ms": 5337.96
+        },
+        {
+          "id": "mean",
+          "repetition": 2,
+          "expected": 100.0,
+          "execution_correct": true,
+          "answer_facts_correct": true,
+          "task_success": true,
+          "tool_failure": false,
+          "tools": [
+            {
+              "name": "execute_pandas_code",
+              "output": "100.0\n"
+            }
+          ],
+          "answer": "The mean Revenue per row is 100.0.",
+          "tool_calls": [
+            {
+              "name": "execute_pandas_code",
+              "args": {
+                "code": "print(df[\"Revenue\"].mean())"
+              },
+              "id": "call_33qiiUzTG3kZPKqhppj7i881",
+              "type": "tool_call"
+            }
+          ],
+          "latency_ms": 5646.72
+        },
+        {
+          "id": "regions",
+          "repetition": 2,
+          "expected": {
+            "South": 80,
+            "East": 100,
+            "West": 120,
+            "North": 200
+          },
+          "execution_correct": true,
+          "answer_facts_correct": true,
+          "task_success": true,
+          "tool_failure": false,
+          "tools": [
+            {
+              "name": "execute_pandas_code",
+              "output": "Region\nEast     100\nNorth    200\nSouth     80\nWest     120\n"
+            }
+          ],
+          "answer": "Here are the total Revenue values summed by Region (region: total Revenue):\n\n- East: 100\n- North: 200\n- South: 80\n- West: 120",
+          "tool_calls": [
+            {
+              "name": "execute_pandas_code",
+              "args": {
+                "code": "summary = df.groupby(\"Region\")[\"Revenue\"].sum()\nprint(summary)"
+              },
+              "id": "call_IoWG6IgMnU6BrRAkAbR98sGw",
+              "type": "tool_call"
+            }
+          ],
+          "latency_ms": 6136.97
+        }
+      ],
+      "summary": {
+        "total": 6,
+        "execution_correct": 6,
+        "answer_facts_correct": 6,
+        "task_success": 6,
+        "tool_failures": 0,
+        "median_latency_ms": 5544.92,
+        "latency_range_ms": [
+          5337.96,
+          6136.97
+        ]
+      }
+    },
+    {
+      "cohort": "A-dev",
+      "temperature": 0.0,
+      "cases": [
+        {
+          "id": "total",
+          "repetition": 1,
+          "expected": 500,
+          "execution_correct": true,
+          "answer_facts_correct": true,
+          "task_success": true,
+          "tool_failure": false,
+          "tools": [
+            {
+              "name": "execute_pandas_code",
+              "output": "500\n"
+            }
+          ],
+          "answer": "Total Revenue is 500.",
+          "tool_calls": [
+            {
+              "name": "execute_pandas_code",
+              "args": {
+                "code": "print(df[\"Revenue\"].sum())"
+              },
+              "id": "call_MPVHEkNMb82DFUOdpL3jFYwi",
+              "type": "tool_call"
+            }
+          ],
+          "latency_ms": 5554.17
+        },
+        {
+          "id": "mean",
+          "repetition": 1,
+          "expected": 100.0,
+          "execution_correct": true,
+          "answer_facts_correct": true,
+          "task_success": true,
+          "tool_failure": false,
+          "tools": [
+            {
+              "name": "execute_pandas_code",
+              "output": "100.0\n"
+            }
+          ],
+          "answer": "The mean Revenue per row is 100.0.",
+          "tool_calls": [
+            {
+              "name": "execute_pandas_code",
+              "args": {
+                "code": "print(df[\"Revenue\"].mean())"
+              },
+              "id": "call_wuxZAOWfIs5yKhWp5xHvszA3",
+              "type": "tool_call"
+            }
+          ],
+          "latency_ms": 5938.43
+        },
+        {
+          "id": "regions",
+          "repetition": 1,
+          "expected": {
+            "South": 80,
+            "East": 100,
+            "West": 120,
+            "North": 200
+          },
+          "execution_correct": true,
+          "answer_facts_correct": true,
+          "task_success": true,
+          "tool_failure": false,
+          "tools": [
+            {
+              "name": "execute_pandas_code",
+              "output": "Region\nEast     100\nNorth    200\nSouth     80\nWest     120\n"
+            }
+          ],
+          "answer": "Here are the total Revenue sums by Region (printed from the DataFrame):\n\nRegion\nEast     100\nNorth    200\nSouth     80\nWest     120\n\nSummary: North has the highest total revenue (200), followed by West (120), East (100), and South (80).",
+          "tool_calls": [
+            {
+              "name": "execute_pandas_code",
+              "args": {
+                "code": "print(df.groupby(\"Region\")[\"Revenue\"].sum())"
+              },
+              "id": "call_lE23lZYjMj5FlkJrVEMsvEYS",
+              "type": "tool_call"
+            }
+          ],
+          "latency_ms": 6280.84
+        },
+        {
+          "id": "total",
+          "repetition": 2,
+          "expected": 500,
+          "execution_correct": true,
+          "answer_facts_correct": true,
+          "task_success": true,
+          "tool_failure": false,
+          "tools": [
+            {
+              "name": "execute_pandas_code",
+              "output": "500\n"
+            }
+          ],
+          "answer": "Total Revenue is 500.",
+          "tool_calls": [
+            {
+              "name": "execute_pandas_code",
+              "args": {
+                "code": "print(df[\"Revenue\"].sum())"
+              },
+              "id": "call_fmAp4taAhsqnEBDuB0SL1qlo",
+              "type": "tool_call"
+            }
+          ],
+          "latency_ms": 5500.4
+        },
+        {
+          "id": "mean",
+          "repetition": 2,
+          "expected": 100.0,
+          "execution_correct": true,
+          "answer_facts_correct": true,
+          "task_success": true,
+          "tool_failure": false,
+          "tools": [
+            {
+              "name": "execute_pandas_code",
+              "output": "100.0\n"
+            }
+          ],
+          "answer": "The mean Revenue per row is 100.0.",
+          "tool_calls": [
+            {
+              "name": "execute_pandas_code",
+              "args": {
+                "code": "print(df[\"Revenue\"].mean())"
+              },
+              "id": "call_HVMkftoXeZa4smBtqEfM5CQV",
+              "type": "tool_call"
+            }
+          ],
+          "latency_ms": 5755.15
+        },
+        {
+          "id": "regions",
+          "repetition": 2,
+          "expected": {
+            "South": 80,
+            "East": 100,
+            "West": 120,
+            "North": 200
+          },
+          "execution_correct": true,
+          "answer_facts_correct": true,
+          "task_success": true,
+          "tool_failure": false,
+          "tools": [
+            {
+              "name": "execute_pandas_code",
+              "output": "Region\nEast     100\nNorth    200\nSouth     80\nWest     120\n"
+            }
+          ],
+          "answer": "Region totals for Revenue:\n- East: 100\n- North: 200\n- South: 80\n- West: 120",
+          "tool_calls": [
+            {
+              "name": "execute_pandas_code",
+              "args": {
+                "code": "print(df.groupby(\"Region\")[\"Revenue\"].sum())"
+              },
+              "id": "call_MLfKXMSVs895pp6iPQIqrDe9",
+              "type": "tool_call"
+            }
+          ],
+          "latency_ms": 6047.78
+        }
+      ],
+      "summary": {
+        "total": 6,
+        "execution_correct": 6,
+        "answer_facts_correct": 6,
+        "task_success": 6,
+        "tool_failures": 0,
+        "median_latency_ms": 5846.79,
+        "latency_range_ms": [
+          5500.4,
+          6280.84
+        ]
+      }
+    },
+    {
+      "cohort": "A-dev",
+      "temperature": 0.2,
+      "cases": [
+        {
+          "id": "total",
+          "repetition": 1,
+          "expected": 500,
+          "execution_correct": true,
+          "answer_facts_correct": true,
+          "task_success": true,
+          "tool_failure": false,
+          "tools": [
+            {
+              "name": "execute_pandas_code",
+              "output": "500\n"
+            }
+          ],
+          "answer": "Total Revenue is 500.",
+          "tool_calls": [
+            {
+              "name": "execute_pandas_code",
+              "args": {
+                "code": "print(df[\"Revenue\"].sum())"
+              },
+              "id": "call_6E59aNZkgr32gxvBkgkCzoxZ",
+              "type": "tool_call"
+            }
+          ],
+          "latency_ms": 4967.13
+        },
+        {
+          "id": "mean",
+          "repetition": 1,
+          "expected": 100.0,
+          "execution_correct": true,
+          "answer_facts_correct": true,
+          "task_success": true,
+          "tool_failure": false,
+          "tools": [
+            {
+              "name": "execute_pandas_code",
+              "output": "100.0\n"
+            }
+          ],
+          "answer": "Mean Revenue per row = 100.0",
+          "tool_calls": [
+            {
+              "name": "execute_pandas_code",
+              "args": {
+                "code": "print(df[\"Revenue\"].mean())"
+              },
+              "id": "call_ecJLMe4DmzOqyMurXCcjmhTa",
+              "type": "tool_call"
+            }
+          ],
+          "latency_ms": 4764.41
+        },
+        {
+          "id": "regions",
+          "repetition": 1,
+          "expected": {
+            "South": 80,
+            "East": 100,
+            "West": 120,
+            "North": 200
+          },
+          "execution_correct": true,
+          "answer_facts_correct": true,
+          "task_success": true,
+          "tool_failure": false,
+          "tools": [
+            {
+              "name": "execute_pandas_code",
+              "output": "Region\nEast     100\nNorth    200\nSouth     80\nWest     120\n"
+            }
+          ],
+          "answer": "Here are the total Revenue sums by Region (printed from the DataFrame):\n\nRegion\nEast     100\nNorth    200\nSouth     80\nWest     120",
+          "tool_calls": [
+            {
+              "name": "execute_pandas_code",
+              "args": {
+                "code": "result = df.groupby(\"Region\")[\"Revenue\"].sum()\nprint(result)"
+              },
+              "id": "call_ea5dFgGVgC37zTIgUJOMDErW",
+              "type": "tool_call"
+            }
+          ],
+          "latency_ms": 6519.04
+        },
+        {
+          "id": "total",
+          "repetition": 2,
+          "expected": 500,
+          "execution_correct": true,
+          "answer_facts_correct": true,
+          "task_success": true,
+          "tool_failure": false,
+          "tools": [
+            {
+              "name": "execute_pandas_code",
+              "output": "500\n"
+            }
+          ],
+          "answer": "Total Revenue is 500.",
+          "tool_calls": [
+            {
+              "name": "execute_pandas_code",
+              "args": {
+                "code": "print(df[\"Revenue\"].sum())"
+              },
+              "id": "call_oFP5DpZOZbH0mP1Yd7Zn5Jno",
+              "type": "tool_call"
+            }
+          ],
+          "latency_ms": 5687.92
+        },
+        {
+          "id": "mean",
+          "repetition": 2,
+          "expected": 100.0,
+          "execution_correct": true,
+          "answer_facts_correct": true,
+          "task_success": true,
+          "tool_failure": false,
+          "tools": [
+            {
+              "name": "execute_pandas_code",
+              "output": "100.0\n"
+            }
+          ],
+          "answer": "The mean Revenue per row is 100.0.",
+          "tool_calls": [
+            {
+              "name": "execute_pandas_code",
+              "args": {
+                "code": "print(df[\"Revenue\"].mean())"
+              },
+              "id": "call_Gbr8aVh2jA8V6XVQzSXwdYAM",
+              "type": "tool_call"
+            }
+          ],
+          "latency_ms": 5461.82
+        },
+        {
+          "id": "regions",
+          "repetition": 2,
+          "expected": {
+            "South": 80,
+            "East": 100,
+            "West": 120,
+            "North": 200
+          },
+          "execution_correct": true,
+          "answer_facts_correct": true,
+          "task_success": true,
+          "tool_failure": false,
+          "tools": [
+            {
+              "name": "execute_pandas_code",
+              "output": "Region\nEast     100\nNorth    200\nSouth     80\nWest     120\n"
+            }
+          ],
+          "answer": "Here are the total Revenue sums by Region (printed from the workbook):\n\nRegion\nEast     100\nNorth    200\nSouth     80\nWest     120",
+          "tool_calls": [
+            {
+              "name": "execute_pandas_code",
+              "args": {
+                "code": "print(df.groupby(\"Region\")[\"Revenue\"].sum())"
+              },
+              "id": "call_qLLLntSIs0ZOcopPkfYKQBcR",
+              "type": "tool_call"
+            }
+          ],
+          "latency_ms": 6339.61
+        }
+      ],
+      "summary": {
+        "total": 6,
+        "execution_correct": 6,
+        "answer_facts_correct": 6,
+        "task_success": 6,
+        "tool_failures": 0,
+        "median_latency_ms": 5574.87,
+        "latency_range_ms": [
+          4764.41,
+          6519.04
+        ]
+      }
+    }
+  ],
+  "selected_temperature": 0.1,
+  "held_out": {
+    "cohort": "A-test",
+    "temperature": 0.1,
+    "cases": [
+      {
+        "id": "total",
+        "repetition": 1,
+        "expected": 600,
+        "execution_correct": true,
+        "answer_facts_correct": true,
+        "task_success": true,
+        "tool_failure": false,
+        "tools": [
+          {
+            "name": "execute_pandas_code",
+            "output": "600\n"
+          }
+        ],
+        "answer": "Total Revenue = 600",
+        "tool_calls": [
+          {
+            "name": "execute_pandas_code",
+            "args": {
+              "code": "print(df[\"Revenue\"].sum())"
+            },
+            "id": "call_GLlBu6fZ2vR2kO4iIpLgpaps",
+            "type": "tool_call"
+          }
+        ],
+        "latency_ms": 5861.49
+      },
+      {
+        "id": "mean",
+        "repetition": 1,
+        "expected": 120.0,
+        "execution_correct": true,
+        "answer_facts_correct": true,
+        "task_success": true,
+        "tool_failure": false,
+        "tools": [
+          {
+            "name": "execute_pandas_code",
+            "output": "120.0\n"
+          }
+        ],
+        "answer": "Mean Revenue per row: 120.0",
+        "tool_calls": [
+          {
+            "name": "execute_pandas_code",
+            "args": {
+              "code": "print(df[\"Revenue\"].mean())"
+            },
+            "id": "call_SrKuVDL6UqjEU6ZdssdvOC2n",
+            "type": "tool_call"
+          }
+        ],
+        "latency_ms": 6538.61
+      },
+      {
+        "id": "regions",
+        "repetition": 1,
+        "expected": {
+          "South": 140,
+          "East": 100,
+          "West": 60,
+          "North": 300
+        },
+        "execution_correct": true,
+        "answer_facts_correct": true,
+        "task_success": true,
+        "tool_failure": false,
+        "tools": [
+          {
+            "name": "execute_pandas_code",
+            "output": "Region\nEast     100\nNorth    300\nSouth    140\nWest      60\n"
+          }
+        ],
+        "answer": "Here are the total Revenue values by Region (region: total Revenue):\n\n- East: 100\n- North: 300\n- South: 140\n- West: 60",
+        "tool_calls": [
+          {
+            "name": "execute_pandas_code",
+            "args": {
+              "code": "print(df.groupby(\"Region\")[\"Revenue\"].sum())"
+            },
+            "id": "call_8bJXro6WM5LcKhUzDHuWnwv2",
+            "type": "tool_call"
+          }
+        ],
+        "latency_ms": 8810.33
+      },
+      {
+        "id": "total",
+        "repetition": 2,
+        "expected": 600,
+        "execution_correct": true,
+        "answer_facts_correct": true,
+        "task_success": true,
+        "tool_failure": false,
+        "tools": [
+          {
+            "name": "execute_pandas_code",
+            "output": "600\n"
+          }
+        ],
+        "answer": "Total Revenue = 600",
+        "tool_calls": [
+          {
+            "name": "execute_pandas_code",
+            "args": {
+              "code": "print(df[\"Revenue\"].sum())"
+            },
+            "id": "call_GBHOJVWk3adtxtvFNwV50HtX",
+            "type": "tool_call"
+          }
+        ],
+        "latency_ms": 6503.46
+      },
+      {
+        "id": "mean",
+        "repetition": 2,
+        "expected": 120.0,
+        "execution_correct": true,
+        "answer_facts_correct": true,
+        "task_success": true,
+        "tool_failure": false,
+        "tools": [
+          {
+            "name": "execute_pandas_code",
+            "output": "120.0\n"
+          }
+        ],
+        "answer": "Mean Revenue per row = 120.0",
+        "tool_calls": [
+          {
+            "name": "execute_pandas_code",
+            "args": {
+              "code": "print(df[\"Revenue\"].mean())"
+            },
+            "id": "call_fkMi4i7fGXv433kz4mTWqsIH",
+            "type": "tool_call"
+          }
+        ],
+        "latency_ms": 7727.32
+      },
+      {
+        "id": "regions",
+        "repetition": 2,
+        "expected": {
+          "South": 140,
+          "East": 100,
+          "West": 60,
+          "North": 300
+        },
+        "execution_correct": true,
+        "answer_facts_correct": true,
+        "task_success": true,
+        "tool_failure": false,
+        "tools": [
+          {
+            "name": "execute_pandas_code",
+            "output": "Region\nEast     100\nNorth    300\nSouth    140\nWest      60\n"
+          }
+        ],
+        "answer": "Region totals for Revenue:\n- East: 100\n- North: 300\n- South: 140\n- West: 60",
+        "tool_calls": [
+          {
+            "name": "execute_pandas_code",
+            "args": {
+              "code": "print(df.groupby(\"Region\")[\"Revenue\"].sum())"
+            },
+            "id": "call_27VpNBB975MJnE3CwGUb4350",
+            "type": "tool_call"
+          }
+        ],
+        "latency_ms": 8114.3
+      }
+    ],
+    "summary": {
+      "total": 6,
+      "execution_correct": 6,
+      "answer_facts_correct": 6,
+      "task_success": 6,
+      "tool_failures": 0,
+      "median_latency_ms": 7132.97,
+      "latency_range_ms": [
+        5861.49,
+        8810.33
+      ]
+    }
+  },
+  "baseline_shares_held_out_run": true
+}
