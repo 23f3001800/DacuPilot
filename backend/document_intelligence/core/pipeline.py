@@ -15,7 +15,7 @@ from ..schemas.documents import (
     DOCUMENT_DATA_FIELDS,
     MasterDocumentIntelligencePayload,
 )
-from ..schemas.fields import FieldEvaluation
+from ..schemas.fields import FieldEvaluation, normalize_field as _normalized_field
 from ..utils.ocr import DOCUMENT_SCHEMAS, IDENTITY_DOCUMENTS
 
 MAX_FILE_BYTES = 20 * 1024 * 1024
@@ -101,29 +101,6 @@ def segment_upload(
     ]
 
 
-def _normalized_field(raw_field: Any, handwritten_default: bool) -> dict[str, Any]:
-    if not isinstance(raw_field, dict):
-        raw_field = {}
-    value = raw_field.get("value")
-    confidence = raw_field.get("ai_confidence", 0.0)
-    try:
-        confidence = float(confidence)
-    except (TypeError, ValueError):
-        confidence = 0.0
-    if not math.isfinite(confidence):
-        confidence = 0.0
-    confidence = min(1.0, max(0.0, confidence))
-    return {
-        "value": None if value is None else str(value).strip() or None,
-        "is_handwritten": bool(
-            raw_field.get("is_handwritten")
-            if isinstance(raw_field.get("is_handwritten"), bool)
-            else handwritten_default
-        ),
-        "ai_confidence": confidence,
-    }
-
-
 def _classify_page(
     page: DocumentPage,
     processor: PageProcessor,
@@ -188,7 +165,7 @@ def _classify_page(
 
     ocr_stage = {
         "stage": "DOCUMENT_AI_OCR",
-        "status": "COMPLETED",
+        "status": response.get("ocr_status", "COMPLETED"),
         "confidence": ocr_confidence,
         "provider": response.get("ocr_provider", "unknown"),
     }
@@ -222,6 +199,7 @@ def _classify_page(
             "ocr_confidence": ocr_confidence,
             "document_reference": None,
             "is_continuation": False,
+            "extraction_attempts": response.get("extraction_attempts", []),
             "error": f"Unsupported or unknown document type: {document_type}",
             "stage_trace": [
                 {"stage": "DOCUMENT_SEGMENTATION", "status": "COMPLETED"},
@@ -263,6 +241,19 @@ def _classify_page(
         text_medium=text_medium,
         **{data_attr: field_schema(**fields)},
     )
+    for name in response.get("retry_conflicts", []):
+        matrix = extraction.system_evaluation_matrix
+        matrix["final_routing_decision"] = "HUMAN_REVIEWS_REQUIRED"
+        matrix["validation_failures"].append(f"{name.upper()}_EXTRACTION_ATTEMPTS_DISAGREE")
+        field = getattr(getattr(extraction, data_attr), name, None)
+        if field is not None:
+            field.requires_human_review = True
+        matrix["flagged_fields"].append({
+            "field": name,
+            "value": field.value if field is not None else document_type,
+            "confidence": field.final_field_score if field is not None else classification_confidence,
+            "reason": "EXTRACTION_ATTEMPTS_DISAGREE",
+        })
     if classification_confidence < Config.FIELD_CONFIDENCE_THRESHOLD:
         matrix = extraction.system_evaluation_matrix
         matrix["final_routing_decision"] = "HUMAN_REVIEWS_REQUIRED"
@@ -310,17 +301,23 @@ def _classify_page(
         "source_file": page.source_file,
         "page_number": page.page_number,
         "document_type": document_type,
-        "processor_route": (
+        "processor_route": response.get("extraction_method") or (
             "GOOGLE_ID_PROCESSOR"
             if document_type in IDENTITY_DOCUMENTS
             else "GOOGLE_FORM_PROCESSOR"
         ),
         "classification_confidence": classification_confidence,
         "ocr_confidence": response.get("ocr_confidence"),
+        "extraction_attempts": [{"page_number": page.page_number, **attempt} for attempt in response.get("extraction_attempts", [])],
+        "retry_conflicts": response.get("retry_conflicts", []),
         "document_reference": response.get("document_reference"),
         "is_continuation": bool(response.get("is_continuation", False)),
         "stage_trace": [
             {"stage": "DOCUMENT_SEGMENTATION", "status": "COMPLETED"},
+            *[{
+                "stage": "EXTRACTION_ATTEMPT",
+                **attempt,
+            } for attempt in response.get("extraction_attempts", [])],
             ocr_stage,
             {
                 "stage": "CLASSIFIER_ROUTER",
@@ -334,7 +331,7 @@ def _classify_page(
             {
                 "stage": "DOCUMENT_PROCESSOR",
                 "status": "PASSED",
-                "route": (
+                "route": response.get("extraction_method") or (
                     "GOOGLE_ID_PROCESSOR"
                     if document_type in IDENTITY_DOCUMENTS
                     else "GOOGLE_FORM_PROCESSOR"
@@ -400,6 +397,8 @@ def _group_pages(page_results: Iterable[dict[str, Any]]) -> list[dict[str, Any]]
             old_field = previous_fields[name]
             if field["ai_confidence"] > old_field["ai_confidence"]:
                 previous_fields[name] = field
+            if field.get("requires_human_review"):
+                previous_fields[name]["requires_human_review"] = True
         previous["extraction"][
             DOCUMENT_DATA_FIELDS[previous["document_type"]]
         ].update(previous_fields)
@@ -408,6 +407,14 @@ def _group_pages(page_results: Iterable[dict[str, Any]]) -> list[dict[str, Any]]
             page_result["classification_confidence"],
         )
         previous["stage_trace"].extend(page_result["stage_trace"])
+        previous.setdefault("extraction_attempts", []).extend(page_result.get("extraction_attempts", []))
+        previous["retry_conflicts"] = list(dict.fromkeys(previous.get("retry_conflicts", []) + page_result.get("retry_conflicts", [])))
+        current_matrix = page_result["extraction"]["system_evaluation_matrix"]
+        if current_matrix.get("flagged_fields"):
+            previous_matrix = previous["extraction"]["system_evaluation_matrix"]
+            previous_matrix["flagged_fields"].extend(current_matrix["flagged_fields"])
+            previous_matrix["validation_failures"].extend(current_matrix.get("validation_failures", []))
+            previous_matrix["final_routing_decision"] = "HUMAN_REVIEWS_REQUIRED"
     return documents
 
 

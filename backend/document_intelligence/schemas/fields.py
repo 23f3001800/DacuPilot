@@ -1,5 +1,23 @@
-from typing import Optional
+import math
+from typing import Any, Optional
 from pydantic import BaseModel, Field
+
+
+def normalize_field(raw_field: Any, handwritten_default: bool) -> dict[str, Any]:
+    if not isinstance(raw_field, dict):
+        raw_field = {}
+    value = raw_field.get("value")
+    try:
+        confidence = float(raw_field.get("ai_confidence", 0.0))
+    except (TypeError, ValueError):
+        confidence = 0.0
+    if not math.isfinite(confidence):
+        confidence = 0.0
+    return {
+        "value": None if value is None else str(value).strip() or None,
+        "is_handwritten": raw_field.get("is_handwritten") if isinstance(raw_field.get("is_handwritten"), bool) else handwritten_default,
+        "ai_confidence": min(1.0, max(0.0, confidence)),
+    }
 
 class FieldEvaluation(BaseModel):
     """Encapsulates extracted text values alongside validation matrix parameters."""
