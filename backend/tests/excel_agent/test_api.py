@@ -144,6 +144,13 @@ class ExcelApiTests(unittest.TestCase):
     def test_legacy_frontend_stylesheet_is_not_served(self):
         self.assertEqual(TestClient(app).get("/ui/data-upload.css").status_code, 404)
 
+    def test_app_exposes_analysis_and_extraction_without_company_help(self):
+        paths = app.openapi()["paths"]
+        self.assertIn("/api/chat/stream", paths)
+        self.assertIn("/api/documents/process/stream", paths)
+        self.assertFalse(any(path.startswith("/api/document-assistant") for path in paths))
+        self.assertEqual(TestClient(app).post("/api/document-assistant/chat", json={}).status_code, 404)
+
     def test_stream_endpoint_returns_agent_events(self):
         graph = FakeGraph()
         with patch.object(api.agent, "compiled_graph", graph):

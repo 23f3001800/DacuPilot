@@ -1,1 +1,0 @@
-"""Document assistant tests."""

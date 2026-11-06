@@ -6,7 +6,6 @@ from pathlib import Path
 import uvicorn
 
 from datapilot.config import get_config
-from document_assistance.api import router as document_assistant_router
 from document_intelligence.api import router as document_intelligence_router
 from excel_agent.api import router as excel_agent_router
 from fastapi import FastAPI
@@ -27,7 +26,6 @@ app = FastAPI(title="InsightPilot | Document and Data Workspace")
 app.add_middleware(latency_middleware_factory())
 app.add_middleware(CORSMiddleware, allow_origins=allowed_origins, allow_methods=["*"], allow_headers=["*"])
 app.include_router(excel_agent_router)
-app.include_router(document_assistant_router)
 app.include_router(document_intelligence_router)
 FRONTEND_DIRECTORY = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 FRONTEND_INDEX = FRONTEND_DIRECTORY / "index.html"
