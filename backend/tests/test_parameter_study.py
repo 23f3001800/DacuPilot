@@ -18,8 +18,8 @@ def test_retrieval_counts_irrelevant_and_missing_sections():
 
 def test_faithfulness_and_citation_coverage_are_independent():
     result = score_claims("Annual leave is 24 days.", [{"citation": "Handbook — Leave", "text": "Annual leave is 24 days."}], {
-        "claims": [{"claim": "Annual leave is 24 days.", "supported": True,
-                    "citation": "", "support_source": "Handbook — Leave", "reference_quote": "Annual leave is 24 days."}],
+        "units": [{"id": "C1", "factual": True, "supported": True,
+                   "support_source_id": "S1", "reference_quote": "Annual leave is 24 days."}],
         "reference_fact_matches": [True],
     }, 1)
     assert result["supported"] == 1
@@ -29,10 +29,23 @@ def test_faithfulness_and_citation_coverage_are_independent():
 
 def test_a_fabricated_judge_quote_cannot_count_as_support():
     result = score_claims("Annual leave is 50 days. Source: [Handbook — Leave]", [{"citation": "Handbook — Leave", "text": "Annual leave is 24 days."}], {
-        "claims": [{"claim": "Annual leave is 50 days.", "supported": True,
-                    "citation": "Handbook — Leave", "support_source": "Handbook — Leave", "reference_quote": "Annual leave is 50 days."}],
+        "units": [{"id": "C1", "factual": True, "supported": True,
+                   "support_source_id": "S1", "reference_quote": "Annual leave is 50 days."}],
         "reference_fact_matches": [False],
     }, 1)
     assert result["supported"] == 0
     assert result["covered"] == 1
     assert result["correct_citations"] == 0
+
+
+def test_multiple_chunks_with_one_citation_keep_their_own_source_ids():
+    result = score_claims("Annual leave is 24 days. Source: [Handbook — Leave]", [
+        {"citation": "Handbook — Leave", "text": "Annual leave is 24 days."},
+        {"citation": "Handbook — Leave", "text": "Requests need approval."},
+    ], {
+        "units": [{"id": "C1", "factual": True, "supported": True,
+                   "support_source_id": "S1", "reference_quote": "Annual leave is 24 days."}],
+        "reference_fact_matches": [True],
+    }, 1)
+    assert result["supported"] == 1
+    assert result["covered"] == 1
