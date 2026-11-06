@@ -22,6 +22,8 @@ LEAVE = "Leave and Holiday Policy, Page 5"
 PRICE = "Pricing and Plans, Page 4"
 SECURITY = "Information Security, Page 8"
 BASELINE = {"k": 5, "chunk_size": 1200, "overlap": 180, "min_score": 0.15}
+GRADING_METHOD = "Fixed factual sentence units and source IDs; deterministic citation attribution and quote validation; model-assisted entailment"
+JUDGE_LIMITATIONS = "Same provider family as answer generation; factual-sentence entailment is model judged; source quotations are checked literally; no independent human sentence labeling"
 
 
 def case(case_id, question, sections, facts=()):
@@ -175,7 +177,7 @@ def regrade_report(path):
     def regrade(record):
         item = questions[record["id"]]
         old = {key: record.pop(key) for key in ("grading", "error", "error_type") if key in record}
-        record["initial_grader_result"] = old
+        record.setdefault("initial_grader_result", old)
         try:
             record["grading"] = judge_answer(clients, item["question"], record["answer"], record["evidence"], item["facts"])
         except Exception as error:
@@ -189,8 +191,8 @@ def regrade_report(path):
         suite["metrics"] = answer_metrics(suite["cases"])
         print(f"Regraded {name}", flush=True)
         path.write_text(json.dumps(report, indent=2), encoding="utf-8")
-    report["grading_method"] = "Fixed factual sentence units and source IDs; deterministic citation attribution and quote validation; model-assisted entailment"
-    report["judge_limitations"] = "Same provider family as answer generation; factual-sentence entailment is model judged; source quotations are checked literally; no independent human sentence labeling"
+    report["grading_method"] = GRADING_METHOD
+    report["judge_limitations"] = JUDGE_LIMITATIONS
     report["regraded_at"] = datetime.now(timezone.utc).isoformat()
     path.write_text(json.dumps(report, indent=2), encoding="utf-8")
 
@@ -289,7 +291,8 @@ def main():
     args.output.write_text(json.dumps(report, indent=2), encoding="utf-8")
     if args.live:
         clients = create_openai_clients()
-        report["judge_limitations"] = "Same configured provider family as answer generation; judge-assisted entailment with verified source quotes and answer spans; no independent human claim labeling"
+        report["judge_limitations"] = JUDGE_LIMITATIONS
+        report["grading_method"] = GRADING_METHOD
         report["answers"] = {}
         for name, config in (("baseline", BASELINE), ("selected", selected)):
             report["answers"][name] = evaluate_answers(config, args.repetitions, clients, stores)
