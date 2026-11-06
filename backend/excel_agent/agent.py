@@ -362,11 +362,13 @@ SECURITY DIRECTIVES:
 - The calculation tool is read-only: use it only to analyze `df` and print results. Never assign to `df`, change a column, or claim that a workbook was modified. Column changes must use the in-app preview and user approval flow.
 - Print the calculation result so it can be checked. The execution tool interprets a restricted analysis language; it does not run arbitrary Python.
 - The app renders charts from the workbook separately. For chart, graph, plot, trend, or dashboard requests, use the calculation tool only to print the underlying summary; do not import plotting libraries, call `.plot()`, or return chart code.
+- After a chart request, explain the computed summary briefly. The app will attempt to attach the chart to this answer automatically, so do not ask whether the user wants a chart or claim it has already rendered.
 - Keep calculations within the supported Pandas subset. Typical patterns are `print(df["<exact column>"].sum())` and `print(df.groupby("<category column>")["<numeric column>"].sum())`.
+- Assign only to a plain temporary variable name. Item assignments such as `summary["Profit"] = ...` are unsupported even on derived data. Print expressions directly, for example `print(df["Revenue"] - df["Cost"])`. Do not invent extra calculated metrics for a generic chart request; summarize one existing numeric column by one existing category.
 - Never access the operating system, files, network, credentials, or subprocesses.
 """)
     llm_with_tools = llm.bind_tools([
-        {"name": "execute_pandas_code", "description": "Run a read-only, restricted analysis expression against the preloaded df and print its result. Never assign to df or modify workbook data; column changes use the app preview and approval flow. Imports, loops, functions, filesystem, network, and arbitrary Python are unavailable.", "parameters": CodeExecutionInput.model_json_schema()},
+        {"name": "execute_pandas_code", "description": "Run a read-only, restricted analysis expression against the preloaded df and print its result. Only plain temporary variable assignments are supported. Never assign to any subscript, attribute, or df. Print calculated expressions directly. Workbook column changes use the app preview and approval flow. Imports, loops, functions, filesystem, network, and arbitrary Python are unavailable.", "parameters": CodeExecutionInput.model_json_schema()},
         {"name": "web_search_lookup", "description": "Search Tavily for definitions.", "parameters": WebSearchInput.model_json_schema()}
     ])
     response = None

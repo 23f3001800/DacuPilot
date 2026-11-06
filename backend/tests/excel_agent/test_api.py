@@ -116,29 +116,33 @@ class ExcelApiTests(unittest.TestCase):
             {"average": None, "maximum": None, "nested": [None]},
         )
 
-    def test_homepage_serves_inventory_chat_ui(self):
-        response = TestClient(app).get("/")
+    def test_homepage_serves_the_vue_workspace_build(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            index = Path(temporary_directory) / "index.html"
+            index.write_text(
+                '<!doctype html><title>InsightPilot</title><div id="app"></div>'
+                '<script type="module" src="/assets/workspace.js"></script>',
+                encoding="utf-8",
+            )
+            with patch("main.FRONTEND_INDEX", index):
+                response = TestClient(app).get("/")
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("text/html", response.headers["content-type"])
-        self.assertIn("Intelligent Document &amp; Data Processing", response.text)
-        self.assertIn('data-route="document-intelligence"', response.text)
-        self.assertIn("/api/chat/stream", response.text)
-        self.assertIn('payload.event === "status"', response.text)
-        self.assertIn("receivedToken = false", response.text)
-        self.assertIn('id="excel-file"', response.text)
-        self.assertIn('fileInput.addEventListener("change", uploadWorkbook)', response.text)
-        self.assertIn("Choose a file to upload it automatically.", response.text)
-        self.assertIn("/api/data/upload", response.text)
-        self.assertIn("/ui/data-upload.css", response.text)
-        self.assertIn("sessionStorage", response.text)
+        self.assertIn('id="app"', response.text)
+        self.assertIn("/assets/workspace.js", response.text)
 
-    def test_data_upload_stylesheet_is_served(self):
-        response = TestClient(app).get("/ui/data-upload.css")
+    def test_missing_frontend_build_returns_an_actionable_error(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            with patch("main.FRONTEND_INDEX", Path(temporary_directory) / "missing.html"):
+                response = TestClient(app).get("/")
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers["content-type"].split(";")[0], "text/css")
-        self.assertIn(".workbook-upload-panel", response.text)
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("workspace build is unavailable", response.text)
+        self.assertIn("npm run build", response.text)
+
+    def test_legacy_frontend_stylesheet_is_not_served(self):
+        self.assertEqual(TestClient(app).get("/ui/data-upload.css").status_code, 404)
 
     def test_stream_endpoint_returns_agent_events(self):
         graph = FakeGraph()
@@ -178,6 +182,27 @@ class ExcelApiTests(unittest.TestCase):
             result = asyncio.run(agent.analyst_reasoning_node({"messages": [], "thread_id": TEST_THREAD_ID}))
 
         self.assertEqual(result["messages"][0].content, "Live answer")
+
+    def test_stream_exposes_tool_outcome_without_raw_failure_details(self):
+        class ToolGraph:
+            async def astream_events(self, initial_input, config, version):
+                yield {
+                    "event": "on_chain_end",
+                    "name": "execute_tools",
+                    "data": {"output": {"messages": [
+                        ToolMessage(content="ERROR: private calculation detail", name="execute_pandas_code", tool_call_id="failed"),
+                        ToolMessage(content="10", name="execute_pandas_code", tool_call_id="passed"),
+                    ]}},
+                }
+
+        with patch.object(api.agent, "compiled_graph", ToolGraph()):
+            response = TestClient(app).post(
+                "/api/chat/stream",
+                json={"message": "Summarize stock", "thread_id": TEST_THREAD_ID, "processing_consent": True},
+            )
+        self.assertIn('"event": "tool_result", "tool": "execute_pandas_code", "success": false', response.text)
+        self.assertIn('"event": "tool_result", "tool": "execute_pandas_code", "success": true', response.text)
+        self.assertNotIn("private calculation detail", response.text)
 
     def test_stream_errors_are_sanitized_and_still_end_with_done_sentinel(self):
         class FailingGraph:

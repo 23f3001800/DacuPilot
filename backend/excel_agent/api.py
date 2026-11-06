@@ -1079,6 +1079,11 @@ async def sse_event_generator(user_message: str, thread_id: str):
                 tool_messages = output_data.get("messages", []) if isinstance(output_data, dict) else []
                 citations = []
                 for tool_message in tool_messages:
+                    yield _sse({
+                        "event": "tool_result",
+                        "tool": getattr(tool_message, "name", "unknown"),
+                        "success": not agent._tool_execution_failed(tool_message.content),
+                    })
                     evidence = getattr(tool_message, "additional_kwargs", {}) or {}
                     if evidence.get("evidence_type") == "web":
                         citations.extend(
