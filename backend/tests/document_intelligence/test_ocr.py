@@ -187,6 +187,7 @@ class OcrImageTests(unittest.TestCase):
 
         self.assertEqual(result.text, "PAN ABCDE1234F")
         self.assertEqual(result.confidence, 0.9)
+        self.assertEqual(result.provider, "google_document_ai")
         self.assertEqual(
             client.request["name"],
             "projects/project/locations/us/processors/processor",

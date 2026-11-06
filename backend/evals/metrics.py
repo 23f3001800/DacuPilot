@@ -1,12 +1,8 @@
 """Evaluation matrices for DocuPilot.
 
-Three focused matrices inspired by the DevDocs-AI evaluation framework
-(see /home/vikas/DevDocs-AI/evals/):
-
-1. Pipeline Quality Matrix  — classification accuracy, field extraction CER,
-   confidence calibration across a completed pipeline run.
-2. Throughput Matrix        — latency per stage, pages/sec, total time.
-3. Routing Matrix           — automation vs human-review split, flag reasons.
+Runtime matrices summarize model confidence, validation, latency, and routing.
+Ground-truth accuracy and CER require separately labeled reference cases.
+Confidence summaries alone do not measure accuracy or calibration.
 """
 
 from __future__ import annotations
@@ -152,7 +148,7 @@ def retrieval_evaluation_matrix(
     cases: Sequence[dict[str, Any]],
     k: int = 5,
 ) -> dict[str, Any]:
-    """Measure hybrid retrieval quality (BM25 + RRF + CrossEncoder rerank).
+    """Measure ranked retrieval quality against supplied relevant IDs.
 
     Each case in *cases* should provide:
     - ``retrieved_ids``: sequence of retrieved chunk or section IDs

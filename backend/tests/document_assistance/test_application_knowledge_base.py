@@ -13,6 +13,9 @@ KNOWLEDGE_BASE_DIR = Path(__file__).resolve().parents[2] / "document_assistance"
 
 
 class CompanyHelpKnowledgeBaseTests(unittest.TestCase):
+    def test_general_answer_drops_unresolved_citation_ranges(self):
+        self.assertEqual(document._validate_citations("General answer [E1–E5]", []), "General answer")
+
     def test_active_package_contains_company_sources_only(self):
         expected = {"nimbus_orchard_handbook.pdf", "privacy_policy.pdf"}
         sections = load_knowledge_base(KNOWLEDGE_BASE_DIR)

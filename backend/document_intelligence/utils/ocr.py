@@ -65,7 +65,7 @@ class MultimodalOCRProcessor:
         self.identity_processor = GoogleIdentityProcessor(self.clients)
         self.form_processor = GoogleFormProcessor(self.clients)
 
-    def _ocr_with_fallback(self, image_bytes: bytes, mime_type: str):
+    def _ocr_with_fallback(self, image_bytes: bytes, mime_type: str, progress_callback=None):
         """Try Azure Document Intelligence (Primary) → Google Cloud Document AI (Secondary) → Vision LLM (Tertiary Fallback)."""
         from .google_document_ai import OCRResult
 
@@ -74,16 +74,20 @@ class MultimodalOCRProcessor:
             try:
                 logger.info("Executing Primary OCR: Azure Document Intelligence")
                 return self._azure_ocr.process(image_bytes, mime_type)
-            except Exception:
+            except Exception as error:
                 logger.warning("Primary Azure Document Intelligence failed; falling back to Secondary Google Document AI")
+                if progress_callback:
+                    progress_callback({"step": "ocr", "status": "fallback", "ocr_provider": "azure_document_intelligence", "failure_type": type(error).__name__, "message": "Azure OCR unavailable. Trying the next provider."})
 
         # 2. Google Cloud Document AI (Secondary OCR)
         if self._google_ocr is not None:
             try:
                 logger.info("Executing Secondary OCR: Google Cloud Document AI")
                 return self._google_ocr.process(image_bytes, mime_type)
-            except Exception:
+            except Exception as error:
                 logger.warning("Secondary Google Document AI failed; falling back to Tertiary Vision LLM")
+                if progress_callback:
+                    progress_callback({"step": "ocr", "status": "fallback", "ocr_provider": "google_document_ai", "failure_type": type(error).__name__, "message": "Google OCR unavailable. Trying the vision model."})
 
         # 3. Lightweight vision LLM fallback (Tertiary OCR)
         logger.info("Executing Tertiary OCR: Vision LLM fallback")
@@ -113,7 +117,7 @@ class MultimodalOCRProcessor:
             ],
         )
         text = response.choices[0].message.content or ""
-        return OCRResult(text=text, confidence=None)
+        return OCRResult(text=text, confidence=None, provider="vision_llm")
 
     @staticmethod
     def encode_image_to_base64(image_path: str) -> str:
@@ -172,6 +176,7 @@ Use UNKNOWN and confidence 0 for unsupported pages.
         ocr_result = self._ocr_with_fallback(image_bytes, mime_type)
         classification = self._classify_text(ocr_result.text)
         classification["ocr_confidence"] = ocr_result.confidence
+        classification["ocr_provider"] = getattr(ocr_result, "provider", "unknown")
         return classification
 
     def extract_page(
@@ -215,7 +220,7 @@ Checkbox fields must identify a visibly selected option, otherwise return null.
             raise ValueError(f"Unsupported image MIME type: {mime_type}")
         if progress_callback:
             progress_callback({"step": "ocr", "status": "active", "message": "Recognizing page text with OCR"})
-        ocr_result = self._ocr_with_fallback(image_bytes, mime_type)
+        ocr_result = self._ocr_with_fallback(image_bytes, mime_type, progress_callback)
         if progress_callback:
             conf_str = f" ({round(ocr_result.confidence * 100)}% confidence)" if ocr_result.confidence is not None else ""
             progress_callback({
@@ -223,12 +228,14 @@ Checkbox fields must identify a visibly selected option, otherwise return null.
                 "status": "completed",
                 "message": f"OCR text recognized{conf_str}",
                 "ocr_confidence": ocr_result.confidence,
+                "ocr_provider": getattr(ocr_result, "provider", "unknown"),
             })
 
         if progress_callback:
             progress_callback({"step": "classification", "status": "active", "message": "Classifying document type from layout anchors"})
         classification = self._classify_text(ocr_result.text)
         classification["ocr_confidence"] = ocr_result.confidence
+        classification["ocr_provider"] = getattr(ocr_result, "provider", "unknown")
         document_type = str(classification.get("document_type", "UNKNOWN")).upper()
         cls_conf = classification.get("classification_confidence", 0.0)
         try:

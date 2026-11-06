@@ -146,6 +146,7 @@ def _validate_citations(
     evidence: Sequence[RankedEvidence],
     is_greeting: bool = False,
 ) -> str:
+    answer = re.sub(r"\[E\d+(?:\s*[-–,]\s*E?\d+)+\]", "", answer)
     if is_greeting or not evidence:
         return re.sub(r"Source:\s*\[[^\]]+\]|\[E\d+\]", "", answer, flags=re.IGNORECASE).strip()
 

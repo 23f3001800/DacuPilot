@@ -1,5 +1,7 @@
 import unittest
 
+from evals.run_all_evaluations import has_number
+
 from evals.metrics import (
     pipeline_quality_matrix,
     routing_matrix,
@@ -8,6 +10,11 @@ from evals.metrics import (
 
 
 class EvaluationMatricesTests(unittest.TestCase):
+    def test_numeric_answer_checks_allow_sentence_punctuation(self):
+        self.assertTrue(has_number("Revenue is 500.", 500))
+        self.assertTrue(has_number("Mean is 100.0.", 100))
+        self.assertFalse(has_number("Revenue is 1500.", 500))
+        self.assertFalse(has_number("Revenue is 500.2.", 500))
     def test_pipeline_quality_matrix_calculates_means_and_pass_rate(self):
         documents = [
             {

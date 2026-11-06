@@ -11,6 +11,7 @@ logger = logging.getLogger("datapilot.google_document_ai")
 class OCRResult:
     text: str
     confidence: float | None
+    provider: str = "unknown"
 
 
 class GoogleDocumentAIProcessor:
@@ -103,4 +104,5 @@ class GoogleDocumentAIProcessor:
         return OCRResult(
             text=document.text or "",
             confidence=confidence,
+            provider="google_document_ai",
         )

@@ -190,6 +190,7 @@ def _classify_page(
         "stage": "DOCUMENT_AI_OCR",
         "status": "COMPLETED",
         "confidence": ocr_confidence,
+        "provider": response.get("ocr_provider", "unknown"),
     }
     document_type = str(response.get("document_type", "UNKNOWN")).upper()
     classification_confidence = float(

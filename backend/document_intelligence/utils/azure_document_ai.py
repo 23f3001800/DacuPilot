@@ -75,4 +75,5 @@ class AzureDocumentAIProcessor:
         return OCRResult(
             text=text,
             confidence=confidence,
+            provider="azure_document_intelligence",
         )
