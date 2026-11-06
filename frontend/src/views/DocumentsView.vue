@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, ref } from "vue";
 import { processDocuments } from "../api";
+import { extractionFor, fieldsFor } from "../lib/documents.js";
 import {
   formatConfidence,
   formatDate,
@@ -64,19 +65,6 @@ function label(value) {
     .replace(/_/g, " ")
     .toLowerCase()
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-function fieldsFor(document) {
-  return Object.entries(document)
-    .filter(
-      ([key, value]) =>
-        key.endsWith("_data") && value && typeof value === "object",
-    )
-    .flatMap(([, block]) =>
-      Object.entries(block).map(([name, field]) => ({
-        name,
-        ...(field && typeof field === "object" ? field : { value: field }),
-      })),
-    );
 }
 function fieldValue(value) {
   return value === null || value === undefined || value === ""
@@ -409,23 +397,51 @@ onBeforeUnmount(() => {
                     label(document.document_type) || "Document " + (index + 1)
                   }}
                 </h3>
-                <p>{{ label(document.text_medium) }}</p>
+                <p>
+                  {{ label(extractionFor(document).text_medium) }} ·
+                  {{ label(document.processor_route) }}
+                </p>
               </div>
               <span
                 class="status-tag"
                 :class="{
                   warning:
-                    document.system_evaluation_matrix
+                    extractionFor(document).system_evaluation_matrix
                       ?.final_routing_decision === 'HUMAN_REVIEWS_REQUIRED',
                 }"
                 >{{
-                  document.system_evaluation_matrix?.final_routing_decision ===
-                  "HUMAN_REVIEWS_REQUIRED"
+                  extractionFor(document).system_evaluation_matrix
+                    ?.final_routing_decision === "HUMAN_REVIEWS_REQUIRED"
                     ? "Review required"
                     : "Extracted"
                 }}</span
               >
             </header>
+            <p v-if="document.error" class="notice error">
+              {{ document.error }}
+            </p>
+            <details
+              v-if="document.extraction_attempts?.length"
+              class="execution-details"
+            >
+              <summary>Extraction attempts</summary>
+              <ol>
+                <li
+                  v-for="(
+                    attempt, attemptIndex
+                  ) in document.extraction_attempts"
+                  :key="attemptIndex"
+                >
+                  {{ label(attempt.method) }} · {{ label(attempt.status) }}
+                  <template v-if="attempt.review_items !== undefined">
+                    · {{ attempt.review_items }} review item(s)</template
+                  >
+                  <template v-if="attempt.error_type">
+                    · {{ attempt.error_type }}</template
+                  >
+                </li>
+              </ol>
+            </details>
             <div class="simple-table-wrap">
               <table class="simple-table extraction-table">
                 <thead>

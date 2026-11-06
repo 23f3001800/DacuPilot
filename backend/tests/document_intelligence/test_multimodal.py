@@ -114,6 +114,22 @@ def test_direct_model_request_contains_the_document_image():
     assert parts[1]["image_url"]["url"].startswith("data:image/png;base64,")
 
 
+def test_conflicting_document_types_require_review():
+    retry = {
+        "document_type": "BENEFIT_ILLUSTRATION", "text_medium": "PRINTED",
+        "classification_confidence": 0.99,
+        "fields": {
+            name: {"value": value, "ai_confidence": 0.99, "is_handwritten": False}
+            for name, value in {"application_number": "TEST-001", "policyholder_name": "Alex Example", "date": "2026-11-06", "place": "Example City"}.items()
+        },
+    }
+    instance = processor(candidate(0.5), retry)
+    with tempfile.TemporaryDirectory() as directory:
+        result = process_uploads([("sample.png", b"image")], processor_factory=lambda: instance, output_root=directory)
+    assert result["documents"][0]["retry_conflicts"] == ["document_type"]
+    assert result["review_report"]["human_review_required"]
+
+
 def test_continuation_page_preserves_retry_review_flags():
     first = candidate()
     first.update(document_reference="DOC-123", is_continuation=False)
