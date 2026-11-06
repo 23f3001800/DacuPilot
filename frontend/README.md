@@ -50,4 +50,3 @@ actionable 503 response.
 
 Marked 15 supports the existing Node 18 environment. DOMPurify sanitizes the
 answer HTML; remote images and active HTML are excluded from rendered answers.
-See ../docs/WORKSPACE_REDESIGN.md for requirements and verification evidence.

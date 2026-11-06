@@ -9,15 +9,13 @@ ask questions about company documents, and review OCR-extracted fields.
 *Captured from the running frontend using a synthetic five-row workbook. The
 chart and answer were generated from that workbook.*
 
-## What the application does
+## Capabilities
 
-| Area | Capabilities |
-| --- | --- |
-| Workspace | Upload, inspect, refresh, download, and delete saved Excel workbooks. Switch sheets and inspect cells in an Excel-style grid. |
-| Data Analysis Agent | Stream answers and activity, calculate workbook summaries, generate charts, and preview column changes for approval. |
-| Results | Browse saved answers, generated charts, and workbook profile runs from the current session. |
-| Company Help | Answer general questions and retrieve company handbook or privacy-policy evidence with source citations. Opens from the corner assistant button. |
-| Documents | Segment PDFs and images, recognize text, classify ten document types, extract fields, flag review items, and download JSON or Excel outputs. |
+- Inspect and manage saved Excel workbooks in an Excel-style grid.
+- Analyze data, generate charts, and approve column changes with the agent.
+- Browse saved answers, charts, and profile runs in Results.
+- Ask general or company-document questions through Company Help.
+- Extract document fields using multimodal images and a gated OCR retry.
 
 ## Architecture and pipelines
 
@@ -41,8 +39,7 @@ the configured provider order.
   review flags. Conflicting attempts require human review.
 
 [Workbook pipeline](docs/images/spreadsheet-agent.svg) ·
-[OCR pipeline](docs/images/document-processing.svg) ·
-[Redesign decisions](docs/WORKSPACE_REDESIGN.md)
+[Document pipeline](docs/images/document-processing.svg)
 
 ## Run locally
 
@@ -83,115 +80,85 @@ frontend at [port 8000](http://localhost:8000) after `npm run build` in
 
 [Provider setup](RUN.md) · [Frontend development](frontend/README.md)
 
-## Evaluation results
+## Evaluation
 
-Measured on **6 November 2026**, using code revision `22c9a14`, Python 3.12.3,
-and the configured `gpt-5-mini` deployment as the primary language model.
-The suite took 73.43 seconds. Inputs were a generated five-row workbook, three
-handbook reference questions, four assistance behavior cases, and two generated
-printed document pages. Each case ran once.
+Measured on 6 November 2026, the module smoke checks and parameter study use synthetic data and
+the checked-in company handbook. The retrieval study uses **8 development
+questions and 6 held-out questions**. Baseline and selected answers are generated
+twice per held-out question. The selected configuration is chosen using
+development retrieval F1 before held-out scoring.
 
-These are small smoke evaluations. Percentages describe the stated cases.
-Model-reported confidence, retrieval scores, correctness checks, and groundedness
-checks are reported separately. Timings include local and provider variability.
+[Module results](backend/evals/evaluation_results.json) ·
+[Parameter results and claim traces](backend/evals/parameter_study_results.json) ·
+[Metric definitions and reproduction](docs/EVALUATION.md)
 
-[Raw results and per-case traces](backend/evals/evaluation_results.json) ·
-[Methods and trace examples](docs/EVALUATION.md)
+### 1. Groundedness
 
-### Groundedness
+Faithfulness is judge-assisted entailment of fixed answer sentences against
+retrieved evidence. The grader uses the configured model provider family, with
+stable sentence/source IDs and literal supporting-quotation checks. Coverage and
+support are scored separately. These are benchmark scores with small samples.
 
-| Check | Result | Meaning |
-| --- | --- | --- |
-| Target fact supported by the expected handbook section | 3 / 3 | Annual leave of 24 days, Grove price of USD 249, and a 16-character minimum password were present with the expected citation. |
-| Returned citations resolve to loaded source sections | 3 / 3 | Citation source and section labels matched the active corpus. |
-| General answer avoids company citations | 1 / 1 | The Tokyo answer carried no document citation. |
-| Claim-by-claim entailment and confidence calibration | Unmeasured | The suite checks selected facts and citation identities. It does not establish support for every possible generated claim. |
-
-### Data Analysis Agent
-
-| Evaluation | Result | Observed evidence |
-| --- | --- | --- |
-| Live application checks | 6 / 6 | Consent rejection, three numeric answers, approved modification, and generated SVG download. |
-| Total Revenue | Pass · 5,317 ms | Answer contained 500, a successful calculation event, and workbook evidence. |
-| Revenue by Region | Pass · 10,852 ms | Expected numbers were North 200, West 120, East 100, and South 80. |
-| Mean Revenue | Pass · 5,695 ms | Answer contained 100 and successful calculation evidence. |
-| Preview and approved column change | Pass · 10 ms preview | Profit stayed absent before approval. Saved values were 60, 30, 20, blank, and 40. |
-| Direct restricted calculations | 4 / 4 | Row count, total, mean, and missing-value count matched fixture references. |
-| Restricted-operation rejection | 5 / 5 | Imports, file access, eval, direct column assignment, and in-place mutation were rejected. |
-
-The numerical answer grader checks expected number presence plus execution and
-citation events. It does not exhaustively validate every sentence or table label.
-The chart check verifies a downloadable SVG artifact.
-
-### Company assistance
-
-| Case | Automatic result | Latency |
-| --- | --- | --- |
-| Annual leave fact and citation | Pass | 3,369 ms |
-| Grove price fact and citation | Pass | 3,111 ms |
-| Password length fact and citation | Pass | 2,734 ms |
-| General question with no company citation | Pass | 2,838 ms |
-| Workbook request handed to Data Analysis Agent | Pass | 3 ms |
-| Prompt-injection request blocked | Pass | 4 ms |
-| Unsupported company policy | Pass | 5,914 ms |
-| **Automatic total** | **7 / 7** | One response per case |
-
-The behavior grader uses literal checks. An earlier run produced a correctly
-declined answer that the matcher failed to recognize. That result and its cause
-are preserved in the evaluation methods. Retrieval-based confidence is a
-heuristic and cannot establish answer correctness.
-
-### Multimodal document extraction and OCR fallback
-
-| Evaluation | Result | Scope |
-| --- | --- | --- |
-| End-to-end pipeline | Completed · 15,027 ms | Two-page PDF through upload, segmentation, direct image extraction, validation, review, and export. |
-| Document classification | 2 / 2 | One synthetic PAN page and one benefit-illustration form. |
-| Field exact match | 8 / 8 | Case and whitespace normalized before comparison. |
-| Direct multimodal processing | 2 / 2 pages | Both pages passed image-based classification and field validation. OCR was correctly skipped. |
-| Retry and review controls | 13 / 13 regression cases | Low scores, missing or invalid fields, handwriting penalties, provider failures, disagreement, and continuation-page flags. These cases use controlled model responses. |
-| Mean field character error rate | 0.000 | Edit distance divided by reference length, averaged over eight fields. |
-| Raw OCR character error rate | 0.000 | Separate recognition request on the first page, with case and whitespace normalized. |
-| Export availability | 4 / 4 HTTP 200 | Documents JSON, review JSON, Excel, and evaluation JSON. |
-| Azure OCR | Failed in the separate OCR check | The configured endpoint could not be resolved by DNS. |
-| Google Document AI | Failed in the separate OCR check | The configured project rejected the request with billing disabled. |
-| Vision OCR fallback | Passed | Handled the separate raw OCR check. The previous OCR-first pipeline run also completed through this fallback. |
-| Handwritten and degraded-scan accuracy | Unmeasured | Live fixtures contained clear printed text. |
-
-## Parameter choices and sensitivity checks
-
-The application uses pretrained services. No model weights were fine-tuned, and
-no temperature search was performed. The following values are runtime choices.
-
-| Setting | Current value | Reason and evidence |
-| --- | --- | --- |
-| Analyst temperature | 0.1 | Low sampling variability for tool-based calculations. No comparative sweep performed. |
-| Assistance temperature | 0.0 | Consistent source-based responses. No comparative sweep performed. |
-| Multimodal extraction sampling | Provider default | No sampling override or temperature search for image extraction. |
-| OCR-assisted retry budget | 1 logical retry per page | Triggered by model failure, unknown or low-confidence classification, missing fields, invalid formats, or adjusted field scores below 0.85. SDK and provider failover may involve multiple service calls. |
-| LangChain timeout / retries | 90 seconds / 1 retry | Bound model-call waits and transient retry attempts. These are call-level limits. |
-| Analyst tool budget | 5 rounds | Bound repeated tool use within one question. |
-| Analysis worker | 5 seconds, 20,000 output characters | Bound execution and returned output. |
-| Retrieval chunk size / overlap | 1,200 / 180 characters | Bounded source context with overlap across chunk boundaries. |
-| Retrieval result limit | 5 chunks | Preserve multiple relevant source sections. |
-| Retrieval acceptance | 0.15 combined score | Uses token cosine and optional vector scores. Vector-only candidates require 0.55. These scores are ranking heuristics. |
-| Field review threshold | 0.85 | Conservative review policy for extracted values. No labeled production calibration. |
-| Handwriting penalty | 0.20 | Subtracted from model confidence for handwritten fields. Live handwriting validation remains open. |
-| PDF raster scale | 1.5× | Current render setting. Resolution alternatives were not benchmarked. |
-
-A validated image result goes directly to export. Otherwise, OCR text feeds one
-classification and extraction retry. Selection prefers fewer review items, then
-higher classification confidence. A tie retains the image result. Conflicting
-nonempty values or document types are flagged, and failed retries retain the
-available image result for review. There is no repeat-until-confident loop.
-
-| Sensitivity experiment | Values checked | Measured result | Decision |
+| Metric | Baseline k=5 | F1 candidate k=1 | Definition |
 | --- | --- | --- | --- |
-| Retrieval top-k | 1, 3, 5 | Hit rate 3 / 3 and MRR 1.000 at each k | Keep k = 5. Three straightforward questions do not justify changing it. |
-| Field acceptance threshold | 0.75, 0.85, 0.95 | All eight printed fields accepted at each threshold | Keep 0.85. This sample cannot distinguish the settings or quantify false acceptance. |
+| Citation coverage | 44.0% (11/25) | 25.0% (8/32) | Attributed factual sentences / factual sentences |
+| Faithfulness | 44.0% (11/25) | 28.1% (9/32) | Evidence-supported factual sentences / factual sentences |
+| Citation precision | 100.0% (11/11) | 87.5% (7/8) | Supported attributed sentences / attributed sentences |
+| Reference-fact recall | 71.4% (10/14) | 42.9% (6/14) | Correctly conveyed reference facts / expected facts |
+| Valid answer grades | 12/12 | 12/12 | Invalid judge output is reported separately |
 
-The threshold experiment replays saved field scores to measure acceptance
-sensitivity without additional model calls.
+### 2. Module metrics
+
+Precision, recall, and F1 are shown in that order. Retrieval scores use unique
+source sections among returned chunks. Extraction scores use required schema
+fields matched to labeled printed fixtures.
+
+| Evaluation | Result | Evidence and scope |
+| --- | --- | --- |
+| Held-out retrieval P / R / F1 | Baseline 31.8% / 100.0% / 48.3%; selected 83.3% / 71.4% / 76.9% | 6 held-out questions and 7 relevant source sections |
+| Data Analysis Agent | 6/6 application checks; 4/4 direct calculations; 5/5 restricted operations rejected | Five-row workbook, exact numeric references, approval flow, and SVG download |
+| Company assistance | 7/7 behavior checks | Handbook facts, general answers, workbook handoff, injection rejection, unsupported policy |
+| Document extraction | P/R/F1 100% / 100% / 100%; field CER 0.000; classification 2/2; exports 4/4 | Eight fields on two clear printed pages; multimodal-first processing |
+| Regression tests | 151 backend tests + 3 subtests; 10 frontend tests | Separate code-contract and regression coverage |
+
+The 7/7 assistance result covers the earlier, narrower behavior cases. The new
+held-out questions exposed company-source routing gaps, including Sprout pricing
+and non-profit discounts. Some answers took the general-answer path despite
+relevant handbook evidence being available. These responses remain in the
+groundedness scores and explain part of the reduced reference-fact recall.
+
+### 3. One-factor parameter experiments
+
+Each alternative changes one factor from k=5, chunk=1200 characters,
+overlap=180 characters, and score=0.15. Values and development F1 scores align
+left to right. The final row records the selected configuration and the trial
+that combined individual winners.
+
+| Factor | Values tested | Development F1 | Choice in this study |
+| --- | --- | --- | --- |
+| Top-k chunks | 5, 1, 3 | 0.500, 0.824, 0.692 | 1 |
+| Chunk characters | 1200, 800, 1600 | 0.500, 0.529, 0.383 | 800 |
+| Overlap characters | 180, 90, 270 | 0.500, 0.500, 0.462 | 180 |
+| Minimum score | 0.15, 0.35, 0.55 | 0.500, 0.500, 0.500 | 0.15 |
+| Best tested retrieval configuration | k=1, chunk=1200, overlap=180, score=0.15 | 0.824; combined trial 0.824 | Earlier baseline settings break exact ties |
+
+The combined trial used k=1 and chunk=800, with overlap=180 and score=0.15. It
+tied the development F1 of k=1 with chunk=1200, so the earlier configuration won.
+The k=1 candidate improves retrieval F1 but loses held-out evidence recall and
+answer reference-fact recall. **Production remains at k=5**. This is
+the best tested retrieval-F1 configuration for this split. No overall model or
+production-wide optimum is claimed.
+
+Other controls remain fixed. Analyst temperature is 0.1, assistance temperature
+is 0.0, field review threshold is 0.85, and handwriting penalty is 0.20. The
+multimodal model uses provider-default sampling and one OCR-assisted retry.
+No temperature sweep, weight fine-tuning, or confidence calibration was run.
+
+The live extraction run correctly skipped OCR on both validated image results.
+In the separate OCR check, Azure DNS resolution failed and Google Document AI
+billing was disabled. Vision OCR fallback completed. Handwriting and degraded
+scan accuracy remain unmeasured. Sentence grading uses a model judge, with its
+own entailment and factual-sentence selection limitations.
 
 ## Reproduce the checks
 
@@ -202,6 +169,7 @@ cd backend
 pytest -q
 python -m evals.run_all_evaluations
 python -m evals.run_all_evaluations --live
+python -m evals.parameter_study --live --repetitions 2
 ```
 
 The default evaluation runs local sandbox and retrieval checks. `--live` also
@@ -218,7 +186,7 @@ npm test
 npm run build
 ```
 
-The final regression run passed **147 backend tests and 3 subtests**. The
+The final regression run passed **151 backend tests and 3 subtests**. The
 frontend suite passed **10 tests**, and the production build succeeded.
 
 ## Storage and current limits

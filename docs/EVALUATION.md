@@ -1,114 +1,157 @@
-# Evaluation methods and traces
+# Evaluation methods
 
-The measured snapshot is in `backend/evals/evaluation_results.json`. Each live
-case contains its expected output, checks, returned answer, elapsed time, and
-observable event trace. The snapshot identifies the code revision, runner hash,
-Python version, model configuration, and start time. The final backend source
-revision is `22c9a14`, and its worktree flag was false at measurement time.
+The README contains the three result tables. Machine-readable cases, responses,
+source quotations, and scores are retained in
+`backend/evals/parameter_study_results.json`. Earlier application smoke checks
+are in `backend/evals/evaluation_results.json`.
 
-## Dataset and grading
+## Data and split
 
-The workbook has five rows, four original columns, a revenue total of 500,
-and one missing Cost cell. Expected references are specified independently in
-the runner. Approved Profit values are 60, 30, 20, null, and 40.
+The retrieval study uses the checked-in Nimbus Orchard handbook. Eight
+development questions cover single-section questions, two multi-section
+questions, and one unsupported topic. Six held-out questions ask about different
+facts on the same source pages. This is a question-level split within one
+handbook. It does not estimate transfer to unseen companies or document sets.
 
-Three source questions use the checked-in company handbook. Each has a target
-number and an exact expected source section. Groundedness checks require both
-to appear in the returned answer. Citation validity checks resolve labels to
-the loaded corpus. These tests do not perform sentence-level semantic entailment.
+Relevant source sections and expected answer facts are specified in the runner
+before scoring. The held-out references cover eight-day annual-leave carryover,
+20-week primary-caregiver leave, USD 49 Sprout pricing, the 30-percent non-profit
+discount, access removal within two hours, and a two-section question about
+six-week secondary-caregiver leave plus USD 9 additional Grove users.
 
-Four assistance behavior cases cover general answers, workbook handoff,
-injection rejection, and unsupported company policy. Their literal matchers are
-limited. A previous unsupported-policy answer correctly declined the request,
-but its wording failed the automatic matcher. The final run passed all seven
-behavior checks. The earlier run is retained in the
-[baseline snapshot](https://github.com/23f3001800/DacuPilot/blob/d5b3c9f/backend/evals/evaluation_results.json).
+Baseline and selected configurations each generate two responses to every
+held-out question. These 24 responses receive separate model-judge calls.
+The production company-answer node and citation validator generate the answers
+using frozen retrieval results. This study controls retrieval inputs within the
+answer node. The separate smoke suite exercises the HTTP APIs.
 
-The document fixture is a generated two-page PDF with eight printed reference fields.
-Classification is checked by page identity. Exact field match normalizes case
-and whitespace. Character error rate uses character edit distance divided by
-reference length, capped at one by the application's evaluator. Raw OCR is a
-separate request on the first page. Both pipeline pages used direct multimodal
-extraction and correctly skipped OCR. OCR provider confidence is excluded from
-accuracy calculations.
+## Groundedness definitions
 
-## Observed traces
+- **Citation coverage** is attributed factual sentences divided by all judged
+  factual sentences. An attribution must resolve to a source label present in both
+  the returned answer and the retrieved evidence.
+- **Faithfulness** is evidence-supported factual sentences divided by all judged
+  factual sentences. A supported sentence can be uncited. A separate support-source ID
+  allows this score to remain independent of citation coverage.
+- **Citation precision** is supported attributed sentences with a matching
+  supporting-source citation divided by attributed sentences. This is a
+  sentence-level attribution metric. A correct source label alone does not
+  establish support.
+- **Reference-fact recall** is correctly conveyed target facts divided by the
+  expected facts. It measures answer completeness against the small labeled set.
+- **Valid answer grades** reports usable grades against attempted answers.
+  Parse failures, missing sentence judgments, invalid IDs, and malformed fact
+  lists are retained as grading errors and excluded from sentence denominators.
 
-Times below are elapsed milliseconds within each request. The JSON contains
-the complete event sequences. These are application execution events, with no
-private model reasoning requested or recorded.
+Code splits the answer into fixed sentence units and assigns stable IDs. A
+citation-only segment is attached to the immediately preceding sentence. The
+judge labels which units assert facts and whether their complete factual content
+is entailed by retrieved text. Source IDs identify individual chunks, including
+multiple chunks with the same public citation label. Supporting quotations must
+occur literally in that chunk after case and whitespace normalization.
+Fabricated quotations cannot count as support. Four regression tests cover
+retrieval denominators, faithful-but-uncited content, fabricated quotations,
+and correct handling of repeated citation labels.
 
-| Path | Observed sequence | Result |
-| --- | --- | --- |
-| Total Revenue | Thinking → calculation tool start → successful tool result → workbook citation → evaluation → completion | 500 in 5,317 ms |
-| Approved column change | Change preview → inspect original schema → explicit apply request → read refreshed preview | Original sheet retained four columns until apply. Profit values matched all five rows. |
-| Handbook answer | Search company sources → retrieved sections → streamed generation → validated final answer → evaluation → completion | Annual leave of 24 days with the expected page-5 citation |
-| Document page 1 | Image extraction starts at 73 ms → assessed at 8,607 ms → OCR skipped → classification and validation complete | One multimodal attempt, no review items |
-| Document page 2 | Image extraction starts at 8,609 ms → assessed at 15,007 ms → OCR skipped → classification and validation complete | One multimodal attempt, no review items |
-| Document job | Segmentation → direct image processing → grouping → review → export → completion | Two documents, eight matched fields, four downloadable outputs in 15,027 ms |
-| Separate raw OCR check | Azure DNS failure → Google billing rejection → vision OCR | Normalized character error rate of zero on the first printed page |
+The judge uses the same configured provider family as answer generation.
+Factual-sentence selection and entailment remain model-assisted judgments.
+Compound sentences are coarser units than atomic claims. The checks do not
+constitute independent human labeling or confidence calibration. Answers with no
+factual units still contribute to reference-fact recall. The raw sentence records
+allow individual scores to be reviewed.
 
-## Parameter decisions
+These are conservative, quote-verified support proxies. A factual label on a
+statement about missing evidence can reduce the support score because an absence
+has no positive source quotation. Such cases can be inspected in the retained
+sentence records. The score is not a measured hallucination rate.
 
-Top-k sensitivity uses one ranked retrieval result per question and truncates it
-at k = 1, 3, and 5. Hit rate measures whether the expected section is present.
-MRR averages the reciprocal rank of the first expected section. Results are
-perfect on these three straightforward questions, with no evidence to select a
-different production k.
+The initial free-text grader produced malformed source labels and copied claim
+spans that did not match answers. Its scores were rejected. The same generated
+answers were regraded with stable sentence and source IDs. Initial grading
+records remain under `initial_grader_result` for audit. No answer was regenerated
+for this correction, and held-out labels did not select configurations.
 
-The field-threshold sweep reuses extracted field scores at 0.75, 0.85, and 0.95.
-Acceptance requires a nonempty value, a passing format check, and a score at or
-above the threshold. All eight clear printed fields pass each setting. A labeled
-set containing wrong, uncertain, handwritten, and missing fields is needed to
-compare false acceptance and false review rates.
+## Retrieval precision, recall, and F1
 
-Temperatures, chunk dimensions, worker limits, handwriting penalty, the one-retry
-budget, and the production field threshold were configured manually. There was no temperature
-grid search, model-weight fine-tuning, or held-out confidence calibration.
+The evaluation unit is a unique source section among the top-k returned chunks.
+Duplicate chunks from one section count once. A relevant returned section is a
+true positive, an irrelevant returned section is a false positive, and a missed
+relevant section is a false negative. Unsupported-topic cases contribute false
+positives when retrieval returns evidence.
 
-## Failures found during verification
+Micro precision is TP / (TP + FP), micro recall is TP / (TP + FN), and F1 is the
+harmonic mean of those values. Counts are summed across questions before ratios
+are calculated. MRR is also recorded in the JSON. The report lists TP, FP, FN,
+returned source sections, and labeled sections for each configuration.
 
-| Finding | Cause | Handling |
-| --- | --- | --- |
-| Old benchmark presented synthetic outputs as measured performance | Simulated answers, a fixed 0.96 analyst score, and added OCR timing constants | Replaced with fixture-driven code checks and live HTTP measurements. |
-| Local sandbox smoke cases timed out in the first evaluator run | Spawned workers reimported eager company-retrieval initialization | Moved retrieval imports inside evaluation functions. Kept the five-second worker deadline. Final direct calculation checks passed 4 / 4. |
-| Correct numbers at sentence endings failed grading | The original numeric matcher rejected punctuation after a value | Corrected the matcher and added a regression test. |
-| Unresolved evidence ranges appeared in an answer | The citation formatter supported individual markers but left ranges visible | Strip unresolved range markers. Existing source-label validation remains in place. |
-| Azure OCR request failed | DNS could not resolve the configured endpoint | Vision fallback completed after the Google attempt also failed. |
-| Google Document AI request failed | The configured project had billing disabled | The fallback event records PermissionDenied. No account or billing changes were made. |
-| Unsupported-policy case failed an earlier automatic behavior check | Literal matcher omitted the phrase “could not find” | Preserved the failed score in the baseline snapshot. The final run's wording matched the grader. |
-| Document fields were absent from the frontend review table | The table read flat fields while the API returned an extraction block | Read nested and legacy flat structures. Added three frontend regressions and exposed attempt summaries. |
+## One-factor experiments and selection
 
-## Multimodal-first retry policy
+The baseline is k=5, chunk size 1,200 characters, overlap 180 characters, and
+minimum score 0.15. The eight alternatives vary one factor at a time.
 
-The image and document field definitions are sent to the configured multimodal
-model in one classification-and-extraction request. The same schema and field
-normalization functions assess primary and retry results.
+- Top-k changes to 1 or 3.
+- Chunk size changes to 800 or 1,600 characters with overlap fixed at 180.
+- Overlap changes to 90 or 270 characters with chunk size fixed at 1,200.
+- Minimum score changes to 0.35 or 0.55.
 
-- Skip OCR when classification and every required field pass the configured
-  threshold, missing-value checks, format checks, and handwriting adjustment.
-- Otherwise perform one logical OCR-assisted retry. OCR provider failover runs
-  Azure → Google → vision. Recognized text then feeds classification and extraction.
-- Prefer the attempt with fewer review items, using classification confidence
-  to break a tie. An exact tie retains the primary image result.
-- Flag conflicting nonempty values or different supported document types for
-  human review. Preserve those flags when grouping continuation pages.
-- Retain an uncertain primary result if OCR fails. If both paths fail, return an
-  unknown document for review, with both failed attempt summaries.
+Individual development-F1 winners are also combined in a tenth trial. The best
+of these measured configurations is selected using development micro-F1 alone.
+Exact ties keep the earlier baseline settings. Held-out answers and labels do
+not select hyperparameters. Each chunk geometry has an isolated in-memory
+Chroma collection so indexes cannot reuse stale text across chunk settings.
+Retrieval scores and source text are recorded before answer generation.
 
-Thirteen controlled regression cases cover the retry policy, real image payload
-construction, failure behavior, and continuation-page flag preservation. The
-live pages were clear enough to skip OCR. Low-confidence retry control was
-verified with controlled responses, rather than a live handwriting benchmark.
+Top-k also controls the retriever's existing three-times-k vector candidate
+request. The embedding function and source corpus are fixed. Production settings
+are preserved because the best-F1 candidate loses held-out source recall.
+This experiment searches a bounded neighborhood and does not establish a global
+or production-wide optimum.
 
-## Reproduction boundaries
+The held-out answer traces exposed a separate company-source routing weakness.
+Some Sprout pricing and non-profit discount questions used the general-answer
+path even when the retrieved handbook contained the reference facts. Those
+responses were retained. This explains why high retrieval recall does not ensure
+high answer reference-fact recall. No routing fix was applied during this
+evaluation-focused change.
 
-The run used the configured Azure OpenAI-compatible `gpt-5-mini` deployment as
-the primary model. OCR fallback is labeled `vision_llm`; the current trace does
-not identify which underlying model provider ultimately served a fallback call.
-No provider-by-provider model ablation was performed.
+Analyst temperature 0.1, assistance temperature 0.0, field review threshold 0.85,
+handwriting penalty 0.20, worker limits, and the one-OCR-retry policy remain
+fixed. They are documented engineering choices. No temperature sweep,
+model-weight fine-tuning, or held-out confidence calibration was performed.
 
-Test-suite success verifies regressions and contracts, including mocked provider
-paths. The live smoke results separately verify real external calls on these
-specific fixtures. Neither establishes production accuracy on all ten supported
-document schemas or establishes a general hallucination rate.
+## Other module scores
+
+The application smoke suite uses a generated five-row workbook with total
+Revenue 500 and one missing Cost. It checks three numeric answers, consent,
+approved Profit values, and a downloadable chart. Number-presence checks plus
+tool success and citations do not exhaustively verify every generated sentence.
+
+Document extraction uses a generated two-page PDF containing eight required
+printed fields. A nonempty field equal to its reference after case and whitespace
+normalization is a true positive. An incorrect nonempty value is a false positive
+and a missed reference, while an empty required field is a missed reference.
+The current sample has eight correct fields with no false positives or misses.
+Character error rate is character edit distance divided by reference length,
+averaged over fields and capped at one by the application evaluator.
+
+Both live pages passed direct multimodal extraction and skipped OCR. The separate
+raw-OCR check reached vision OCR after Azure DNS resolution and Google billing
+failures. Retry control uses 13 controlled regressions covering low scores,
+missing fields, invalid formats, handwriting adjustment, provider failures,
+disagreements, and continuation-page review flags. Live handwriting quality
+remains unmeasured.
+
+## Reproduce
+
+From `backend` with the repository virtual environment activated, run
+`python -m evals.parameter_study` for local retrieval experiments. Add
+`--live --repetitions 2` for the 24 answer-generation and 24 judging requests.
+The live flag uses configured external services and writes the report after
+each completed answer configuration. Fresh session IDs isolate answer state.
+
+Run `python -m evals.run_all_evaluations --live` against the backend on port 8000
+to reproduce the separate module smoke results. `pytest -q` and the frontend's
+`npm test` cover code regressions separately from model-quality scores.
+
+`python -m evals.parameter_study --regrade` applies the current grader to saved
+answers without generating new answers. The report records the grading revision.
