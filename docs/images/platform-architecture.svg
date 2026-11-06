@@ -30,7 +30,7 @@
 <rect x="814" y="384" width="350" height="176" rx="12" fill="white" stroke="#d6dfec"/><rect x="814" y="396" width="4" height="152" rx="2" fill="#3759cc"/>
 <text x="834" y="416" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#17243b">Document Intelligence</text>
 <text x="834" y="445" font-family="Arial, sans-serif" font-size="15" fill="#40516a">PDF / image page segmentation</text>
-<text x="834" y="470" font-family="Arial, sans-serif" font-size="15" fill="#40516a">OCR fallback → classify → extract</text>
+<text x="834" y="470" font-family="Arial, sans-serif" font-size="15" fill="#40516a">Multimodal first → gated OCR retry</text>
 <text x="834" y="495" font-family="Arial, sans-serif" font-size="15" fill="#40516a">Schema and field review decisions</text>
 <text x="834" y="520" font-family="Arial, sans-serif" font-size="15" fill="#40516a">JSON and XLSX exports</text>
 <rect x="36" y="604" width="540" height="93" rx="12" fill="white" stroke="#d6dfec"/><rect x="36" y="616" width="4" height="69" rx="2" fill="#7c51c9"/>

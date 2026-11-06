@@ -34,9 +34,11 @@ the configured provider order.
 - Company retrieval combines token-count cosine similarity with Chroma vector
   scores when Chroma is available. The active sources are the Nimbus Orchard
   handbook and privacy policy. General answers use a separate source-free path.
-- OCR tries Azure Document Intelligence, Google Document AI, then a vision
-  model. Classification and field extraction follow OCR. Schema validation,
-  handwriting adjustments, and confidence thresholds determine review flags.
+- Document extraction sends the image directly to the multimodal model for
+  classification and fields. A failed or uncertain result gets one OCR-assisted
+  retry, using Azure Document Intelligence, Google Document AI, then vision OCR.
+  Schema validation, handwriting adjustments, and confidence thresholds determine
+  review flags. Conflicting attempts require human review.
 
 [Workbook pipeline](docs/images/spreadsheet-agent.svg) ·
 [OCR pipeline](docs/images/document-processing.svg) ·
@@ -83,9 +85,9 @@ frontend at [port 8000](http://localhost:8000) after `npm run build` in
 
 ## Evaluation results
 
-Measured on **6 November 2026**, using code revision `5faf9ae`, Python 3.12.3,
+Measured on **6 November 2026**, using code revision `22c9a14`, Python 3.12.3,
 and the configured `gpt-5-mini` deployment as the primary language model.
-The suite took 80.26 seconds. Inputs were a generated five-row workbook, three
+The suite took 73.43 seconds. Inputs were a generated five-row workbook, three
 handbook reference questions, four assistance behavior cases, and two generated
 printed document pages. Each case ran once.
 
@@ -110,9 +112,9 @@ checks are reported separately. Timings include local and provider variability.
 | Evaluation | Result | Observed evidence |
 | --- | --- | --- |
 | Live application checks | 6 / 6 | Consent rejection, three numeric answers, approved modification, and generated SVG download. |
-| Total Revenue | Pass · 5,527 ms | Answer contained 500, a successful calculation event, and workbook evidence. |
-| Revenue by Region | Pass · 5,513 ms | Expected numbers were North 200, West 120, East 100, and South 80. |
-| Mean Revenue | Pass · 4,751 ms | Answer contained 100 and successful calculation evidence. |
+| Total Revenue | Pass · 5,317 ms | Answer contained 500, a successful calculation event, and workbook evidence. |
+| Revenue by Region | Pass · 10,852 ms | Expected numbers were North 200, West 120, East 100, and South 80. |
+| Mean Revenue | Pass · 5,695 ms | Answer contained 100 and successful calculation evidence. |
 | Preview and approved column change | Pass · 10 ms preview | Profit stayed absent before approval. Saved values were 60, 30, 20, blank, and 40. |
 | Direct restricted calculations | 4 / 4 | Row count, total, mean, and missing-value count matched fixture references. |
 | Restricted-operation rejection | 5 / 5 | Imports, file access, eval, direct column assignment, and in-place mutation were rejected. |
@@ -125,33 +127,35 @@ The chart check verifies a downloadable SVG artifact.
 
 | Case | Automatic result | Latency |
 | --- | --- | --- |
-| Annual leave fact and citation | Pass | 3,046 ms |
-| Grove price fact and citation | Pass | 2,747 ms |
-| Password length fact and citation | Pass | 3,206 ms |
-| General question with no company citation | Pass | 2,924 ms |
-| Workbook request handed to Data Analysis Agent | Pass | 4 ms |
+| Annual leave fact and citation | Pass | 3,369 ms |
+| Grove price fact and citation | Pass | 3,111 ms |
+| Password length fact and citation | Pass | 2,734 ms |
+| General question with no company citation | Pass | 2,838 ms |
+| Workbook request handed to Data Analysis Agent | Pass | 3 ms |
 | Prompt-injection request blocked | Pass | 4 ms |
-| Unsupported company policy | Grader false negative | 6,498 ms |
-| **Automatic total** | **6 / 7** | One response per case |
+| Unsupported company policy | Pass | 5,914 ms |
+| **Automatic total** | **7 / 7** | One response per case |
 
-For the last case, the answer correctly said it **could not find** the requested
-policy. The literal abstention matcher did not recognize that phrasing. The raw
-failed check is retained for inspection. Its displayed 0.71 confidence came from
-retrieval, which illustrates why that score cannot establish answer correctness.
+The behavior grader uses literal checks. An earlier run produced a correctly
+declined answer that the matcher failed to recognize. That result and its cause
+are preserved in the evaluation methods. Retrieval-based confidence is a
+heuristic and cannot establish answer correctness.
 
-### Document OCR and extraction
+### Multimodal document extraction and OCR fallback
 
 | Evaluation | Result | Scope |
 | --- | --- | --- |
-| End-to-end pipeline | Completed · 26,057 ms | Two-page PDF through upload, segmentation, OCR, classification, extraction, review, and export. |
+| End-to-end pipeline | Completed · 15,027 ms | Two-page PDF through upload, segmentation, direct image extraction, validation, review, and export. |
 | Document classification | 2 / 2 | One synthetic PAN page and one benefit-illustration form. |
 | Field exact match | 8 / 8 | Case and whitespace normalized before comparison. |
+| Direct multimodal processing | 2 / 2 pages | Both pages passed image-based classification and field validation. OCR was correctly skipped. |
+| Retry and review controls | 13 / 13 regression cases | Low scores, missing or invalid fields, handwriting penalties, provider failures, disagreement, and continuation-page flags. These cases use controlled model responses. |
 | Mean field character error rate | 0.000 | Edit distance divided by reference length, averaged over eight fields. |
 | Raw OCR character error rate | 0.000 | Separate recognition request on the first page, with case and whitespace normalized. |
 | Export availability | 4 / 4 HTTP 200 | Documents JSON, review JSON, Excel, and evaluation JSON. |
-| Azure OCR | Failed | The configured endpoint could not be resolved by DNS. |
-| Google Document AI | Failed | The configured project rejected the request with billing disabled. |
-| Vision-model fallback | Passed | Handled both pipeline pages and the separate raw OCR check. |
+| Azure OCR | Failed in the separate OCR check | The configured endpoint could not be resolved by DNS. |
+| Google Document AI | Failed in the separate OCR check | The configured project rejected the request with billing disabled. |
+| Vision OCR fallback | Passed | Handled the separate raw OCR check. The previous OCR-first pipeline run also completed through this fallback. |
 | Handwritten and degraded-scan accuracy | Unmeasured | Live fixtures contained clear printed text. |
 
 ## Parameter choices and sensitivity checks
@@ -163,6 +167,8 @@ no temperature search was performed. The following values are runtime choices.
 | --- | --- | --- |
 | Analyst temperature | 0.1 | Low sampling variability for tool-based calculations. No comparative sweep performed. |
 | Assistance temperature | 0.0 | Consistent source-based responses. No comparative sweep performed. |
+| Multimodal extraction sampling | Provider default | No sampling override or temperature search for image extraction. |
+| OCR-assisted retry budget | 1 logical retry per page | Triggered by model failure, unknown or low-confidence classification, missing fields, invalid formats, or adjusted field scores below 0.85. SDK and provider failover may involve multiple service calls. |
 | LangChain timeout / retries | 90 seconds / 1 retry | Bound model-call waits and transient retry attempts. These are call-level limits. |
 | Analyst tool budget | 5 rounds | Bound repeated tool use within one question. |
 | Analysis worker | 5 seconds, 20,000 output characters | Bound execution and returned output. |
@@ -173,13 +179,19 @@ no temperature search was performed. The following values are runtime choices.
 | Handwriting penalty | 0.20 | Subtracted from model confidence for handwritten fields. Live handwriting validation remains open. |
 | PDF raster scale | 1.5× | Current render setting. Resolution alternatives were not benchmarked. |
 
+A validated image result goes directly to export. Otherwise, OCR text feeds one
+classification and extraction retry. Selection prefers fewer review items, then
+higher classification confidence. A tie retains the image result. Conflicting
+nonempty values or document types are flagged, and failed retries retain the
+available image result for review. There is no repeat-until-confident loop.
+
 | Sensitivity experiment | Values checked | Measured result | Decision |
 | --- | --- | --- | --- |
 | Retrieval top-k | 1, 3, 5 | Hit rate 3 / 3 and MRR 1.000 at each k | Keep k = 5. Three straightforward questions do not justify changing it. |
 | Field acceptance threshold | 0.75, 0.85, 0.95 | All eight printed fields accepted at each threshold | Keep 0.85. This sample cannot distinguish the settings or quantify false acceptance. |
 
-The threshold experiment replays saved field scores without additional model
-calls. It measures acceptance sensitivity, rather than a new extraction run.
+The threshold experiment replays saved field scores to measure acceptance
+sensitivity without additional model calls.
 
 ## Reproduce the checks
 
@@ -206,8 +218,8 @@ npm test
 npm run build
 ```
 
-The final regression run passed **134 backend tests and 3 subtests**. The
-frontend suite passed **7 tests**, and the production build succeeded.
+The final regression run passed **147 backend tests and 3 subtests**. The
+frontend suite passed **10 tests**, and the production build succeeded.
 
 ## Storage and current limits
 

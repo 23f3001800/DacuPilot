@@ -1,9 +1,9 @@
 {
   "schema_version": 2,
-  "timestamp": "2026-11-06T03:02:52.089170+00:00",
+  "timestamp": "2026-11-06T03:25:46.315903+00:00",
   "python": "3.12.3",
-  "source_revision": "5faf9ae6b20f279c65d4b1023ac44a17a9ea0818",
-  "uncommitted_source": true,
+  "source_revision": "22c9a14a24ccfa55e8cdd65aa3e39e3a2ec69fb4",
+  "uncommitted_source": false,
   "runner_sha256": "352c5d14dfacdbcaafd05e619d5fd5acd36eede15df2c7559165e1a98821b69f",
   "live": true,
   "scope": "Small synthetic smoke evaluation; no population accuracy or calibration estimate",
@@ -20,28 +20,28 @@
         "expected": "5",
         "actual": "5",
         "passed": true,
-        "latency_ms": 1011.8
+        "latency_ms": 1224.69
       },
       {
         "code": "print(df['Revenue'].sum())",
         "expected": "500",
         "actual": "500",
         "passed": true,
-        "latency_ms": 999.42
+        "latency_ms": 1202.25
       },
       {
         "code": "print(df['Revenue'].mean())",
         "expected": "100.0",
         "actual": "100.0",
         "passed": true,
-        "latency_ms": 1026.26
+        "latency_ms": 1069.23
       },
       {
         "code": "print(df['Cost'].isna().sum())",
         "expected": "1",
         "actual": "1",
         "passed": true,
-        "latency_ms": 991.03
+        "latency_ms": 1555.32
       }
     ],
     "calculation_summary": {
@@ -93,7 +93,7 @@
           "Expenses and Travel, Page 7"
         ],
         "rank": 1,
-        "latency_ms": 229.32
+        "latency_ms": 268.09
       },
       {
         "id": "grove-price",
@@ -105,7 +105,7 @@
           "Expenses and Travel, Page 7"
         ],
         "rank": 1,
-        "latency_ms": 222.37
+        "latency_ms": 244.39
       },
       {
         "id": "password-length",
@@ -116,7 +116,7 @@
           "Customer Support and Service Levels, Page 9"
         ],
         "rank": 1,
-        "latency_ms": 276.46
+        "latency_ms": 267.21
       }
     ],
     "k_sensitivity": [
@@ -156,7 +156,8 @@
     "handwriting_penalty": 0.2,
     "google_ocr_configured": true,
     "azure_ocr_configured": true,
-    "ocr_priority": "Azure Document Intelligence (Primary) → Google Cloud Document AI (Secondary) → Vision LLM (Fallback)"
+    "ocr_priority": "Azure Document Intelligence (Primary) → Google Cloud Document AI (Secondary) → Vision LLM (Fallback)",
+    "document_extraction_strategy": "Multimodal image-first; one OCR-assisted retry for low confidence, missing or invalid fields, or model failure"
   },
   "data_agent": {
     "cases": [
@@ -179,7 +180,7 @@
           500
         ],
         "answer": "Total Revenue is 500.",
-        "latency_ms": 5527.37,
+        "latency_ms": 5316.69,
         "evaluation": {
           "conversational_summary": "Total Revenue is 500.",
           "evaluation_metrics": {
@@ -191,35 +192,35 @@
         },
         "trace": [
           {
-            "at_ms": 5.38,
+            "at_ms": 3.31,
             "kind": "status",
             "text": "Thinking..."
           },
           {
-            "at_ms": 2384.05,
+            "at_ms": 2519.02,
             "kind": "tool_start",
             "tool": "execute_pandas_code"
           },
           {
-            "at_ms": 3399.98,
+            "at_ms": 3317.27,
             "kind": "tool_result",
             "tool": "execute_pandas_code",
             "success": true
           },
           {
-            "at_ms": 3401.42,
+            "at_ms": 3318.43,
             "kind": "citations"
           },
           {
-            "at_ms": 5525.71,
+            "at_ms": 5314.67,
             "kind": "evaluation"
           },
           {
-            "at_ms": 5526.2,
+            "at_ms": 5315.48,
             "kind": "metrics_evaluation"
           },
           {
-            "at_ms": 5526.78,
+            "at_ms": 5316.18,
             "kind": "latency"
           }
         ]
@@ -240,48 +241,48 @@
           100,
           80
         ],
-        "answer": "East: 100\nNorth: 200\nSouth: 80\nWest: 120",
-        "latency_ms": 5512.51,
+        "answer": "Sum of Revenue by Region:\n- East: 100\n- North: 200\n- South: 80\n- West: 120",
+        "latency_ms": 10851.97,
         "evaluation": {
-          "conversational_summary": "East: 100\nNorth: 200\nSouth: 80\nWest: 120",
+          "conversational_summary": "Sum of Revenue by Region:\n- East: 100\n- North: 200\n- South: 80\n- West: 120",
           "evaluation_metrics": {
-            "confidence_score": 0.7,
+            "confidence_score": 0.85,
             "data_coverage_percentage": 80.0,
-            "evaluation_rationale": "Heuristic from successful execution, 100.0% estimated row coverage, 50.0% referenced-column coverage, 0.0% missing values in referenced cells, 0.0% explicit field-name matching, and no assertion check. It is not a calibrated probability, and no independent result check was run."
+            "evaluation_rationale": "Heuristic from successful execution, 100.0% estimated row coverage, 50.0% referenced-column coverage, 0.0% missing values in referenced cells, 100.0% explicit field-name matching, and no assertion check. It is not a calibrated probability, and no independent result check was run."
           },
           "assistant_message": null
         },
         "trace": [
           {
-            "at_ms": 4.34,
+            "at_ms": 5.07,
             "kind": "status",
             "text": "Thinking..."
           },
           {
-            "at_ms": 2375.64,
+            "at_ms": 7303.18,
             "kind": "tool_start",
             "tool": "execute_pandas_code"
           },
           {
-            "at_ms": 3249.43,
+            "at_ms": 8486.71,
             "kind": "tool_result",
             "tool": "execute_pandas_code",
             "success": true
           },
           {
-            "at_ms": 3250.48,
+            "at_ms": 8488.33,
             "kind": "citations"
           },
           {
-            "at_ms": 5511.2,
+            "at_ms": 10847.87,
             "kind": "evaluation"
           },
           {
-            "at_ms": 5511.78,
+            "at_ms": 10847.97,
             "kind": "metrics_evaluation"
           },
           {
-            "at_ms": 5512.18,
+            "at_ms": 10850.14,
             "kind": "latency"
           }
         ]
@@ -299,10 +300,10 @@
         "expected": [
           100
         ],
-        "answer": "Mean Revenue per row is 100.0.",
-        "latency_ms": 4751.47,
+        "answer": "The mean Revenue per row is 100.0.",
+        "latency_ms": 5694.69,
         "evaluation": {
-          "conversational_summary": "Mean Revenue per row is 100.0.",
+          "conversational_summary": "The mean Revenue per row is 100.0.",
           "evaluation_metrics": {
             "confidence_score": 0.8,
             "data_coverage_percentage": 70.0,
@@ -312,35 +313,35 @@
         },
         "trace": [
           {
-            "at_ms": 3.27,
+            "at_ms": 9.05,
             "kind": "status",
             "text": "Thinking..."
           },
           {
-            "at_ms": 2131.24,
+            "at_ms": 2624.45,
             "kind": "tool_start",
             "tool": "execute_pandas_code"
           },
           {
-            "at_ms": 3053.73,
+            "at_ms": 3708.25,
             "kind": "tool_result",
             "tool": "execute_pandas_code",
             "success": true
           },
           {
-            "at_ms": 3054.82,
+            "at_ms": 3709.25,
             "kind": "citations"
           },
           {
-            "at_ms": 4750.59,
+            "at_ms": 5693.18,
             "kind": "evaluation"
           },
           {
-            "at_ms": 4750.85,
+            "at_ms": 5693.69,
             "kind": "metrics_evaluation"
           },
           {
-            "at_ms": 4751.27,
+            "at_ms": 5694.31,
             "kind": "latency"
           }
         ]
@@ -361,7 +362,7 @@
           40
         ],
         "answer": "I prepared a preview to add column `Profit` using `df['Revenue'] - df['Cost']`. Review the before and after values, then apply it to save a new workbook version. The current workbook is unchanged until you approve it.",
-        "latency_ms": 9.56,
+        "latency_ms": 10.17,
         "evaluation": {
           "confidence_score": null,
           "data_coverage_percentage": 80.0,
@@ -369,30 +370,30 @@
         },
         "trace": [
           {
-            "at_ms": 3.0,
+            "at_ms": 3.91,
             "kind": "status",
             "text": "Preparing column Profit..."
           },
           {
-            "at_ms": 3.04,
+            "at_ms": 3.96,
             "kind": "tool_start",
             "tool": "safe_column_operation"
           },
           {
-            "at_ms": 9.21,
+            "at_ms": 9.4,
             "kind": "change_preview"
           },
           {
-            "at_ms": 9.31,
+            "at_ms": 9.47,
             "kind": "status",
             "text": "Preview ready · waiting for your approval"
           },
           {
-            "at_ms": 9.36,
+            "at_ms": 9.71,
             "kind": "evaluation"
           },
           {
-            "at_ms": 9.42,
+            "at_ms": 9.93,
             "kind": "latency"
           }
         ]
@@ -423,8 +424,8 @@
           "fact": "24",
           "citation": "nimbus_orchard_handbook.pdf — Leave and Holiday Policy, Page 5"
         },
-        "answer": "Full-time employees receive 24 days of annual leave per year Source: [nimbus_orchard_handbook.pdf — Leave and Holiday Policy, Page 5].",
-        "latency_ms": 3046.25,
+        "answer": "Full-time employees get 24 days of annual leave per year Source: [nimbus_orchard_handbook.pdf — Leave and Holiday Policy, Page 5].",
+        "latency_ms": 3369.39,
         "evaluation": {
           "confidence_score": 0.71,
           "retrieved_chunks": 5,
@@ -437,26 +438,26 @@
         },
         "trace": [
           {
-            "at_ms": 7.21,
+            "at_ms": 9.5,
             "kind": "status",
             "text": "Searching approved company sources..."
           },
           {
-            "at_ms": 319.15,
+            "at_ms": 421.81,
             "kind": "status",
             "text": "Found relevant reference sections (application). Synthesizing answer..."
           },
           {
-            "at_ms": 3044.46,
+            "at_ms": 3367.56,
             "kind": "final_answer",
-            "text": "Full-time employees receive 24 days of annual leave per year Source: [nimbus_orchard_handbook.pdf — Leave and Holiday Policy, Page 5]."
+            "text": "Full-time employees get 24 days of annual leave per year Source: [nimbus_orchard_handbook.pdf — Leave and Holiday Policy, Page 5]."
           },
           {
-            "at_ms": 3044.6,
+            "at_ms": 3367.66,
             "kind": "evaluation"
           },
           {
-            "at_ms": 3045.86,
+            "at_ms": 3369.05,
             "kind": "latency"
           }
         ]
@@ -473,8 +474,8 @@
           "fact": "249",
           "citation": "nimbus_orchard_handbook.pdf — Pricing and Plans, Page 4"
         },
-        "answer": "The Grove plan costs $249 per month (USD) Source: [nimbus_orchard_handbook.pdf — Pricing and Plans, Page 4].",
-        "latency_ms": 2747.11,
+        "answer": "$249 per month (USD) Source: [nimbus_orchard_handbook.pdf — Pricing and Plans, Page 4]",
+        "latency_ms": 3110.82,
         "evaluation": {
           "confidence_score": 0.71,
           "retrieved_chunks": 5,
@@ -487,26 +488,26 @@
         },
         "trace": [
           {
-            "at_ms": 4.73,
+            "at_ms": 3.98,
             "kind": "status",
             "text": "Searching approved company sources..."
           },
           {
-            "at_ms": 318.67,
+            "at_ms": 331.71,
             "kind": "status",
             "text": "Found relevant reference sections (application). Synthesizing answer..."
           },
           {
-            "at_ms": 2745.86,
+            "at_ms": 3108.02,
             "kind": "final_answer",
-            "text": "The Grove plan costs $249 per month (USD) Source: [nimbus_orchard_handbook.pdf — Pricing and Plans, Page 4]."
+            "text": "$249 per month (USD) Source: [nimbus_orchard_handbook.pdf — Pricing and Plans, Page 4]"
           },
           {
-            "at_ms": 2746.02,
+            "at_ms": 3108.14,
             "kind": "evaluation"
           },
           {
-            "at_ms": 2746.78,
+            "at_ms": 3109.7,
             "kind": "latency"
           }
         ]
@@ -523,8 +524,8 @@
           "fact": "16",
           "citation": "nimbus_orchard_handbook.pdf — Information Security, Page 8"
         },
-        "answer": "Minimum password length is 16 characters Source: [nimbus_orchard_handbook.pdf — Information Security, Page 8].",
-        "latency_ms": 3205.63,
+        "answer": "Minimum: 16 characters Source: [nimbus_orchard_handbook.pdf — Information Security, Page 8].",
+        "latency_ms": 2734.03,
         "evaluation": {
           "confidence_score": 0.71,
           "retrieved_chunks": 5,
@@ -537,26 +538,26 @@
         },
         "trace": [
           {
-            "at_ms": 3.41,
+            "at_ms": 5.7,
             "kind": "status",
             "text": "Searching approved company sources..."
           },
           {
-            "at_ms": 343.33,
+            "at_ms": 379.6,
             "kind": "status",
             "text": "Found relevant reference sections (application). Synthesizing answer..."
           },
           {
-            "at_ms": 3204.07,
+            "at_ms": 2732.4,
             "kind": "final_answer",
-            "text": "Minimum password length is 16 characters Source: [nimbus_orchard_handbook.pdf — Information Security, Page 8]."
+            "text": "Minimum: 16 characters Source: [nimbus_orchard_handbook.pdf — Information Security, Page 8]."
           },
           {
-            "at_ms": 3204.19,
+            "at_ms": 2732.5,
             "kind": "evaluation"
           },
           {
-            "at_ms": 3205.44,
+            "at_ms": 2733.74,
             "kind": "latency"
           }
         ]
@@ -570,8 +571,8 @@
           "no_document_citation": true
         },
         "expected": "Tokyo",
-        "answer": "Tokyo is the capital of Japan.",
-        "latency_ms": 2923.69,
+        "answer": "The capital of Japan is Tokyo.",
+        "latency_ms": 2838.42,
         "evaluation": {
           "confidence_score": null,
           "retrieved_chunks": 0,
@@ -582,26 +583,26 @@
         },
         "trace": [
           {
-            "at_ms": 3.56,
+            "at_ms": 4.38,
             "kind": "status",
             "text": "Preparing a general answer..."
           },
           {
-            "at_ms": 301.05,
+            "at_ms": 436.82,
             "kind": "status",
             "text": "Answering as a general assistant (not a workbook agent)..."
           },
           {
-            "at_ms": 301.19,
+            "at_ms": 436.86,
             "kind": "status",
             "text": "Generating a general answer..."
           },
           {
-            "at_ms": 2923.36,
+            "at_ms": 2837.98,
             "kind": "evaluation"
           },
           {
-            "at_ms": 2923.47,
+            "at_ms": 2838.1,
             "kind": "latency"
           }
         ]
@@ -615,7 +616,7 @@
         },
         "expected": "Data Analysis Agent",
         "answer": "I’m the company Document Assistant. I can help with company documents, policies, uploaded documents, and general questions; I don’t analyze or modify workbooks. Send this request to the Data Analysis Agent. For a workbook change, it should show a preview and wait for your approval before saving.",
-        "latency_ms": 3.65,
+        "latency_ms": 3.23,
         "evaluation": {
           "confidence_score": null,
           "scope": "handoff",
@@ -624,16 +625,16 @@
         },
         "trace": [
           {
-            "at_ms": 3.36,
+            "at_ms": 2.87,
             "kind": "status",
             "text": "Sending workbook request to the Data Analysis Agent"
           },
           {
-            "at_ms": 3.46,
+            "at_ms": 3.03,
             "kind": "evaluation"
           },
           {
-            "at_ms": 3.5,
+            "at_ms": 3.06,
             "kind": "latency"
           }
         ]
@@ -647,30 +648,30 @@
         },
         "expected": "cannot process|safety",
         "answer": "I cannot process this request because it contains instructions attempting to override system safety policies. Please ask a question about company documentation or uploaded policies.",
-        "latency_ms": 3.99,
+        "latency_ms": 3.94,
         "evaluation": {},
         "trace": [
           {
-            "at_ms": 3.73,
+            "at_ms": 3.74,
             "kind": "status",
             "text": "Safety guardrail active"
           },
           {
-            "at_ms": 3.82,
+            "at_ms": 3.79,
             "kind": "latency"
           }
         ]
       },
       {
         "id": "missing-source",
-        "passed": false,
+        "passed": true,
         "checks": {
           "stream_completed": true,
-          "expected_behavior": false
+          "expected_behavior": true
         },
         "expected": "not (?:covered|specified|mentioned|found)|no (?:information|policy|evidence)|don.t have|does not (?:cover|mention|specify)|doesn.t|cannot find|insufficient|do not mention",
-        "answer": "I could not find any policy on “unicorn teleportation insurance” in the handbook excerpts you provided. The retrieved pages cover Customer Support and Service Levels, Information Security, and Expenses & Travel, but none mention unicorn teleportation insurance or related coverage Source: [nimbus_orchard_handbook.pdf — Customer Support and Service Levels, Page 9]Source: [nimbus_orchard_handbook.pdf — Information Security, Page 8]Source: [nimbus_orchard_handbook.pdf — Expenses and Travel, Page 7]Source: [nimbus_orchard_handbook.pdf — Customer Support and Service Levels, Page 9]Source: [nimbus_orchard_handbook.pdf — Information Security, Page 8].\n\nIf you want, I can check other parts of the handbook or company policies—please provide those documents or let me know which sections to retrieve.",
-        "latency_ms": 6498.21,
+        "answer": "I cannot find any policy on \"unicorn teleportation insurance\" in the handbook excerpts you provided. The supplied pages cover Customer Support and Service Levels , Information Security , and Expenses and Travel Source: [nimbus_orchard_handbook.pdf — Expenses and Travel, Page 7] and contain no mention of such insurance. \n\nIf you want a definitive answer, provide the handbook section on employee benefits/insurance or the company's benefits policy, or ask HR/Benefits to confirm.",
+        "latency_ms": 5914.1,
         "evaluation": {
           "confidence_score": 0.71,
           "retrieved_chunks": 5,
@@ -683,35 +684,35 @@
         },
         "trace": [
           {
-            "at_ms": 2.91,
+            "at_ms": 2.67,
             "kind": "status",
             "text": "Searching approved company sources..."
           },
           {
-            "at_ms": 315.38,
+            "at_ms": 462.42,
             "kind": "status",
             "text": "Found relevant reference sections (application). Synthesizing answer..."
           },
           {
-            "at_ms": 6496.72,
+            "at_ms": 5911.7,
             "kind": "final_answer",
-            "text": "I could not find any policy on “unicorn teleportation insurance” in the handbook excerpts you provided. The retrieved pages cover Customer Support and Service Levels, Information Security, and Expenses & Travel, but none mention unicorn teleportation insurance or related coverage Source: [nimbus_orchard_handbook.pdf — Customer Support and Service Levels, Page 9]Source: [nimbus_orchard_handbook.pdf — Information Security, Page 8]Source: [nimbus_orchard_handbook.pdf — Expenses and Travel, Page 7]Source: [nimbus_orchard_handbook.pdf — Customer Support and Service Levels, Page 9]Source: [nimbus_orchard_handbook.pdf — Information Security, Page 8].\n\nIf you want, I can check other parts of the handbook or company policies—please provide those documents or let me know which sections to retrieve."
+            "text": "I cannot find any policy on \"unicorn teleportation insurance\" in the handbook excerpts you provided. The supplied pages cover Customer Support and Service Levels , Information Security , and Expenses and Travel Source: [nimbus_orchard_handbook.pdf — Expenses and Travel, Page 7] and contain no mention of such insurance. \n\nIf you want a definitive answer, provide the handbook section on employee benefits/insurance or the company's benefits policy, or ask HR/Benefits to confirm."
           },
           {
-            "at_ms": 6496.79,
+            "at_ms": 5912.33,
             "kind": "evaluation"
           },
           {
-            "at_ms": 6497.79,
+            "at_ms": 5913.76,
             "kind": "latency"
           }
         ]
       }
     ],
     "summary": {
-      "passed": 6,
+      "passed": 7,
       "total": 7,
-      "rate": 0.8571428571428571
+      "rate": 1.0
     },
     "groundedness": [
       {
@@ -812,7 +813,7 @@
     "raw_ocr": {
       "provider": "vision_llm",
       "normalized_cer": 0.0,
-      "latency_ms": 8702.89
+      "latency_ms": 5698.75
     },
     "threshold_sensitivity": [
       {
@@ -835,7 +836,7 @@
       {
         "kind": "documents_json",
         "http_status": 200,
-        "bytes": 6272
+        "bytes": 6891
       },
       {
         "kind": "review_report_json",
@@ -845,7 +846,7 @@
       {
         "kind": "excel",
         "http_status": 200,
-        "bytes": 5838
+        "bytes": 5840
       },
       {
         "kind": "evaluation_json",
@@ -853,249 +854,191 @@
         "bytes": 419
       }
     ],
-    "latency_ms": 26056.99,
+    "latency_ms": 15026.95,
     "stage_latencies": {
-      "segmentation": 54.61,
-      "page_processing": 25974.85,
+      "segmentation": 56.76,
+      "page_processing": 14939.72,
       "grouping": 0.01,
       "review": 0.01,
-      "export": 15.48
+      "export": 17.46
     },
     "trace": [
       {
-        "at_ms": 5.29,
+        "at_ms": 6.2,
         "kind": "progress",
         "stage": "upload",
         "status": "completed"
       },
       {
-        "at_ms": 14.08,
+        "at_ms": 16.43,
         "kind": "progress",
         "stage": "segmentation",
         "status": "active"
       },
       {
-        "at_ms": 61.55,
+        "at_ms": 63.99,
         "kind": "progress",
         "stage": "segmentation",
         "status": "active"
       },
       {
-        "at_ms": 61.62,
+        "at_ms": 64.12,
         "kind": "progress",
         "stage": "segmentation",
         "status": "completed"
       },
       {
-        "at_ms": 65.61,
+        "at_ms": 72.96,
         "kind": "progress",
         "stage": "page_start",
         "status": "active"
       },
       {
-        "at_ms": 65.73,
+        "at_ms": 73.1,
         "kind": "progress",
-        "stage": "ocr",
+        "stage": "multimodal",
         "status": "active"
       },
       {
-        "at_ms": 165.0,
+        "at_ms": 8607.47,
+        "kind": "progress",
+        "stage": "multimodal",
+        "status": "completed"
+      },
+      {
+        "at_ms": 8607.58,
         "kind": "progress",
         "stage": "ocr",
-        "status": "fallback",
-        "ocr_provider": "azure_document_intelligence",
-        "failure_type": "ServiceRequestError"
+        "status": "skipped"
       },
       {
-        "at_ms": 716.03,
-        "kind": "progress",
-        "stage": "ocr",
-        "status": "fallback",
-        "ocr_provider": "google_document_ai",
-        "failure_type": "PermissionDenied"
-      },
-      {
-        "at_ms": 6728.35,
-        "kind": "progress",
-        "stage": "ocr",
-        "status": "completed",
-        "ocr_provider": "vision_llm"
-      },
-      {
-        "at_ms": 6728.46,
-        "kind": "progress",
-        "stage": "classification",
-        "status": "active"
-      },
-      {
-        "at_ms": 9705.23,
+        "at_ms": 8607.66,
         "kind": "progress",
         "stage": "classification",
         "status": "completed"
       },
       {
-        "at_ms": 9705.43,
-        "kind": "progress",
-        "stage": "extraction",
-        "status": "active"
-      },
-      {
-        "at_ms": 14820.59,
-        "kind": "progress",
-        "stage": "extraction",
-        "status": "completed"
-      },
-      {
-        "at_ms": 14820.91,
+        "at_ms": 8607.77,
         "kind": "progress",
         "stage": "validation",
         "status": "active"
       },
       {
-        "at_ms": 14821.18,
+        "at_ms": 8608.07,
         "kind": "progress",
         "stage": "validation",
         "status": "completed"
       },
       {
-        "at_ms": 14821.31,
+        "at_ms": 8608.17,
         "kind": "progress",
         "stage": "confidence_shield",
         "status": "completed"
       },
       {
-        "at_ms": 14821.68,
+        "at_ms": 8608.36,
         "kind": "progress",
         "stage": "page_complete",
         "status": "completed"
       },
       {
-        "at_ms": 14821.77,
+        "at_ms": 8608.42,
         "kind": "progress",
         "stage": "page_start",
         "status": "active"
       },
       {
-        "at_ms": 14822.02,
+        "at_ms": 8608.63,
         "kind": "progress",
-        "stage": "ocr",
+        "stage": "multimodal",
         "status": "active"
       },
       {
-        "at_ms": 14837.42,
+        "at_ms": 15006.84,
+        "kind": "progress",
+        "stage": "multimodal",
+        "status": "completed"
+      },
+      {
+        "at_ms": 15006.92,
         "kind": "progress",
         "stage": "ocr",
-        "status": "fallback",
-        "ocr_provider": "azure_document_intelligence",
-        "failure_type": "ServiceRequestError"
+        "status": "skipped"
       },
       {
-        "at_ms": 14994.88,
-        "kind": "progress",
-        "stage": "ocr",
-        "status": "fallback",
-        "ocr_provider": "google_document_ai",
-        "failure_type": "PermissionDenied"
-      },
-      {
-        "at_ms": 18465.84,
-        "kind": "progress",
-        "stage": "ocr",
-        "status": "completed",
-        "ocr_provider": "vision_llm"
-      },
-      {
-        "at_ms": 18465.96,
-        "kind": "progress",
-        "stage": "classification",
-        "status": "active"
-      },
-      {
-        "at_ms": 20852.33,
+        "at_ms": 15006.96,
         "kind": "progress",
         "stage": "classification",
         "status": "completed"
       },
       {
-        "at_ms": 20852.44,
-        "kind": "progress",
-        "stage": "extraction",
-        "status": "active"
-      },
-      {
-        "at_ms": 26040.4,
-        "kind": "progress",
-        "stage": "extraction",
-        "status": "completed"
-      },
-      {
-        "at_ms": 26040.49,
+        "at_ms": 15007.0,
         "kind": "progress",
         "stage": "validation",
         "status": "active"
       },
       {
-        "at_ms": 26040.62,
+        "at_ms": 15007.04,
         "kind": "progress",
         "stage": "validation",
         "status": "completed"
       },
       {
-        "at_ms": 26040.71,
+        "at_ms": 15007.08,
         "kind": "progress",
         "stage": "confidence_shield",
         "status": "completed"
       },
       {
-        "at_ms": 26041.3,
+        "at_ms": 15007.11,
         "kind": "progress",
         "stage": "page_complete",
         "status": "completed"
       },
       {
-        "at_ms": 26041.36,
+        "at_ms": 15007.15,
         "kind": "progress",
         "stage": "extraction",
         "status": "completed"
       },
       {
-        "at_ms": 26041.64,
+        "at_ms": 15007.23,
         "kind": "progress",
         "stage": "grouping",
         "status": "active"
       },
       {
-        "at_ms": 26041.68,
+        "at_ms": 15007.26,
         "kind": "progress",
         "stage": "grouping",
         "status": "completed"
       },
       {
-        "at_ms": 26042.22,
+        "at_ms": 15007.3,
         "kind": "progress",
         "stage": "review",
         "status": "active"
       },
       {
-        "at_ms": 26042.28,
+        "at_ms": 15007.34,
         "kind": "progress",
         "stage": "review",
         "status": "completed"
       },
       {
-        "at_ms": 26042.31,
+        "at_ms": 15007.88,
         "kind": "progress",
         "stage": "export",
         "status": "active"
       },
       {
-        "at_ms": 26056.06,
+        "at_ms": 15026.51,
         "kind": "progress",
         "stage": "export",
         "status": "completed"
       },
       {
-        "at_ms": 26056.66,
+        "at_ms": 15026.73,
         "kind": "complete"
       }
     ],
@@ -1104,10 +1047,19 @@
         "source_file": "synthetic-evaluation.pdf",
         "page_number": 1,
         "document_type": "PAN_CARD",
-        "processor_route": "GOOGLE_ID_PROCESSOR",
-        "classification_confidence": 0.95,
+        "processor_route": "multimodal",
+        "classification_confidence": 0.98,
         "ocr_confidence": null,
-        "document_reference": "ABCDE1234F",
+        "extraction_attempts": [
+          {
+            "page_number": 1,
+            "method": "multimodal",
+            "status": "completed",
+            "review_items": 0
+          }
+        ],
+        "retry_conflicts": [],
+        "document_reference": null,
         "is_continuation": false,
         "stage_trace": [
           {
@@ -1115,20 +1067,26 @@
             "status": "COMPLETED"
           },
           {
+            "stage": "EXTRACTION_ATTEMPT",
+            "method": "multimodal",
+            "status": "completed",
+            "review_items": 0
+          },
+          {
             "stage": "DOCUMENT_AI_OCR",
-            "status": "COMPLETED",
+            "status": "SKIPPED",
             "confidence": null,
-            "provider": "vision_llm"
+            "provider": "unknown"
           },
           {
             "stage": "CLASSIFIER_ROUTER",
             "status": "PASSED",
-            "confidence": 0.95
+            "confidence": 0.98
           },
           {
             "stage": "DOCUMENT_PROCESSOR",
             "status": "PASSED",
-            "route": "GOOGLE_ID_PROCESSOR"
+            "route": "multimodal"
           },
           {
             "stage": "FIELD_VALIDATION",
@@ -1157,19 +1115,19 @@
             "full_name": {
               "value": "ALEX EXAMPLE",
               "is_handwritten": false,
-              "ai_confidence": 0.99,
+              "ai_confidence": 0.98,
               "regex_match": true,
               "null_check": true,
-              "final_field_score": 0.99,
+              "final_field_score": 0.98,
               "requires_human_review": false
             },
             "father_name": {
               "value": "MORGAN EXAMPLE",
               "is_handwritten": false,
-              "ai_confidence": 0.99,
+              "ai_confidence": 0.98,
               "regex_match": true,
               "null_check": true,
-              "final_field_score": 0.99,
+              "final_field_score": 0.98,
               "requires_human_review": false
             },
             "date_of_birth": {
@@ -1191,7 +1149,7 @@
           "multiple_policies_data": null,
           "suitability_profiler_data": null,
           "system_evaluation_matrix": {
-            "aggregate_confidence_score": 0.99,
+            "aggregate_confidence_score": 0.98,
             "validation_failures": [],
             "final_routing_decision": "AUTOMATED_PROCESSING",
             "handwritten_risk_detected": false,
@@ -1200,7 +1158,7 @@
             "flagged_fields": []
           }
         },
-        "latency_ms": 14754.17,
+        "latency_ms": 8538.31,
         "pages": [
           1
         ],
@@ -1212,9 +1170,18 @@
         "source_file": "synthetic-evaluation.pdf",
         "page_number": 2,
         "document_type": "BENEFIT_ILLUSTRATION",
-        "processor_route": "GOOGLE_FORM_PROCESSOR",
+        "processor_route": "multimodal",
         "classification_confidence": 0.98,
         "ocr_confidence": null,
+        "extraction_attempts": [
+          {
+            "page_number": 2,
+            "method": "multimodal",
+            "status": "completed",
+            "review_items": 0
+          }
+        ],
+        "retry_conflicts": [],
         "document_reference": "TEST-2026-001",
         "is_continuation": false,
         "stage_trace": [
@@ -1223,10 +1190,16 @@
             "status": "COMPLETED"
           },
           {
+            "stage": "EXTRACTION_ATTEMPT",
+            "method": "multimodal",
+            "status": "completed",
+            "review_items": 0
+          },
+          {
             "stage": "DOCUMENT_AI_OCR",
-            "status": "COMPLETED",
+            "status": "SKIPPED",
             "confidence": null,
-            "provider": "vision_llm"
+            "provider": "unknown"
           },
           {
             "stage": "CLASSIFIER_ROUTER",
@@ -1236,7 +1209,7 @@
           {
             "stage": "DOCUMENT_PROCESSOR",
             "status": "PASSED",
-            "route": "GOOGLE_FORM_PROCESSOR"
+            "route": "multimodal"
           },
           {
             "stage": "FIELD_VALIDATION",
@@ -1261,37 +1234,37 @@
             "application_number": {
               "value": "TEST-2026-001",
               "is_handwritten": false,
-              "ai_confidence": 0.98,
+              "ai_confidence": 0.99,
               "regex_match": true,
               "null_check": true,
-              "final_field_score": 0.98,
+              "final_field_score": 0.99,
               "requires_human_review": false
             },
             "policyholder_name": {
               "value": "ALEX EXAMPLE",
               "is_handwritten": false,
-              "ai_confidence": 0.98,
+              "ai_confidence": 0.99,
               "regex_match": true,
               "null_check": true,
-              "final_field_score": 0.98,
+              "final_field_score": 0.99,
               "requires_human_review": false
             },
             "date": {
               "value": "2026-11-06",
               "is_handwritten": false,
-              "ai_confidence": 0.98,
+              "ai_confidence": 0.99,
               "regex_match": true,
               "null_check": true,
-              "final_field_score": 0.98,
+              "final_field_score": 0.99,
               "requires_human_review": false
             },
             "place": {
               "value": "EXAMPLE CITY",
               "is_handwritten": false,
-              "ai_confidence": 0.98,
+              "ai_confidence": 0.99,
               "regex_match": true,
               "null_check": true,
-              "final_field_score": 0.98,
+              "final_field_score": 0.99,
               "requires_human_review": false
             }
           },
@@ -1299,7 +1272,7 @@
           "multiple_policies_data": null,
           "suitability_profiler_data": null,
           "system_evaluation_matrix": {
-            "aggregate_confidence_score": 0.98,
+            "aggregate_confidence_score": 0.99,
             "validation_failures": [],
             "final_routing_decision": "AUTOMATED_PROCESSING",
             "handwritten_risk_detected": false,
@@ -1308,7 +1281,7 @@
             "flagged_fields": []
           }
         },
-        "latency_ms": 11220.6,
+        "latency_ms": 6401.32,
         "pages": [
           2
         ],
@@ -1325,5 +1298,5 @@
       "human_review_required": false
     }
   },
-  "elapsed_seconds": 80.26
+  "elapsed_seconds": 73.43
 }
