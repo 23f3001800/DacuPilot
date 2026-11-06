@@ -3,7 +3,6 @@ import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { getHealth } from "./api";
 import { loadPreferences } from "./preferences.js";
 import AppIcon from "./components/AppIcon.vue";
-import CompanyHelp from "./components/CompanyHelp.vue";
 import WorkspaceView from "./views/WorkspaceView.vue";
 import ResultsView from "./views/ResultsView.vue";
 import DocumentsView from "./views/DocumentsView.vue";
@@ -146,6 +145,5 @@ onBeforeUnmount(() => {
       <DocumentsView v-show="activeRoute === 'documents'" />
       <SettingsView v-if="activeRoute === 'settings'" />
     </main>
-    <CompanyHelp :online="online" />
   </div>
 </template>

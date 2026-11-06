@@ -152,11 +152,6 @@ export const applyCleaningOperation = (threadId, preview) =>
     operation: preview.operation,
     operation_id: preview.operation_id,
   });
-export const clearDocumentSession = (threadId) =>
-  request("/api/document-assistant/session/" + encodeURIComponent(threadId), {
-    method: "DELETE",
-  });
-
 export async function uploadWorkbook(file, threadId) {
   const body = new FormData();
   body.set("file", file);
@@ -167,19 +162,16 @@ export async function uploadWorkbook(file, threadId) {
 export async function streamAssistant({
   message,
   threadId,
-  mode = "data-agent",
   processingConsent = false,
   signal,
   onEvent,
 }) {
-  const endpoint =
-    mode === "document-assistant"
-      ? "/api/document-assistant/chat/stream"
-      : "/api/chat/stream";
-  const body = { message, thread_id: threadId };
-  if (mode !== "document-assistant")
-    body.processing_consent = processingConsent === true;
-  const response = await fetch(endpoint, {
+  const body = {
+    message,
+    thread_id: threadId,
+    processing_consent: processingConsent === true,
+  };
+  const response = await fetch("/api/chat/stream", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

@@ -2490,130 +2490,6 @@ input[type="checkbox"] {
   line-height: 1.8;
   max-width: 640px;
 }
-.help-launcher {
-  position: fixed;
-  z-index: 65;
-  right: 24px;
-  bottom: 18px;
-  width: 43px;
-  height: 43px;
-  display: grid;
-  place-items: center;
-  color: #fff;
-  background: #3958aa;
-  border: 1px solid #4563b5;
-  border-radius: 13px;
-  box-shadow: 0 6px 18px #29499329;
-}
-.help-launcher:hover {
-  background: #2c498f;
-}
-.help-launcher.active {
-  background: #6c82b8;
-  border-color: #7e94c6;
-}
-.help-panel {
-  position: fixed;
-  z-index: 60;
-  bottom: 74px;
-  right: 24px;
-  width: 400px;
-  height: min(630px, calc(100dvh - 100px));
-  display: flex;
-  flex-direction: column;
-  background: white;
-  border: 1px solid #dde6f4;
-  border-radius: 14px;
-  box-shadow: 0 12px 65px #203d7924;
-  overflow: hidden;
-}
-.help-header {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 15px;
-  border-bottom: 1px solid var(--line);
-}
-.help-header > div {
-  flex: 1;
-  min-width: 0;
-}
-.help-header h2 {
-  font-size: 13px;
-  font-weight: 600;
-  color: #5f789d;
-}
-.help-header p {
-  color: #68758a;
-  font-size: 11px;
-  margin-top: 4px;
-}
-.help-header > .icon-button {
-  width: 25px;
-  height: 27px;
-  color: #68758a;
-}
-.help-messages {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: 18px;
-}
-.help-welcome {
-  padding: 17px 5px;
-}
-.help-welcome h3 {
-  font-size: 20px;
-  font-weight: 500;
-  color: #68758a;
-  margin: 20px 0 10px;
-  letter-spacing: -0.5px;
-}
-.help-welcome p {
-  color: #68758a;
-  font-size: 12px;
-  line-height: 1.8;
-  margin-bottom: 22px;
-}
-.help-welcome .suggestion {
-  margin-top: 9px;
-}
-.help-panel .conversation-message.user {
-  margin-left: 20px;
-}
-.help-composer {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  padding: 12px 14px;
-  border-top: 1px solid var(--line);
-}
-.help-composer textarea {
-  width: 100%;
-  min-width: 0;
-  height: 69px;
-  max-height: 130px;
-  border: 1px solid #dce5f3;
-  border-radius: 7px;
-  padding: 10px;
-  resize: vertical;
-  font-size: 12px;
-  line-height: 1.6;
-  outline: none;
-}
-.help-composer textarea:focus {
-  border-color: #a8bdee;
-}
-.help-composer .send-button {
-  margin-bottom: 2px;
-}
-.inline-notice {
-  padding: 8px 14px;
-  background: #fffaf0;
-  color: #95672d;
-  font-size: 11px;
-  line-height: 1.6;
-}
 
 @media (min-width: 1700px) {
   .workbench {
@@ -2647,9 +2523,6 @@ input[type="checkbox"] {
     flex-direction: column;
     gap: 12px;
     align-items: flex-start;
-  }
-  .help-launcher {
-    right: 18px;
   }
 }
 @media (max-width: 980px) {
@@ -2932,19 +2805,6 @@ input[type="checkbox"] {
   }
   .preference-row p {
     font-size: 11px;
-  }
-  .help-launcher {
-    width: 42px;
-    height: 42px;
-    right: 15px;
-    bottom: 16px;
-  }
-  .help-panel {
-    left: 12px;
-    right: 12px;
-    width: auto;
-    bottom: 71px;
-    height: min(610px, calc(100dvh - 130px));
   }
   .profile-result {
     flex-wrap: wrap;

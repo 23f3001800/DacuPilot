@@ -82,30 +82,6 @@ test("workbook requests send the explicit consent value and cancellation signal"
   }
 });
 
-test("company help uses its own API and does not inherit workbook consent", async () => {
-  const originalFetch = globalThis.fetch;
-  let captured;
-  globalThis.fetch = async (path, options) => {
-    captured = { path, options };
-    return streamResponse("data: [DONE]\n\n");
-  };
-  try {
-    await streamAssistant({
-      message: "Company leave policy",
-      threadId: "company-thread",
-      mode: "document-assistant",
-      onEvent() {},
-    });
-    assert.equal(captured.path, "/api/document-assistant/chat/stream");
-    assert.equal(
-      Object.hasOwn(JSON.parse(captured.options.body), "processing_consent"),
-      false,
-    );
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
 test("validation errors remain readable to the user", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () =>

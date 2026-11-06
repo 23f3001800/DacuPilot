@@ -1,7 +1,7 @@
 # InsightPilot frontend
 
 Vue 3 and Vite provide one interface for development and the backend's production
-build. The old legacy UI is retained as archived source and is no longer served.
+build.
 
 ## Workspace structure
 
@@ -13,8 +13,6 @@ build. The old legacy UI is retained as archived source and is no longer served.
 - **Documents**: explicit-consent document processing, streamed progress, field
   review, confidence flags, downloads, and browser-local job history.
 - **Preferences**: presentation settings saved in this browser.
-- **Company Help**: a corner assistant for general questions and approved company
-  knowledge. It uses a separate conversation and API from workbook analysis.
 
 Workbook analysis stays mounted while navigating. Workbook IDs and consent live
 in session storage; completed answers are saved under keys scoped to that ID.
@@ -43,8 +41,8 @@ Open http://localhost:5173/. Vite proxies /api to the local backend.
     npm run build
 
 The frontend tests use Node's built-in test runner and cover stream boundaries,
-interrupted responses, consent, readable validation errors, and assistant
-routing. The production build is written to frontend/dist. The backend serves
+interrupted responses, consent, and readable validation errors.
+The production build is written to frontend/dist. The backend serves
 that index and its assets at http://localhost:8000/; a missing build produces an
 actionable 503 response.
 
