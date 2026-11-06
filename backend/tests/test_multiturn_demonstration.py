@@ -68,6 +68,8 @@ class MultiTurnConversationDemonstrationTests(unittest.TestCase):
                     return AIMessage(content="The meal reimbursement allowance under Petal is 50 USD per day during approved business travel. [E1]")
                 elif "founders" in norm:
                     return AIMessage(content="Nimbus Orchard Technologies was founded by Dr. Elena Vance and Marcus Thorne in 2021. [E1]")
+                elif "capital" in norm:
+                    return AIMessage(content="Vienna was the imperial capital; Hungary's government was based in Budapest.")
                 else:
                     return AIMessage(content="Here is the retrieved policy information. [E1]")
 
@@ -298,16 +300,18 @@ class MultiTurnConversationDemonstrationTests(unittest.TestCase):
             )
             t10_lat = round((time.perf_counter() - t10_start) * 1000, 2)
             t10_ans = r10["messages"][-1].content
-            self.assertIn("don't have enough evidence", t10_ans.lower())
-            self.assertEqual(r10.get("last_evaluation", {}).get("confidence_score"), 0.0)
+            self.assertIn("Vienna", t10_ans)
+            self.assertEqual(r10.get("last_scope"), "general")
+            self.assertIsNone(r10.get("last_evaluation", {}).get("confidence_score"))
+            self.assertNotIn("Source:", t10_ans)
             turn_logs.append({
                 "turn": 10,
-                "type": "Unsupported / Out-of-Scope Query",
+                "type": "General knowledge query",
                 "question": t10_q,
                 "answer": t10_ans,
-                "confidence_score": 0.0,
+                "confidence_score": None,
                 "latency_ms": t10_lat,
-                "status": "PASS (Refused Hallucination)",
+                "status": "PASS (General answer without company citation)",
             })
 
             # -----------------------------------------------------------------

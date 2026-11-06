@@ -8,14 +8,24 @@ from openpyxl import Workbook
 from excel_agent.loader import load_real_world_excel
 
 
-WORKBOOK = (
-    Path(__file__).resolve().parents[2]
-    / "excel_agent"
-    / "Inventory-Records-Sample-Data.xlsx"
-)
-
-
 class ExcelLoaderTests(unittest.TestCase):
+    def setUp(self):
+        self.fixture_directory = TemporaryDirectory()
+        self.workbook_path = Path(self.fixture_directory.name) / "inventory-fixture.xlsx"
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.append(["Inventory records"])
+        sheet.merge_cells("A1:H1")
+        sheet.append([])
+        sheet.append(["Product ID", "Product Name", "Opening Stock", "Purchased", "Units Sold", "Hand-In-\nStock", "Cost Price", "Total Cost"])
+        for index in range(46):
+            sheet.append([index + 1, "Smartphone" if index == 0 else "Item " + str(index), 100, 20, 40, 80, 5.5, 440])
+        workbook.save(self.workbook_path)
+        workbook.close()
+
+    def tearDown(self):
+        self.fixture_directory.cleanup()
+
     def test_loads_a_streaming_worksheet_without_merged_cell_metadata(self):
         with TemporaryDirectory() as temporary_directory:
             workbook_path = Path(temporary_directory) / "small.xlsx"
@@ -33,7 +43,7 @@ class ExcelLoaderTests(unittest.TestCase):
         self.assertFalse(schema["merged_headers"])
 
     def test_finds_table_beneath_title_rows(self):
-        dataframe, schema = load_real_world_excel(str(WORKBOOK))
+        dataframe, schema = load_real_world_excel(str(self.workbook_path))
 
         self.assertEqual(len(dataframe.columns), 8)
         self.assertEqual(schema["total_rows"], 46)
@@ -41,7 +51,7 @@ class ExcelLoaderTests(unittest.TestCase):
         self.assertIn("Hand-In-\nStock", schema["columns"])
 
     def test_reads_expected_sample_record(self):
-        dataframe, _ = load_real_world_excel(str(WORKBOOK))
+        dataframe, _ = load_real_world_excel(str(self.workbook_path))
 
         product = dataframe.loc[dataframe["Product Name"] == "Smartphone"].iloc[0]
         self.assertEqual(product["Hand-In-\nStock"], 80)

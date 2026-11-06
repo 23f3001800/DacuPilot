@@ -147,7 +147,7 @@ def _validate_citations(
     is_greeting: bool = False,
 ) -> str:
     if is_greeting or not evidence:
-        return answer.strip()
+        return re.sub(r"Source:\s*\[[^\]]+\]|\[E\d+\]", "", answer, flags=re.IGNORECASE).strip()
 
     cited: set[int] = set()
 
@@ -209,6 +209,9 @@ def _requires_document_evidence(text: str) -> bool:
         "our company", "my company", "our product", "our products",
         "company product", "company products", "company pricing",
         "support contact", "employee benefit",
+        "support hubs", "customer support hubs", "executive leadership team",
+        "leadership team meet", "company offices", "company locations",
+        "remote work", "internal systems",
     )
     policy_terms = (
         "policy", "handbook", "eligibility", "entitlement", "leave balance",
@@ -249,6 +252,13 @@ def _is_data_analysis_request(text: str) -> bool:
         re.search(r"\b(?:chart|graph|plot|dashboard)\b", normalized)
     ) and bool(re.search(r"\b(?:make|create|show|generate|build|draw)\b", normalized))
     return (has_dataset and has_analysis_action) or chart_request
+
+
+def _requires_source_evidence(question: str, scope: str, retrieval_query: str = "", last_scope: str = "") -> bool:
+    if _requires_document_evidence(question) or scope in {"user", "mixed"}:
+        return True
+    contextual = re.search(r"\b(it|that|this|those|they|them|what about)\b", question, re.IGNORECASE)
+    return bool(contextual and last_scope == "application" and _requires_document_evidence(retrieval_query))
 
 
 def document_assistant_node(state: AssistantState):
@@ -310,7 +320,7 @@ def document_assistant_node(state: AssistantState):
         last_scope=last_scope,
     )
 
-    requires_document_evidence = _requires_document_evidence(question) or scope in {"user", "mixed"}
+    requires_document_evidence = _requires_source_evidence(question, scope, retrieval_query, last_scope)
     general_knowledge_fallback = not is_greeting and not requires_document_evidence
     if general_knowledge_fallback:
         scope = "general"

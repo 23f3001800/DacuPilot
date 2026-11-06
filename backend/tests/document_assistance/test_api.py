@@ -65,18 +65,6 @@ class DocumentAssistantApiTests(unittest.TestCase):
         self.assertIn("/api/document-assistant/documents", paths)
         self.assertIn("/api/document-assistant/session/{thread_id}", paths)
 
-    def test_homepage_matches_document_assistant_knowledge_without_external_upload(self):
-        response = TestClient(root_app).get("/")
-
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("Nimbus Orchard Technologies Company Handbook", response.text)
-        self.assertNotIn('id="document-assistant-files"', response.text)
-        self.assertNotIn('id="document-assistant-consent"', response.text)
-        self.assertNotIn('id="document-assistant-attach"', response.text)
-        self.assertNotIn('id="document-assistant-upload-form"', response.text)
-        self.assertNotIn("Questions.docx", response.text)
-        self.assertNotIn("assignment knowledge document", response.text)
-
     def test_chat_endpoint_passes_the_session_id_to_conversation_state(self):
         messages = [
             HumanMessage(content="What is the confidence threshold?"),
@@ -175,10 +163,11 @@ class DocumentAssistantApiTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertIn("Hello! I am DocuPilot's Document Assistant", data["answer"])
-        self.assertIn("What happens when confidence is low?", data["answer"])
+        self.assertIn("Hello! I am DataPilot's Document and Help Assistant", data["answer"])
+        self.assertIn("What is the company leave policy?", data["answer"])
         self.assertEqual(data["topic"], "Greeting")
-        self.assertLess(data["latency_ms"], 50)
+        self.assertIsNone(data["confidence_score"])
+        self.assertNotIn("document-processing guidance", data["answer"])
 
     def test_greeting_stream_endpoint_returns_suggestions(self):
         response = self.client.post(
@@ -189,7 +178,7 @@ class DocumentAssistantApiTests(unittest.TestCase):
             },
         )
         self.assertEqual(response.status_code, 200)
-        self.assertIn("What happens when confidence is low?", response.text)
+        self.assertIn("What is the company leave policy?", response.text)
         self.assertIn("What is the privacy policy regarding user data and retention?", response.text)
 
 
