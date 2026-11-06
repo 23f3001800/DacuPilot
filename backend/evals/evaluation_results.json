@@ -1,92 +1,1329 @@
 {
-  "timestamp": "2026-10-09T01:33:21Z",
-  "total_benchmark_time_seconds": 12.27,
-  "document_intelligence": {
-    "quality": {
-      "classification": {
-        "count": 3,
-        "mean": 0.9533,
-        "min": 0.92,
-        "max": 0.99
+  "schema_version": 2,
+  "timestamp": "2026-11-06T03:02:52.089170+00:00",
+  "python": "3.12.3",
+  "source_revision": "5faf9ae6b20f279c65d4b1023ac44a17a9ea0818",
+  "uncommitted_source": true,
+  "runner_sha256": "352c5d14dfacdbcaafd05e619d5fd5acd36eede15df2c7559165e1a98821b69f",
+  "live": true,
+  "scope": "Small synthetic smoke evaluation; no population accuracy or calibration estimate",
+  "settings": {
+    "data_temperature": 0.1,
+    "assistant_temperature": 0.0,
+    "field_threshold": 0.85,
+    "handwriting_penalty": 0.2
+  },
+  "sandbox": {
+    "calculations": [
+      {
+        "code": "print(len(df))",
+        "expected": "5",
+        "actual": "5",
+        "passed": true,
+        "latency_ms": 1011.8
       },
-      "field_confidence": {
-        "count": 10,
-        "mean": 0.902,
-        "min": 0.6,
-        "max": 0.99
+      {
+        "code": "print(df['Revenue'].sum())",
+        "expected": "500",
+        "actual": "500",
+        "passed": true,
+        "latency_ms": 999.42
       },
-      "validation_pass_rate": 0.6667
-    },
-    "throughput": {
-      "total_pages": 3,
-      "total_ms": 450.06,
-      "avg_ms_per_page": 150.02,
-      "pages_per_second": 6.67,
-      "stage_breakdown_ms": {
-        "segmentation": 45.2,
-        "ocr_vision": 280.5,
-        "extraction_schema": 85.0,
-        "routing_evaluation": 39.3
+      {
+        "code": "print(df['Revenue'].mean())",
+        "expected": "100.0",
+        "actual": "100.0",
+        "passed": true,
+        "latency_ms": 1026.26
+      },
+      {
+        "code": "print(df['Cost'].isna().sum())",
+        "expected": "1",
+        "actual": "1",
+        "passed": true,
+        "latency_ms": 991.03
       }
+    ],
+    "calculation_summary": {
+      "passed": 4,
+      "total": 4,
+      "rate": 1.0
     },
-    "routing": {
-      "document_types": {
-        "PAN_CARD": 2,
-        "AADHAAR_CARD": 1
+    "safety_cases": [
+      {
+        "code": "import os",
+        "passed": true,
+        "actual": "ERROR: Syntax is blocked by sandbox safety policies."
       },
-      "routing_decisions": {
-        "AUTOMATED_PROCESSING": 1,
-        "HUMAN_REVIEWS_REQUIRED": 2
+      {
+        "code": "open('/etc/hosts')",
+        "passed": true,
+        "actual": "ERROR: Call is blocked by sandbox safety policies."
       },
-      "automation_rate": 0.3333,
-      "total_flags": 2,
-      "flags_by_reason": {
-        "BELOW_CONFIDENCE_THRESHOLD": 1,
-        "FORMAT_VALIDATION_FAILED": 1
+      {
+        "code": "eval('1+1')",
+        "passed": true,
+        "actual": "ERROR: Call is blocked by sandbox safety policies."
       },
-      "human_review_required": true
-    },
-    "stage_gates": {
-      "classification_gate_pass": true,
-      "classification_score": 0.94,
-      "ocr_layout_gate_pass": true,
-      "ocr_character_error_rate": 0.1895,
-      "field_business_gate_pass": false,
-      "field_cer": 0.2874,
-      "final_routing_decision": "HUMAN_OPERATIONS_MANUAL_REVIEW"
+      {
+        "code": "df['Revenue'] = 0",
+        "passed": true,
+        "actual": "ERROR during execution: ValueError: Only assigning a result to a variable is supported."
+      },
+      {
+        "code": "df.drop(columns=['Revenue'], inplace=True)",
+        "passed": true,
+        "actual": "ERROR during execution: ValueError: In-place workbook changes are blocked by sandbox safety policies."
+      }
+    ],
+    "safety_summary": {
+      "passed": 5,
+      "total": 5,
+      "rate": 1.0
     }
   },
-  "excel_agent": {
-    "dataset_rows": 73316,
-    "dataset_columns": 8,
-    "dataset_load_time_ms": 10655.69,
-    "code_execution_queries": 5,
-    "code_execution_pass_rate": 1.0,
-    "avg_repl_latency_ms": 1.03,
-    "sandbox_security_attacks_tested": 5,
-    "sandbox_security_block_rate": 1.0,
-    "agent_confidence_score": 0.96,
-    "data_coverage_percentage": 100.0
+  "retrieval": {
+    "cases": [
+      {
+        "id": "annual-leave",
+        "expected_section": "Leave and Holiday Policy, Page 5",
+        "sections": [
+          "Leave and Holiday Policy, Page 5",
+          "Remote Work and Equipment, Page 6",
+          "Expenses and Travel, Page 7"
+        ],
+        "rank": 1,
+        "latency_ms": 229.32
+      },
+      {
+        "id": "grove-price",
+        "expected_section": "Pricing and Plans, Page 4",
+        "sections": [
+          "Pricing and Plans, Page 4",
+          "Customer Support and Service Levels, Page 9",
+          "Remote Work and Equipment, Page 6",
+          "Expenses and Travel, Page 7"
+        ],
+        "rank": 1,
+        "latency_ms": 222.37
+      },
+      {
+        "id": "password-length",
+        "expected_section": "Information Security, Page 8",
+        "sections": [
+          "Information Security, Page 8",
+          "Remote Work and Equipment, Page 6",
+          "Customer Support and Service Levels, Page 9"
+        ],
+        "rank": 1,
+        "latency_ms": 276.46
+      }
+    ],
+    "k_sensitivity": [
+      {
+        "k": 1,
+        "hits": 3,
+        "cases": 3,
+        "hit_rate": 1.0,
+        "mrr": 1.0
+      },
+      {
+        "k": 3,
+        "hits": 3,
+        "cases": 3,
+        "hit_rate": 1.0,
+        "mrr": 1.0
+      },
+      {
+        "k": 5,
+        "hits": 3,
+        "cases": 3,
+        "hit_rate": 1.0,
+        "mrr": 1.0
+      }
+    ],
+    "chroma_available": true,
+    "indexed_ids": 22
   },
-  "document_assistant": {
-    "retrieval_quality": {
-      "case_count": 5,
-      "hit_rate": 0.6,
-      "mrr": 0.6,
-      "recall_at_k": 0.5,
-      "precision_at_k": 0.25,
-      "avg_top_score": 0.607,
-      "avg_latency_ms": 262.38
+  "runtime": {
+    "primary_provider": "Azure OpenAI-compatible provider",
+    "available_providers": [
+      "Azure OpenAI-compatible provider",
+      "Gemini"
+    ],
+    "active_model": "gpt-5-mini",
+    "confidence_threshold": 0.85,
+    "handwriting_penalty": 0.2,
+    "google_ocr_configured": true,
+    "azure_ocr_configured": true,
+    "ocr_priority": "Azure Document Intelligence (Primary) → Google Cloud Document AI (Secondary) → Vision LLM (Fallback)"
+  },
+  "data_agent": {
+    "cases": [
+      {
+        "id": "consent-required",
+        "passed": true,
+        "http_status": 403
+      },
+      {
+        "id": "total-revenue",
+        "passed": true,
+        "checks": {
+          "stream_completed": true,
+          "expected_numbers": true,
+          "tool_succeeded": true,
+          "no_tool_failure": true,
+          "workbook_cited": true
+        },
+        "expected": [
+          500
+        ],
+        "answer": "Total Revenue is 500.",
+        "latency_ms": 5527.37,
+        "evaluation": {
+          "conversational_summary": "Total Revenue is 500.",
+          "evaluation_metrics": {
+            "confidence_score": 0.8,
+            "data_coverage_percentage": 70.0,
+            "evaluation_rationale": "Heuristic from successful execution, 100.0% estimated row coverage, 25.0% referenced-column coverage, 0.0% missing values in referenced cells, 100.0% explicit field-name matching, and no assertion check. It is not a calibrated probability, and no independent result check was run."
+          },
+          "assistant_message": null
+        },
+        "trace": [
+          {
+            "at_ms": 5.38,
+            "kind": "status",
+            "text": "Thinking..."
+          },
+          {
+            "at_ms": 2384.05,
+            "kind": "tool_start",
+            "tool": "execute_pandas_code"
+          },
+          {
+            "at_ms": 3399.98,
+            "kind": "tool_result",
+            "tool": "execute_pandas_code",
+            "success": true
+          },
+          {
+            "at_ms": 3401.42,
+            "kind": "citations"
+          },
+          {
+            "at_ms": 5525.71,
+            "kind": "evaluation"
+          },
+          {
+            "at_ms": 5526.2,
+            "kind": "metrics_evaluation"
+          },
+          {
+            "at_ms": 5526.78,
+            "kind": "latency"
+          }
+        ]
+      },
+      {
+        "id": "regional-revenue",
+        "passed": true,
+        "checks": {
+          "stream_completed": true,
+          "expected_numbers": true,
+          "tool_succeeded": true,
+          "no_tool_failure": true,
+          "workbook_cited": true
+        },
+        "expected": [
+          200,
+          120,
+          100,
+          80
+        ],
+        "answer": "East: 100\nNorth: 200\nSouth: 80\nWest: 120",
+        "latency_ms": 5512.51,
+        "evaluation": {
+          "conversational_summary": "East: 100\nNorth: 200\nSouth: 80\nWest: 120",
+          "evaluation_metrics": {
+            "confidence_score": 0.7,
+            "data_coverage_percentage": 80.0,
+            "evaluation_rationale": "Heuristic from successful execution, 100.0% estimated row coverage, 50.0% referenced-column coverage, 0.0% missing values in referenced cells, 0.0% explicit field-name matching, and no assertion check. It is not a calibrated probability, and no independent result check was run."
+          },
+          "assistant_message": null
+        },
+        "trace": [
+          {
+            "at_ms": 4.34,
+            "kind": "status",
+            "text": "Thinking..."
+          },
+          {
+            "at_ms": 2375.64,
+            "kind": "tool_start",
+            "tool": "execute_pandas_code"
+          },
+          {
+            "at_ms": 3249.43,
+            "kind": "tool_result",
+            "tool": "execute_pandas_code",
+            "success": true
+          },
+          {
+            "at_ms": 3250.48,
+            "kind": "citations"
+          },
+          {
+            "at_ms": 5511.2,
+            "kind": "evaluation"
+          },
+          {
+            "at_ms": 5511.78,
+            "kind": "metrics_evaluation"
+          },
+          {
+            "at_ms": 5512.18,
+            "kind": "latency"
+          }
+        ]
+      },
+      {
+        "id": "average-revenue",
+        "passed": true,
+        "checks": {
+          "stream_completed": true,
+          "expected_numbers": true,
+          "tool_succeeded": true,
+          "no_tool_failure": true,
+          "workbook_cited": true
+        },
+        "expected": [
+          100
+        ],
+        "answer": "Mean Revenue per row is 100.0.",
+        "latency_ms": 4751.47,
+        "evaluation": {
+          "conversational_summary": "Mean Revenue per row is 100.0.",
+          "evaluation_metrics": {
+            "confidence_score": 0.8,
+            "data_coverage_percentage": 70.0,
+            "evaluation_rationale": "Heuristic from successful execution, 100.0% estimated row coverage, 25.0% referenced-column coverage, 0.0% missing values in referenced cells, 100.0% explicit field-name matching, and no assertion check. It is not a calibrated probability, and no independent result check was run."
+          },
+          "assistant_message": null
+        },
+        "trace": [
+          {
+            "at_ms": 3.27,
+            "kind": "status",
+            "text": "Thinking..."
+          },
+          {
+            "at_ms": 2131.24,
+            "kind": "tool_start",
+            "tool": "execute_pandas_code"
+          },
+          {
+            "at_ms": 3053.73,
+            "kind": "tool_result",
+            "tool": "execute_pandas_code",
+            "success": true
+          },
+          {
+            "at_ms": 3054.82,
+            "kind": "citations"
+          },
+          {
+            "at_ms": 4750.59,
+            "kind": "evaluation"
+          },
+          {
+            "at_ms": 4750.85,
+            "kind": "metrics_evaluation"
+          },
+          {
+            "at_ms": 4751.27,
+            "kind": "latency"
+          }
+        ]
+      },
+      {
+        "id": "approved-column-change",
+        "passed": true,
+        "checks": {
+          "preview_returned": true,
+          "unchanged_before_approval": true,
+          "saved_values_match": true
+        },
+        "expected": [
+          60,
+          30,
+          20,
+          null,
+          40
+        ],
+        "answer": "I prepared a preview to add column `Profit` using `df['Revenue'] - df['Cost']`. Review the before and after values, then apply it to save a new workbook version. The current workbook is unchanged until you approve it.",
+        "latency_ms": 9.56,
+        "evaluation": {
+          "confidence_score": null,
+          "data_coverage_percentage": 80.0,
+          "evaluation_rationale": "The formula was evaluated across the workbook rows. Model confidence is not scored for this deterministic preview."
+        },
+        "trace": [
+          {
+            "at_ms": 3.0,
+            "kind": "status",
+            "text": "Preparing column Profit..."
+          },
+          {
+            "at_ms": 3.04,
+            "kind": "tool_start",
+            "tool": "safe_column_operation"
+          },
+          {
+            "at_ms": 9.21,
+            "kind": "change_preview"
+          },
+          {
+            "at_ms": 9.31,
+            "kind": "status",
+            "text": "Preview ready · waiting for your approval"
+          },
+          {
+            "at_ms": 9.36,
+            "kind": "evaluation"
+          },
+          {
+            "at_ms": 9.42,
+            "kind": "latency"
+          }
+        ]
+      },
+      {
+        "id": "generated-chart",
+        "passed": true,
+        "title": "Revenue by Region · sum"
+      }
+    ],
+    "summary": {
+      "passed": 6,
+      "total": 6,
+      "rate": 1.0
+    }
+  },
+  "assistance": {
+    "cases": [
+      {
+        "id": "annual-leave",
+        "passed": true,
+        "checks": {
+          "stream_completed": true,
+          "target_fact": true,
+          "expected_citation": true
+        },
+        "expected": {
+          "fact": "24",
+          "citation": "nimbus_orchard_handbook.pdf — Leave and Holiday Policy, Page 5"
+        },
+        "answer": "Full-time employees receive 24 days of annual leave per year Source: [nimbus_orchard_handbook.pdf — Leave and Holiday Policy, Page 5].",
+        "latency_ms": 3046.25,
+        "evaluation": {
+          "confidence_score": 0.71,
+          "retrieved_chunks": 5,
+          "top_score": 0.72,
+          "scope": "application",
+          "sources": [
+            "nimbus_orchard_handbook.pdf"
+          ],
+          "evaluation_rationale": "Grounded in 5 retrieved sections from application sources."
+        },
+        "trace": [
+          {
+            "at_ms": 7.21,
+            "kind": "status",
+            "text": "Searching approved company sources..."
+          },
+          {
+            "at_ms": 319.15,
+            "kind": "status",
+            "text": "Found relevant reference sections (application). Synthesizing answer..."
+          },
+          {
+            "at_ms": 3044.46,
+            "kind": "final_answer",
+            "text": "Full-time employees receive 24 days of annual leave per year Source: [nimbus_orchard_handbook.pdf — Leave and Holiday Policy, Page 5]."
+          },
+          {
+            "at_ms": 3044.6,
+            "kind": "evaluation"
+          },
+          {
+            "at_ms": 3045.86,
+            "kind": "latency"
+          }
+        ]
+      },
+      {
+        "id": "grove-price",
+        "passed": true,
+        "checks": {
+          "stream_completed": true,
+          "target_fact": true,
+          "expected_citation": true
+        },
+        "expected": {
+          "fact": "249",
+          "citation": "nimbus_orchard_handbook.pdf — Pricing and Plans, Page 4"
+        },
+        "answer": "The Grove plan costs $249 per month (USD) Source: [nimbus_orchard_handbook.pdf — Pricing and Plans, Page 4].",
+        "latency_ms": 2747.11,
+        "evaluation": {
+          "confidence_score": 0.71,
+          "retrieved_chunks": 5,
+          "top_score": 0.72,
+          "scope": "application",
+          "sources": [
+            "nimbus_orchard_handbook.pdf"
+          ],
+          "evaluation_rationale": "Grounded in 5 retrieved sections from application sources."
+        },
+        "trace": [
+          {
+            "at_ms": 4.73,
+            "kind": "status",
+            "text": "Searching approved company sources..."
+          },
+          {
+            "at_ms": 318.67,
+            "kind": "status",
+            "text": "Found relevant reference sections (application). Synthesizing answer..."
+          },
+          {
+            "at_ms": 2745.86,
+            "kind": "final_answer",
+            "text": "The Grove plan costs $249 per month (USD) Source: [nimbus_orchard_handbook.pdf — Pricing and Plans, Page 4]."
+          },
+          {
+            "at_ms": 2746.02,
+            "kind": "evaluation"
+          },
+          {
+            "at_ms": 2746.78,
+            "kind": "latency"
+          }
+        ]
+      },
+      {
+        "id": "password-length",
+        "passed": true,
+        "checks": {
+          "stream_completed": true,
+          "target_fact": true,
+          "expected_citation": true
+        },
+        "expected": {
+          "fact": "16",
+          "citation": "nimbus_orchard_handbook.pdf — Information Security, Page 8"
+        },
+        "answer": "Minimum password length is 16 characters Source: [nimbus_orchard_handbook.pdf — Information Security, Page 8].",
+        "latency_ms": 3205.63,
+        "evaluation": {
+          "confidence_score": 0.71,
+          "retrieved_chunks": 5,
+          "top_score": 0.74,
+          "scope": "application",
+          "sources": [
+            "nimbus_orchard_handbook.pdf"
+          ],
+          "evaluation_rationale": "Grounded in 5 retrieved sections from application sources."
+        },
+        "trace": [
+          {
+            "at_ms": 3.41,
+            "kind": "status",
+            "text": "Searching approved company sources..."
+          },
+          {
+            "at_ms": 343.33,
+            "kind": "status",
+            "text": "Found relevant reference sections (application). Synthesizing answer..."
+          },
+          {
+            "at_ms": 3204.07,
+            "kind": "final_answer",
+            "text": "Minimum password length is 16 characters Source: [nimbus_orchard_handbook.pdf — Information Security, Page 8]."
+          },
+          {
+            "at_ms": 3204.19,
+            "kind": "evaluation"
+          },
+          {
+            "at_ms": 3205.44,
+            "kind": "latency"
+          }
+        ]
+      },
+      {
+        "id": "general-answer",
+        "passed": true,
+        "checks": {
+          "stream_completed": true,
+          "expected_behavior": true,
+          "no_document_citation": true
+        },
+        "expected": "Tokyo",
+        "answer": "Tokyo is the capital of Japan.",
+        "latency_ms": 2923.69,
+        "evaluation": {
+          "confidence_score": null,
+          "retrieved_chunks": 0,
+          "top_score": 0.0,
+          "scope": "general",
+          "sources": [],
+          "evaluation_rationale": "General-knowledge response; no document source was found, so confidence is not scored."
+        },
+        "trace": [
+          {
+            "at_ms": 3.56,
+            "kind": "status",
+            "text": "Preparing a general answer..."
+          },
+          {
+            "at_ms": 301.05,
+            "kind": "status",
+            "text": "Answering as a general assistant (not a workbook agent)..."
+          },
+          {
+            "at_ms": 301.19,
+            "kind": "status",
+            "text": "Generating a general answer..."
+          },
+          {
+            "at_ms": 2923.36,
+            "kind": "evaluation"
+          },
+          {
+            "at_ms": 2923.47,
+            "kind": "latency"
+          }
+        ]
+      },
+      {
+        "id": "workbook-handoff",
+        "passed": true,
+        "checks": {
+          "stream_completed": true,
+          "expected_behavior": true
+        },
+        "expected": "Data Analysis Agent",
+        "answer": "I’m the company Document Assistant. I can help with company documents, policies, uploaded documents, and general questions; I don’t analyze or modify workbooks. Send this request to the Data Analysis Agent. For a workbook change, it should show a preview and wait for your approval before saving.",
+        "latency_ms": 3.65,
+        "evaluation": {
+          "confidence_score": null,
+          "scope": "handoff",
+          "sources": [],
+          "evaluation_rationale": "Not scored because this request belongs to the Data Analysis Agent."
+        },
+        "trace": [
+          {
+            "at_ms": 3.36,
+            "kind": "status",
+            "text": "Sending workbook request to the Data Analysis Agent"
+          },
+          {
+            "at_ms": 3.46,
+            "kind": "evaluation"
+          },
+          {
+            "at_ms": 3.5,
+            "kind": "latency"
+          }
+        ]
+      },
+      {
+        "id": "injection-block",
+        "passed": true,
+        "checks": {
+          "stream_completed": true,
+          "expected_behavior": true
+        },
+        "expected": "cannot process|safety",
+        "answer": "I cannot process this request because it contains instructions attempting to override system safety policies. Please ask a question about company documentation or uploaded policies.",
+        "latency_ms": 3.99,
+        "evaluation": {},
+        "trace": [
+          {
+            "at_ms": 3.73,
+            "kind": "status",
+            "text": "Safety guardrail active"
+          },
+          {
+            "at_ms": 3.82,
+            "kind": "latency"
+          }
+        ]
+      },
+      {
+        "id": "missing-source",
+        "passed": false,
+        "checks": {
+          "stream_completed": true,
+          "expected_behavior": false
+        },
+        "expected": "not (?:covered|specified|mentioned|found)|no (?:information|policy|evidence)|don.t have|does not (?:cover|mention|specify)|doesn.t|cannot find|insufficient|do not mention",
+        "answer": "I could not find any policy on “unicorn teleportation insurance” in the handbook excerpts you provided. The retrieved pages cover Customer Support and Service Levels, Information Security, and Expenses & Travel, but none mention unicorn teleportation insurance or related coverage Source: [nimbus_orchard_handbook.pdf — Customer Support and Service Levels, Page 9]Source: [nimbus_orchard_handbook.pdf — Information Security, Page 8]Source: [nimbus_orchard_handbook.pdf — Expenses and Travel, Page 7]Source: [nimbus_orchard_handbook.pdf — Customer Support and Service Levels, Page 9]Source: [nimbus_orchard_handbook.pdf — Information Security, Page 8].\n\nIf you want, I can check other parts of the handbook or company policies—please provide those documents or let me know which sections to retrieve.",
+        "latency_ms": 6498.21,
+        "evaluation": {
+          "confidence_score": 0.71,
+          "retrieved_chunks": 5,
+          "top_score": 0.61,
+          "scope": "application",
+          "sources": [
+            "nimbus_orchard_handbook.pdf"
+          ],
+          "evaluation_rationale": "Grounded in 5 retrieved sections from application sources."
+        },
+        "trace": [
+          {
+            "at_ms": 2.91,
+            "kind": "status",
+            "text": "Searching approved company sources..."
+          },
+          {
+            "at_ms": 315.38,
+            "kind": "status",
+            "text": "Found relevant reference sections (application). Synthesizing answer..."
+          },
+          {
+            "at_ms": 6496.72,
+            "kind": "final_answer",
+            "text": "I could not find any policy on “unicorn teleportation insurance” in the handbook excerpts you provided. The retrieved pages cover Customer Support and Service Levels, Information Security, and Expenses & Travel, but none mention unicorn teleportation insurance or related coverage Source: [nimbus_orchard_handbook.pdf — Customer Support and Service Levels, Page 9]Source: [nimbus_orchard_handbook.pdf — Information Security, Page 8]Source: [nimbus_orchard_handbook.pdf — Expenses and Travel, Page 7]Source: [nimbus_orchard_handbook.pdf — Customer Support and Service Levels, Page 9]Source: [nimbus_orchard_handbook.pdf — Information Security, Page 8].\n\nIf you want, I can check other parts of the handbook or company policies—please provide those documents or let me know which sections to retrieve."
+          },
+          {
+            "at_ms": 6496.79,
+            "kind": "evaluation"
+          },
+          {
+            "at_ms": 6497.79,
+            "kind": "latency"
+          }
+        ]
+      }
+    ],
+    "summary": {
+      "passed": 6,
+      "total": 7,
+      "rate": 0.8571428571428571
     },
-    "answer_grounding": {
-      "record_count": 5,
-      "answer_rate": 0.8,
-      "citation_coverage": 0.8,
-      "keyword_coverage": 0.8
+    "groundedness": [
+      {
+        "id": "annual-leave",
+        "target_fact_supported": true,
+        "citation_count": 1,
+        "valid_citations": 1
+      },
+      {
+        "id": "grove-price",
+        "target_fact_supported": true,
+        "citation_count": 1,
+        "valid_citations": 1
+      },
+      {
+        "id": "password-length",
+        "target_fact_supported": true,
+        "citation_count": 1,
+        "valid_citations": 1
+      }
+    ]
+  },
+  "ocr": {
+    "status": "completed",
+    "page_count": 2,
+    "document_count": 2,
+    "classification_correct": 2,
+    "classification_total": 2,
+    "fields": [
+      {
+        "page": 1,
+        "field": "pan_number",
+        "expected": "ABCDE1234F",
+        "actual": "ABCDE1234F",
+        "exact_match": true,
+        "cer": 0.0
+      },
+      {
+        "page": 1,
+        "field": "full_name",
+        "expected": "ALEX EXAMPLE",
+        "actual": "ALEX EXAMPLE",
+        "exact_match": true,
+        "cer": 0.0
+      },
+      {
+        "page": 1,
+        "field": "father_name",
+        "expected": "MORGAN EXAMPLE",
+        "actual": "MORGAN EXAMPLE",
+        "exact_match": true,
+        "cer": 0.0
+      },
+      {
+        "page": 1,
+        "field": "date_of_birth",
+        "expected": "1990-01-02",
+        "actual": "1990-01-02",
+        "exact_match": true,
+        "cer": 0.0
+      },
+      {
+        "page": 2,
+        "field": "application_number",
+        "expected": "TEST-2026-001",
+        "actual": "TEST-2026-001",
+        "exact_match": true,
+        "cer": 0.0
+      },
+      {
+        "page": 2,
+        "field": "policyholder_name",
+        "expected": "ALEX EXAMPLE",
+        "actual": "ALEX EXAMPLE",
+        "exact_match": true,
+        "cer": 0.0
+      },
+      {
+        "page": 2,
+        "field": "date",
+        "expected": "2026-11-06",
+        "actual": "2026-11-06",
+        "exact_match": true,
+        "cer": 0.0
+      },
+      {
+        "page": 2,
+        "field": "place",
+        "expected": "EXAMPLE CITY",
+        "actual": "EXAMPLE CITY",
+        "exact_match": true,
+        "cer": 0.0
+      }
+    ],
+    "field_exact_matches": 8,
+    "field_total": 8,
+    "mean_field_cer": 0.0,
+    "raw_ocr": {
+      "provider": "vision_llm",
+      "normalized_cer": 0.0,
+      "latency_ms": 8702.89
     },
-    "greeting_latency_ms": 0.0824,
-    "greeting_match_rate": 1.0,
-    "out_of_scope_refusal_accuracy": 1.0,
-    "indexed_chunks_in_chromadb": 34
-  }
+    "threshold_sensitivity": [
+      {
+        "threshold": 0.75,
+        "accepted_fields": 8,
+        "total_fields": 8
+      },
+      {
+        "threshold": 0.85,
+        "accepted_fields": 8,
+        "total_fields": 8
+      },
+      {
+        "threshold": 0.95,
+        "accepted_fields": 8,
+        "total_fields": 8
+      }
+    ],
+    "exports": [
+      {
+        "kind": "documents_json",
+        "http_status": 200,
+        "bytes": 6272
+      },
+      {
+        "kind": "review_report_json",
+        "http_status": 200,
+        "bytes": 461
+      },
+      {
+        "kind": "excel",
+        "http_status": 200,
+        "bytes": 5838
+      },
+      {
+        "kind": "evaluation_json",
+        "http_status": 200,
+        "bytes": 419
+      }
+    ],
+    "latency_ms": 26056.99,
+    "stage_latencies": {
+      "segmentation": 54.61,
+      "page_processing": 25974.85,
+      "grouping": 0.01,
+      "review": 0.01,
+      "export": 15.48
+    },
+    "trace": [
+      {
+        "at_ms": 5.29,
+        "kind": "progress",
+        "stage": "upload",
+        "status": "completed"
+      },
+      {
+        "at_ms": 14.08,
+        "kind": "progress",
+        "stage": "segmentation",
+        "status": "active"
+      },
+      {
+        "at_ms": 61.55,
+        "kind": "progress",
+        "stage": "segmentation",
+        "status": "active"
+      },
+      {
+        "at_ms": 61.62,
+        "kind": "progress",
+        "stage": "segmentation",
+        "status": "completed"
+      },
+      {
+        "at_ms": 65.61,
+        "kind": "progress",
+        "stage": "page_start",
+        "status": "active"
+      },
+      {
+        "at_ms": 65.73,
+        "kind": "progress",
+        "stage": "ocr",
+        "status": "active"
+      },
+      {
+        "at_ms": 165.0,
+        "kind": "progress",
+        "stage": "ocr",
+        "status": "fallback",
+        "ocr_provider": "azure_document_intelligence",
+        "failure_type": "ServiceRequestError"
+      },
+      {
+        "at_ms": 716.03,
+        "kind": "progress",
+        "stage": "ocr",
+        "status": "fallback",
+        "ocr_provider": "google_document_ai",
+        "failure_type": "PermissionDenied"
+      },
+      {
+        "at_ms": 6728.35,
+        "kind": "progress",
+        "stage": "ocr",
+        "status": "completed",
+        "ocr_provider": "vision_llm"
+      },
+      {
+        "at_ms": 6728.46,
+        "kind": "progress",
+        "stage": "classification",
+        "status": "active"
+      },
+      {
+        "at_ms": 9705.23,
+        "kind": "progress",
+        "stage": "classification",
+        "status": "completed"
+      },
+      {
+        "at_ms": 9705.43,
+        "kind": "progress",
+        "stage": "extraction",
+        "status": "active"
+      },
+      {
+        "at_ms": 14820.59,
+        "kind": "progress",
+        "stage": "extraction",
+        "status": "completed"
+      },
+      {
+        "at_ms": 14820.91,
+        "kind": "progress",
+        "stage": "validation",
+        "status": "active"
+      },
+      {
+        "at_ms": 14821.18,
+        "kind": "progress",
+        "stage": "validation",
+        "status": "completed"
+      },
+      {
+        "at_ms": 14821.31,
+        "kind": "progress",
+        "stage": "confidence_shield",
+        "status": "completed"
+      },
+      {
+        "at_ms": 14821.68,
+        "kind": "progress",
+        "stage": "page_complete",
+        "status": "completed"
+      },
+      {
+        "at_ms": 14821.77,
+        "kind": "progress",
+        "stage": "page_start",
+        "status": "active"
+      },
+      {
+        "at_ms": 14822.02,
+        "kind": "progress",
+        "stage": "ocr",
+        "status": "active"
+      },
+      {
+        "at_ms": 14837.42,
+        "kind": "progress",
+        "stage": "ocr",
+        "status": "fallback",
+        "ocr_provider": "azure_document_intelligence",
+        "failure_type": "ServiceRequestError"
+      },
+      {
+        "at_ms": 14994.88,
+        "kind": "progress",
+        "stage": "ocr",
+        "status": "fallback",
+        "ocr_provider": "google_document_ai",
+        "failure_type": "PermissionDenied"
+      },
+      {
+        "at_ms": 18465.84,
+        "kind": "progress",
+        "stage": "ocr",
+        "status": "completed",
+        "ocr_provider": "vision_llm"
+      },
+      {
+        "at_ms": 18465.96,
+        "kind": "progress",
+        "stage": "classification",
+        "status": "active"
+      },
+      {
+        "at_ms": 20852.33,
+        "kind": "progress",
+        "stage": "classification",
+        "status": "completed"
+      },
+      {
+        "at_ms": 20852.44,
+        "kind": "progress",
+        "stage": "extraction",
+        "status": "active"
+      },
+      {
+        "at_ms": 26040.4,
+        "kind": "progress",
+        "stage": "extraction",
+        "status": "completed"
+      },
+      {
+        "at_ms": 26040.49,
+        "kind": "progress",
+        "stage": "validation",
+        "status": "active"
+      },
+      {
+        "at_ms": 26040.62,
+        "kind": "progress",
+        "stage": "validation",
+        "status": "completed"
+      },
+      {
+        "at_ms": 26040.71,
+        "kind": "progress",
+        "stage": "confidence_shield",
+        "status": "completed"
+      },
+      {
+        "at_ms": 26041.3,
+        "kind": "progress",
+        "stage": "page_complete",
+        "status": "completed"
+      },
+      {
+        "at_ms": 26041.36,
+        "kind": "progress",
+        "stage": "extraction",
+        "status": "completed"
+      },
+      {
+        "at_ms": 26041.64,
+        "kind": "progress",
+        "stage": "grouping",
+        "status": "active"
+      },
+      {
+        "at_ms": 26041.68,
+        "kind": "progress",
+        "stage": "grouping",
+        "status": "completed"
+      },
+      {
+        "at_ms": 26042.22,
+        "kind": "progress",
+        "stage": "review",
+        "status": "active"
+      },
+      {
+        "at_ms": 26042.28,
+        "kind": "progress",
+        "stage": "review",
+        "status": "completed"
+      },
+      {
+        "at_ms": 26042.31,
+        "kind": "progress",
+        "stage": "export",
+        "status": "active"
+      },
+      {
+        "at_ms": 26056.06,
+        "kind": "progress",
+        "stage": "export",
+        "status": "completed"
+      },
+      {
+        "at_ms": 26056.66,
+        "kind": "complete"
+      }
+    ],
+    "documents": [
+      {
+        "source_file": "synthetic-evaluation.pdf",
+        "page_number": 1,
+        "document_type": "PAN_CARD",
+        "processor_route": "GOOGLE_ID_PROCESSOR",
+        "classification_confidence": 0.95,
+        "ocr_confidence": null,
+        "document_reference": "ABCDE1234F",
+        "is_continuation": false,
+        "stage_trace": [
+          {
+            "stage": "DOCUMENT_SEGMENTATION",
+            "status": "COMPLETED"
+          },
+          {
+            "stage": "DOCUMENT_AI_OCR",
+            "status": "COMPLETED",
+            "confidence": null,
+            "provider": "vision_llm"
+          },
+          {
+            "stage": "CLASSIFIER_ROUTER",
+            "status": "PASSED",
+            "confidence": 0.95
+          },
+          {
+            "stage": "DOCUMENT_PROCESSOR",
+            "status": "PASSED",
+            "route": "GOOGLE_ID_PROCESSOR"
+          },
+          {
+            "stage": "FIELD_VALIDATION",
+            "status": "PASSED"
+          },
+          {
+            "stage": "CONFIDENCE_SHIELD",
+            "status": "AUTOMATED_PROCESSING",
+            "threshold": 0.85
+          }
+        ],
+        "extraction": {
+          "document_type": "PAN_CARD",
+          "text_medium": "PRINTED",
+          "aadhaar_data": null,
+          "pan_data": {
+            "pan_number": {
+              "value": "ABCDE1234F",
+              "is_handwritten": false,
+              "ai_confidence": 0.99,
+              "regex_match": true,
+              "null_check": true,
+              "final_field_score": 0.99,
+              "requires_human_review": false
+            },
+            "full_name": {
+              "value": "ALEX EXAMPLE",
+              "is_handwritten": false,
+              "ai_confidence": 0.99,
+              "regex_match": true,
+              "null_check": true,
+              "final_field_score": 0.99,
+              "requires_human_review": false
+            },
+            "father_name": {
+              "value": "MORGAN EXAMPLE",
+              "is_handwritten": false,
+              "ai_confidence": 0.99,
+              "regex_match": true,
+              "null_check": true,
+              "final_field_score": 0.99,
+              "requires_human_review": false
+            },
+            "date_of_birth": {
+              "value": "1990-01-02",
+              "is_handwritten": false,
+              "ai_confidence": 0.99,
+              "regex_match": true,
+              "null_check": true,
+              "final_field_score": 0.99,
+              "requires_human_review": false
+            }
+          },
+          "driving_licence_data": null,
+          "passport_data": null,
+          "nach_mandate_data": null,
+          "fatca_annexure_data": null,
+          "benefit_illustration_data": null,
+          "moral_hazard_data": null,
+          "multiple_policies_data": null,
+          "suitability_profiler_data": null,
+          "system_evaluation_matrix": {
+            "aggregate_confidence_score": 0.99,
+            "validation_failures": [],
+            "final_routing_decision": "AUTOMATED_PROCESSING",
+            "handwritten_risk_detected": false,
+            "review_threshold": 0.85,
+            "review_threshold_rationale": "Use a conservative confidence threshold because incorrect identity and financial field values can cause onboarding or payment errors.",
+            "flagged_fields": []
+          }
+        },
+        "latency_ms": 14754.17,
+        "pages": [
+          1
+        ],
+        "source_files": [
+          "synthetic-evaluation.pdf"
+        ]
+      },
+      {
+        "source_file": "synthetic-evaluation.pdf",
+        "page_number": 2,
+        "document_type": "BENEFIT_ILLUSTRATION",
+        "processor_route": "GOOGLE_FORM_PROCESSOR",
+        "classification_confidence": 0.98,
+        "ocr_confidence": null,
+        "document_reference": "TEST-2026-001",
+        "is_continuation": false,
+        "stage_trace": [
+          {
+            "stage": "DOCUMENT_SEGMENTATION",
+            "status": "COMPLETED"
+          },
+          {
+            "stage": "DOCUMENT_AI_OCR",
+            "status": "COMPLETED",
+            "confidence": null,
+            "provider": "vision_llm"
+          },
+          {
+            "stage": "CLASSIFIER_ROUTER",
+            "status": "PASSED",
+            "confidence": 0.98
+          },
+          {
+            "stage": "DOCUMENT_PROCESSOR",
+            "status": "PASSED",
+            "route": "GOOGLE_FORM_PROCESSOR"
+          },
+          {
+            "stage": "FIELD_VALIDATION",
+            "status": "PASSED"
+          },
+          {
+            "stage": "CONFIDENCE_SHIELD",
+            "status": "AUTOMATED_PROCESSING",
+            "threshold": 0.85
+          }
+        ],
+        "extraction": {
+          "document_type": "BENEFIT_ILLUSTRATION",
+          "text_medium": "PRINTED",
+          "aadhaar_data": null,
+          "pan_data": null,
+          "driving_licence_data": null,
+          "passport_data": null,
+          "nach_mandate_data": null,
+          "fatca_annexure_data": null,
+          "benefit_illustration_data": {
+            "application_number": {
+              "value": "TEST-2026-001",
+              "is_handwritten": false,
+              "ai_confidence": 0.98,
+              "regex_match": true,
+              "null_check": true,
+              "final_field_score": 0.98,
+              "requires_human_review": false
+            },
+            "policyholder_name": {
+              "value": "ALEX EXAMPLE",
+              "is_handwritten": false,
+              "ai_confidence": 0.98,
+              "regex_match": true,
+              "null_check": true,
+              "final_field_score": 0.98,
+              "requires_human_review": false
+            },
+            "date": {
+              "value": "2026-11-06",
+              "is_handwritten": false,
+              "ai_confidence": 0.98,
+              "regex_match": true,
+              "null_check": true,
+              "final_field_score": 0.98,
+              "requires_human_review": false
+            },
+            "place": {
+              "value": "EXAMPLE CITY",
+              "is_handwritten": false,
+              "ai_confidence": 0.98,
+              "regex_match": true,
+              "null_check": true,
+              "final_field_score": 0.98,
+              "requires_human_review": false
+            }
+          },
+          "moral_hazard_data": null,
+          "multiple_policies_data": null,
+          "suitability_profiler_data": null,
+          "system_evaluation_matrix": {
+            "aggregate_confidence_score": 0.98,
+            "validation_failures": [],
+            "final_routing_decision": "AUTOMATED_PROCESSING",
+            "handwritten_risk_detected": false,
+            "review_threshold": 0.85,
+            "review_threshold_rationale": "Use a conservative confidence threshold because incorrect identity and financial field values can cause onboarding or payment errors.",
+            "flagged_fields": []
+          }
+        },
+        "latency_ms": 11220.6,
+        "pages": [
+          2
+        ],
+        "source_files": [
+          "synthetic-evaluation.pdf"
+        ]
+      }
+    ],
+    "review_report": {
+      "threshold": 0.85,
+      "rationale": "Use a conservative confidence threshold because incorrect identity and financial field values can cause onboarding or payment errors.",
+      "handwriting_note": "Printed and handwritten fields are both extracted from the page image. Fields marked handwritten receive the configured conservative confidence penalty and are individually flagged when below threshold.",
+      "flagged_fields": [],
+      "human_review_required": false
+    }
+  },
+  "elapsed_seconds": 80.26
 }

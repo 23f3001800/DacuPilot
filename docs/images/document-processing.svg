@@ -1,74 +1,48 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800" role="img" aria-labelledby="title desc">
-  <title id="title">Document Intelligence extraction, confidence shield, and evaluation flow</title>
-  <desc id="desc">Consented PDF and image uploads are segmented, processed through a multi-tier OCR hierarchy (Azure DI primary, Google DocAI secondary, Vision LLM fallback), classified, extracted via schema, confidence-gated with evaluation matrices, and exported to JSON and Excel.</desc>
-  <defs>
-    <filter id="shadow" x="-15%" y="-15%" width="130%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#302b20" flood-opacity=".16"/></filter>
-    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#292929"/></marker>
-    <marker id="arrow-dash" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#414141"/></marker>
-    <style>
-      text{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;fill:#202124}
-      .title{font-size:26px;font-weight:750}.group{font-size:16px;font-weight:750}.head{font-size:14px;font-weight:700}.body{font-size:12px}.sub{font-size:11px;fill:#4b4b4b}
-      .zone{stroke:#555;stroke-width:1.4;stroke-dasharray:3 4}.card{stroke:#292929;stroke-width:1.2;filter:url(#shadow)}.arrow{fill:none;stroke:#292929;stroke-width:1.7;marker-end:url(#arrow)}.dash{fill:none;stroke:#414141;stroke-width:1.6;stroke-dasharray:7 6;marker-end:url(#arrow-dash)}
-    </style>
-  </defs>
-  <rect width="1280" height="800" fill="#fffefa"/>
-  <text class="title" x="640" y="40" text-anchor="middle">Document Intelligence — Extraction, Confidence Shield &amp; Evaluation Pipeline</text>
-  <text class="sub" x="640" y="63" text-anchor="middle">Consent-Gated Page Processing · Primary Azure / Secondary Google OCR · 85% Confidence Gate · 3 Evaluation Matrices</text>
-
-  <!-- Upload & Page Preparation -->
-  <rect class="zone" x="44" y="98" width="1192" height="190" rx="23" fill="#fff2c9"/>
-  <text class="group" x="640" y="128" text-anchor="middle">Upload &amp; Page Preparation</text>
-  <rect class="card" x="76" y="158" width="211" height="98" rx="13" fill="#ffc13d"/>
-  <text class="head" x="181" y="186" text-anchor="middle">Upload &amp; Consent</text><text class="body" x="181" y="208" text-anchor="middle">PDF · JPEG · PNG · WebP</text><text class="sub" x="181" y="228" text-anchor="middle">Explicit consent required</text><text class="sub" x="181" y="244" text-anchor="middle">Privacy boundary enforcement</text>
-  <rect class="card" x="368" y="158" width="211" height="98" rx="13" fill="#ffc13d"/>
-  <text class="head" x="473" y="186" text-anchor="middle">Validation &amp; Bounds</text><text class="body" x="473" y="208" text-anchor="middle">File size &amp; page counts</text><text class="sub" x="473" y="228" text-anchor="middle">Input constraint verification</text><text class="sub" x="473" y="244" text-anchor="middle">Reject corrupt documents</text>
-  <rect class="card" x="660" y="158" width="211" height="98" rx="13" fill="#ffc13d"/>
-  <text class="head" x="765" y="186" text-anchor="middle">Page Segmentation</text><text class="body" x="765" y="208" text-anchor="middle">Isolated page rendering</text><text class="sub" x="765" y="228" text-anchor="middle">Preserve source &amp; page index</text><text class="sub" x="765" y="244" text-anchor="middle">Prepares clean OCR inputs</text>
-  <rect class="card" x="952" y="158" width="211" height="98" rx="13" fill="#ffc13d"/>
-  <text class="head" x="1057" y="186" text-anchor="middle">SSE Stream Initialization</text><text class="body" x="1057" y="208" text-anchor="middle">Live progress events</text><text class="sub" x="1057" y="228" text-anchor="middle">Stage latency monitoring</text><text class="sub" x="1057" y="244" text-anchor="middle">X-Process-Time-Ms tracking</text>
-  <path class="arrow" d="M287 207H360"/><path class="arrow" d="M579 207H652"/><path class="arrow" d="M871 207H944"/>
-
-  <!-- OCR Service Hierarchy -->
-  <rect class="zone" x="44" y="326" width="265" height="340" rx="23" fill="#e1edfb"/>
-  <text class="group" x="176" y="356" text-anchor="middle">OCR Service Hierarchy</text>
-  <rect class="card" x="68" y="386" width="217" height="74" rx="12" fill="#91bee9"/>
-  <text class="head" x="176" y="412" text-anchor="middle">1. Azure DI (Primary)</text><text class="body" x="176" y="432" text-anchor="middle">Layout model OCR</text><text class="sub" x="176" y="448" text-anchor="middle">Word-level confidence</text>
-  <rect class="card" x="68" y="480" width="217" height="74" rx="12" fill="#91bee9"/>
-  <text class="head" x="176" y="506" text-anchor="middle">2. Google DocAI (Secondary)</text><text class="body" x="176" y="526" text-anchor="middle">Document AI Processor</text><text class="sub" x="176" y="542" text-anchor="middle">Automated failover</text>
-  <rect class="card" x="68" y="574" width="217" height="74" rx="12" fill="#91bee9"/>
-  <text class="head" x="176" y="600" text-anchor="middle">3. Vision LLM (Fallback)</text><text class="body" x="176" y="620" text-anchor="middle">Multimodal model fallback</text><text class="sub" x="176" y="636" text-anchor="middle">Zero-outage guarantee</text>
-  <path class="arrow" d="M176 460V475"/><path class="arrow" d="M176 554V569"/>
-
-  <!-- Classification & Extraction -->
-  <rect class="zone" x="339" y="326" width="348" height="340" rx="23" fill="#e1edfb"/>
-  <text class="group" x="513" y="356" text-anchor="middle">Classification &amp; Schema Extraction</text>
-  <rect class="card" x="365" y="386" width="296" height="98" rx="12" fill="#91bee9"/>
-  <text class="head" x="513" y="414" text-anchor="middle">Classifier Router</text><text class="body" x="513" y="436" text-anchor="middle">Layout anchors &amp; text medium analysis</text><text class="sub" x="513" y="456" text-anchor="middle">Identifies 10 schemas or UNKNOWN</text><text class="sub" x="513" y="472" text-anchor="middle">Continuation stitching across pages</text>
-  <rect class="card" x="365" y="514" width="296" height="120" rx="12" fill="#91bee9"/>
-  <text class="head" x="513" y="542" text-anchor="middle">Schema-Guided Extraction</text><text class="body" x="513" y="564" text-anchor="middle">Identity &amp; Insurance Form Processors</text><text class="sub" x="513" y="584" text-anchor="middle">Field-level value, handwriting flag &amp; score</text><text class="sub" x="513" y="602" text-anchor="middle">Handwriting penalty (0.20) applied</text><text class="sub" x="513" y="620" text-anchor="middle">Strict type validation</text>
-  <path class="arrow" d="M513 484V508"/>
-
-  <!-- Evaluation & Confidence Shield -->
-  <rect class="zone" x="717" y="326" width="280" height="340" rx="23" fill="#eef4e5"/>
-  <text class="group" x="857" y="356" text-anchor="middle">Shield &amp; Evaluation Matrices</text>
-  <rect class="card" x="741" y="386" width="232" height="106" rx="12" fill="#d8e8c7"/>
-  <text class="head" x="857" y="414" text-anchor="middle">Confidence Shield Gate</text><text class="body" x="857" y="436" text-anchor="middle">Threshold >= 0.85 pass rate</text><text class="sub" x="857" y="456" text-anchor="middle">Handwriting risk adjustment</text><text class="sub" x="857" y="474" text-anchor="middle">Uncertain fields require review</text>
-  <rect class="card" x="741" y="514" width="232" height="120" rx="12" fill="#d8e8c7"/>
-  <text class="head" x="857" y="542" text-anchor="middle">3 Evaluation Matrices</text><text class="body" x="857" y="564" text-anchor="middle">📊 Pipeline Quality Matrix</text><text class="body" x="857" y="582" text-anchor="middle">⚡ Throughput Matrix</text><text class="body" x="857" y="600" text-anchor="middle">🚦 Routing Decision Matrix</text><text class="sub" x="857" y="620" text-anchor="middle">Automated vs Human Review</text>
-  <path class="arrow" d="M857 492V508"/>
-
-  <!-- Results & Review Ledger -->
-  <rect class="zone" x="1027" y="326" width="209" height="340" rx="23" fill="#f9e1dc"/>
-  <text class="group" x="1131" y="356" text-anchor="middle">Review &amp; Artifacts</text>
-  <rect class="card" x="1049" y="386" width="165" height="106" rx="12" fill="#ead8f4"/>
-  <text class="head" x="1131" y="414" text-anchor="middle">Review Ledger</text><text class="body" x="1131" y="436" text-anchor="middle">Flagged field items</text><text class="sub" x="1131" y="456" text-anchor="middle">Uncertain data highlighted</text><text class="sub" x="1131" y="474" text-anchor="middle">Zero-silent error guarantee</text>
-  <rect class="card" x="1049" y="514" width="165" height="120" rx="12" fill="#ead8f4"/>
-  <text class="head" x="1131" y="542" text-anchor="middle">Job Artifacts</text><text class="body" x="1131" y="564" text-anchor="middle">documents.json</text><text class="body" x="1131" y="582" text-anchor="middle">documents.xlsx</text><text class="body" x="1131" y="600" text-anchor="middle">review_report.json</text><text class="sub" x="1131" y="620" text-anchor="middle">evaluation.json</text>
-
-  <path class="dash" d="M1057 256V300H176V378"/>
-  <path class="arrow" d="M285 435H357"/><path class="arrow" d="M661 435H733"/><path class="arrow" d="M973 435H1041"/>
-  <path class="arrow" d="M857 634V680H1131V638"/>
-
-  <text class="sub" x="640" y="726" text-anchor="middle">Confidence scores are review signals, not proof of authenticity. Flagged documents require human sign-off.</text>
-  <text class="sub" x="640" y="748" text-anchor="middle">OCR Engines: Azure Document Intelligence (Primary) · Google Document AI (Secondary) · Vision LLM (Fallback)</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 650" role="img" aria-labelledby="title desc">
+<title id="title">Document OCR and extraction pipeline</title><desc id="desc">Provider fallback is recorded separately from classification and field accuracy</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="#64748b"/></marker></defs>
+<style>text{font-family:Arial,sans-serif;fill:#17243b}.title{font-size:28px;font-weight:700}.subtitle{font-size:16px;fill:#526278}.head{font-size:18px;font-weight:700}.body{font-size:15px;fill:#40516a}.line{fill:none;stroke:#64748b;stroke-width:2;marker-end:url(#arrow)}</style>
+<rect width="1200" height="650" rx="16" fill="#f5f7fb"/>
+<text x="36" y="48" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#17243b">Document OCR and extraction pipeline</text><text x="36" y="77" font-family="Arial, sans-serif" font-size="16" fill="#526278">Provider fallback is recorded separately from classification and field accuracy</text>
+<path fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" d="M386 170H417"/>
+<path fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" d="M775 170H806"/>
+<path fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" d="M989 229V302"/>
+<path fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" d="M814 382H783"/>
+<path fill="none" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" d="M425 382H394"/>
+<rect x="36" y="110" width="350" height="119" rx="12" fill="white" stroke="#d6dfec"/><rect x="36" y="122" width="4" height="95" rx="2" fill="#3759cc"/>
+<text x="56" y="142" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#17243b">1 · Intake and consent</text>
+<text x="56" y="171" font-family="Arial, sans-serif" font-size="15" fill="#40516a">PDF / JPEG / PNG / WebP</text>
+<text x="56" y="196" font-family="Arial, sans-serif" font-size="15" fill="#40516a">20 files · 20 MB each</text>
+<text x="56" y="221" font-family="Arial, sans-serif" font-size="15" fill="#40516a">Up to 50 pages per PDF</text>
+<rect x="425" y="110" width="350" height="119" rx="12" fill="white" stroke="#d6dfec"/><rect x="425" y="122" width="4" height="95" rx="2" fill="#1b8b68"/>
+<text x="445" y="142" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#17243b">2 · Segment pages</text>
+<text x="445" y="171" font-family="Arial, sans-serif" font-size="15" fill="#40516a">Render PDF pages at 1.5× scale</text>
+<text x="445" y="196" font-family="Arial, sans-serif" font-size="15" fill="#40516a">Keep source file and page number</text>
+<text x="445" y="221" font-family="Arial, sans-serif" font-size="15" fill="#40516a">Process pages sequentially</text>
+<rect x="814" y="110" width="350" height="119" rx="12" fill="white" stroke="#d6dfec"/><rect x="814" y="122" width="4" height="95" rx="2" fill="#7c51c9"/>
+<text x="834" y="142" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#17243b">3 · Recognize text</text>
+<text x="834" y="171" font-family="Arial, sans-serif" font-size="15" fill="#40516a">Azure Document Intelligence</text>
+<text x="834" y="196" font-family="Arial, sans-serif" font-size="15" fill="#40516a">↓ on failure Google Document AI</text>
+<text x="834" y="221" font-family="Arial, sans-serif" font-size="15" fill="#40516a">↓ on failure vision model OCR</text>
+<rect x="814" y="310" width="350" height="146" rx="12" fill="white" stroke="#d6dfec"/><rect x="814" y="322" width="4" height="122" rx="2" fill="#3759cc"/>
+<text x="834" y="342" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#17243b">4 · Classify and extract</text>
+<text x="834" y="371" font-family="Arial, sans-serif" font-size="15" fill="#40516a">LLM classification from OCR text</text>
+<text x="834" y="396" font-family="Arial, sans-serif" font-size="15" fill="#40516a">Ten supported document schemas</text>
+<text x="834" y="421" font-family="Arial, sans-serif" font-size="15" fill="#40516a">Identity / form extraction route</text>
+<text x="834" y="446" font-family="Arial, sans-serif" font-size="15" fill="#40516a">Preserve OCR provider in traces</text>
+<rect x="425" y="310" width="350" height="146" rx="12" fill="white" stroke="#d6dfec"/><rect x="425" y="322" width="4" height="122" rx="2" fill="#1b8b68"/>
+<text x="445" y="342" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#17243b">5 · Validate and review</text>
+<text x="445" y="371" font-family="Arial, sans-serif" font-size="15" fill="#40516a">Required fields and format checks</text>
+<text x="445" y="396" font-family="Arial, sans-serif" font-size="15" fill="#40516a">Field score minus handwriting penalty</text>
+<text x="445" y="421" font-family="Arial, sans-serif" font-size="15" fill="#40516a">0.85 field review threshold</text>
+<text x="445" y="446" font-family="Arial, sans-serif" font-size="15" fill="#40516a">Flag uncertain or missing values</text>
+<rect x="36" y="310" width="350" height="146" rx="12" fill="white" stroke="#d6dfec"/><rect x="36" y="322" width="4" height="122" rx="2" fill="#3759cc"/>
+<text x="56" y="342" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#17243b">6 · Group and export</text>
+<text x="56" y="371" font-family="Arial, sans-serif" font-size="15" fill="#40516a">Group document continuation pages</text>
+<text x="56" y="396" font-family="Arial, sans-serif" font-size="15" fill="#40516a">Documents JSON and Excel</text>
+<text x="56" y="421" font-family="Arial, sans-serif" font-size="15" fill="#40516a">Review report and evaluation JSON</text>
+<text x="56" y="446" font-family="Arial, sans-serif" font-size="15" fill="#40516a">SSE completion + download links</text>
+<rect x="36" y="535" width="1128" height="85" rx="12" fill="white" stroke="#d6dfec"/><rect x="36" y="547" width="4" height="61" rx="2" fill="#7c51c9"/>
+<text x="56" y="567" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#17243b">Evaluation with labeled references</text>
+<text x="56" y="596" font-family="Arial, sans-serif" font-size="15" fill="#40516a">Classification exact match · field exact match · character error rate · routing · exports · measured stage latency</text>
 </svg>
