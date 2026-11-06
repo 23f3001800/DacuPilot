@@ -65,6 +65,13 @@ class RankedEvidence:
     rerank_score: float = 0.0
 
 
+@dataclass(frozen=True)
+class RetrievalSettings:
+    chunk_size: int = 1200
+    overlap: int = 180
+    min_score: float = 0.15
+
+
 def _tokens(text: str) -> list[str]:
     tokens = []
     for token in re.findall(r"[a-z0-9]+", text.casefold()):
@@ -92,11 +99,12 @@ def _chunks_from_sections(
     authority: str,
     session_id: str = "",
     document_id: str = "",
+    settings: RetrievalSettings = RetrievalSettings(),
 ) -> list[Evidence]:
     evidence = []
     for section in sections:
         page = getattr(section, "page", "")
-        for index, text in enumerate(split_text(section.text)):
+        for index, text in enumerate(split_text(section.text, settings.chunk_size, settings.overlap)):
             chunk_id = f"{document_id or section.source}:{section.section}:{index}"
             evidence.append(
                 Evidence(
@@ -175,7 +183,8 @@ class SessionDocumentStore:
 class ChromaEvidenceStore:
     """ChromaDB semantic vector index storing Chunk IDs, Vectors, and Document Metadata."""
 
-    def __init__(self) -> None:
+    def __init__(self, collection_name: str = "docupilot_knowledge_base") -> None:
+        self.collection_name = collection_name
         self._collection = None
         self._indexed_ids: set[str] = set()
         self._lock = threading.RLock()
@@ -190,7 +199,7 @@ class ChromaEvidenceStore:
                     from chromadb.config import Settings
                     client = chromadb.Client(Settings(anonymized_telemetry=False, is_persistent=False))
                     self._collection = client.get_or_create_collection(
-                        name="docupilot_knowledge_base",
+                        name=self.collection_name,
                         metadata={"hnsw:space": "cosine"},
                     )
                 except Exception as err:
@@ -348,8 +357,12 @@ def retrieve_evidence(
     user_store: SessionDocumentStore,
     limit: int = 5,
     last_scope: str = "",
+    *,
+    settings: RetrievalSettings = RetrievalSettings(),
+    evidence_store: ChromaEvidenceStore | None = None,
 ) -> tuple[KnowledgeScope, list[RankedEvidence]]:
     """Pure semantic similarity retrieval using ChromaDB vector search and cosine similarity."""
+    store = evidence_store if evidence_store is not None else CHROMA_STORE
     scope = route_query(
         question,
         user_store=user_store,
@@ -363,6 +376,7 @@ def retrieve_evidence(
                 application_sections,
                 source_type="application_kb",
                 authority="authoritative_application_knowledge",
+                settings=settings,
             )
         )
     if scope in {"user", "mixed"}:
@@ -372,11 +386,11 @@ def retrieve_evidence(
         return scope, []
 
     # 1. Index candidates into ChromaDB vector store
-    CHROMA_STORE.index(candidates)
+    store.index(candidates)
 
     # 2. Query ChromaDB semantic vector index
     chroma_where = {"session_id": session_id} if scope == "user" else None
-    chroma_scores = CHROMA_STORE.query(
+    chroma_scores = store.query(
         question,
         limit=min(limit * 3, len(candidates)),
         where=chroma_where,
@@ -397,7 +411,7 @@ def retrieve_evidence(
         else:
             sim_score = 0.0
 
-        if sim_score >= 0.15:
+        if sim_score >= settings.min_score:
             scored_candidates.append(
                 RankedEvidence(
                     evidence=item,
